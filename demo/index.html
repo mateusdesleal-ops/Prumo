@@ -474,6 +474,7 @@ const defaultState=()=>({v:1,
  pet:{owned:{},equip:{head:null,face:null,neck:null},seenLost:[]},
  learn:{read:{},quiz:{}},
  missionDays:{},
+ quotes:{items:{},cfg:{},tpl:{},seq:0},
  activity:{},checkins:{}});
 let S=defaultState();
 const PFIN={}; // finanças pessoais: id do doc -> dados
@@ -1839,10 +1840,10 @@ function viewPig(){
 
 /* ---------- Finanças ---------- */
 function viewFin(){
- const sub=[["mes","Mês"],["cartoes","Cartões"],["plano","Plano"],["fixos","Fixos"],["dividas","Dívidas"],["comprar","Posso comprar?"],["aprender","Aprender"]];
+ const sub=[["mes","Mês"],["cartoes","Cartões"],["plano","Plano"],["fixos","Fixos"],["dividas","Dívidas"],["comprar","Posso comprar?"],["orc","Orçamentos"],["aprender","Aprender"]];
  return `<div class="stack"><h1 style="margin-top:4px">Finanças</h1>
  <div class="subtabs" role="tablist">${sub.map(([id,n])=>`<button class="${UI.fin===id?"on":""}" data-act="fin" data-v="${id}">${n}</button>`).join("")}</div>
- ${{mes:finMonth,cartoes:finCards,plano:finPlan,fixos:finFixos,dividas:finDebts,comprar:finBuy,aprender:finLearn}[UI.fin]()}</div>`}
+ ${{mes:finMonth,cartoes:finCards,plano:finPlan,fixos:finFixos,dividas:finDebts,comprar:finBuy,orc:finQuotes,aprender:finLearn}[UI.fin]()}</div>`}
 function scopeBanner(){if(finScope()!=="h")return"";const ms=HH&&HH.members?Object.entries(HH.members).filter(([,v])=>v):[];
  const nm=ms.map(([id,m])=>id===ME.uid?"você":esc(m.nick||"parceiro")).join(" e ");
  return `<div class="banner info">${I.people.replace('<svg','<svg width="20" height="20" style="flex:none"')}<span>Finanças compartilhadas entre ${nm||"vocês"}. Os dois veem e lançam tudo aqui.</span></div>
@@ -2720,6 +2721,206 @@ Object.assign(A,{
 
 
 /* ============================================================
+   Orçamentos: cálculo e desenho (usado no app e na página do cliente)
+   ============================================================ */
+const qEsc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const qBRL=n=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(+n||0);
+function qTotals(q){const items=(q.items||[]).filter(i=>i&&(i.d||+i.v));const sub=items.reduce((s,i)=>s+(+i.q||0)*(+i.v||0),0);const disc=Math.min(sub,+q.discount||0);return{items,sub,disc,total:Math.max(0,sub-disc)}}
+function qDateBR(s){if(!s)return"";const [y,m,d]=String(s).slice(0,10).split("-");return `${d}/${m}/${y}`}
+function qValidUntil(q){if(!q.validity||!q.created)return null;const d=new Date(String(q.created).slice(0,10)+"T12:00:00");d.setDate(d.getDate()+(+q.validity||0));return d.toISOString().slice(0,10)}
+function qNum(q){return String(q.num||0).padStart(4,"0")}
+function qNormKey(type,key){key=String(key||"").trim();if(type==="cpf"||type==="cnpj")return key.replace(/\D/g,"");if(type==="telefone"){const d=key.replace(/\D/g,"");return key.startsWith("+")?"+"+d:"+55"+d.replace(/^55(?=\d{10,11}$)/,"")}if(type==="email")return key.toLowerCase();return key}
+function qPixPayload(key,name,city,amount,txid){const norm=t=>String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"");const f=(id,v)=>id+String(v.length).padStart(2,"0")+v;const clean=(t,n,dflt)=>norm(t).toUpperCase().replace(/[^A-Z0-9 ]/g,"").trim().slice(0,n)||dflt;
+ const acc=f("00","BR.GOV.BCB.PIX")+f("01",key);
+ const body=f("00","01")+f("26",acc)+f("52","0000")+f("53","986")+(amount>0?f("54",amount.toFixed(2)):"")+f("58","BR")+f("59",clean(name,25,"RECEBEDOR"))+f("60",clean(city,15,"BRASIL"))+f("62",f("05",(txid||"***").replace(/[^A-Za-z0-9]/g,"").slice(0,25)||"***"))+"6304";
+ let c=0xFFFF;for(let i=0;i<body.length;i++){c^=body.charCodeAt(i)<<8;for(let j=0;j<8;j++)c=(c&0x8000)?((c<<1)^0x1021)&0xFFFF:(c<<1)&0xFFFF}
+ return body+c.toString(16).toUpperCase().padStart(4,"0")}
+const Q_UNITS=["un","h","sessão","serviço","m","m²","kg","dia","mês","pacote"];
+const Q_PIXT=[["cpf","CPF"],["cnpj","CNPJ"],["email","E-mail"],["telefone","Telefone"],["aleatoria","Chave aleatória"]];
+function qWaLink(num,text){const d=String(num||"").replace(/\D/g,"");const n=d?(d.length<=11?"55"+d:d):"";return `https://wa.me/${n}${text?"?text="+encodeURIComponent(text):""}`}
+/* desenho do orçamento: o mesmo no app (prévia) e na página do cliente */
+function qDocHTML(q,cfg,o){o=o||{};cfg=cfg||{};const sh=Object.assign({logo:true,phone:false,address:false,wa:true,validity:true,pix:true},cfg.show||{});
+ const col=cfg.color||"#2F5D57";const t=qTotals(q);const vu=qValidUntil(q);const pixOn=sh.pix&&q.showPix!==false&&cfg.pixKey;const waOn=sh.wa&&q.showWa!==false&&cfg.wa;
+ const row=(l,r,b)=>`<div style="display:flex;justify-content:space-between;gap:12px;${b?"font-weight:700;font-size:18px":"color:#5b5b5b"}"><span>${l}</span><span style="white-space:nowrap">${r}</span></div>`;
+ return `<div style="font-family:Figtree,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1f2328;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e6e6e6;max-width:640px;margin:0 auto;text-align:left">
+ <div style="background:${col};color:#fff;padding:18px 20px;display:flex;gap:14px;align-items:center">
+  ${sh.logo&&cfg.logo?`<img src="${cfg.logo}" alt="" style="width:64px;height:64px;object-fit:contain;background:#fff;border-radius:12px;padding:4px;flex:none">`:""}
+  <div style="min-width:0"><div style="font-size:19px;font-weight:700;line-height:1.2">${qEsc(cfg.name||"Seu negócio")}</div>
+  <div style="font-size:12.5px;opacity:.9;line-height:1.5">${[cfg.doc?"CPF/CNPJ "+qEsc(cfg.doc):"",sh.phone&&cfg.phone?qEsc(cfg.phone):"",sh.address&&cfg.address?qEsc(cfg.address):""].filter(Boolean).join(" · ")}</div></div></div>
+ <div style="padding:18px 20px;display:flex;flex-direction:column;gap:14px">
+  <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><div style="font-size:12px;color:#777;text-transform:uppercase;letter-spacing:.06em;font-weight:700">Orçamento nº ${qNum(q)}</div><div style="font-size:17px;font-weight:700">${qEsc((q.client||{}).name||"Cliente")}</div>${(q.client||{}).phone?`<div style="font-size:13px;color:#666">${qEsc(q.client.phone)}</div>`:""}</div>
+  <div style="text-align:right;font-size:13px;color:#555">Emitido em ${qDateBR(q.created)}${sh.validity&&vu?`<br>Válido até <b>${qDateBR(vu)}</b>`:""}</div></div>
+  <div style="border:1px solid #eee;border-radius:12px;overflow:hidden">${t.items.map((i,k)=>`<div style="padding:10px 12px;${k?"border-top:1px solid #f0f0f0":""}"><div style="font-weight:600">${qEsc(i.d||"Item")}</div><div style="display:flex;justify-content:space-between;font-size:13px;color:#666;margin-top:2px"><span>${(+i.q||0).toLocaleString("pt-BR")} ${qEsc(i.u||"un")} × ${qBRL(i.v)}</span><b style="color:#1f2328">${qBRL((+i.q||0)*(+i.v||0))}</b></div></div>`).join("")||`<div style="padding:12px;color:#888">Nenhum item.</div>`}</div>
+  <div style="display:flex;flex-direction:column;gap:4px">${t.disc?row("Subtotal",qBRL(t.sub))+row("Desconto","− "+qBRL(t.disc)):""}<div style="background:${col};color:#fff;border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span>Total</span><b style="font-size:22px">${qBRL(t.total)}</b></div></div>
+  ${q.notes?`<div style="font-size:14px;color:#444;white-space:pre-wrap;background:#f7f7f7;border-radius:12px;padding:10px 12px">${qEsc(q.notes)}</div>`:""}
+  ${pixOn?`<div style="border:1px dashed ${col};border-radius:12px;padding:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">${o.qrSvg?`<div style="width:120px;height:120px;flex:none">${o.qrSvg}</div>`:""}<div style="min-width:0;flex:1"><div style="font-weight:700">Pagamento por PIX</div><div style="font-size:13px;color:#555">Chave (${qEsc((Q_PIXT.find(x=>x[0]===cfg.pixType)||[,"PIX"])[1])}): <b style="overflow-wrap:anywhere">${qEsc(cfg.pixKey)}</b></div>${o.pixButtons||""}</div></div>`:""}
+  ${o.actions||""}
+  ${waOn?`<a href="${qWaLink(cfg.wa,`Olá! Sobre o orçamento nº ${qNum(q)}`)}" target="_blank" rel="noopener" style="display:flex;justify-content:center;gap:8px;align-items:center;background:#25D366;color:#fff;text-decoration:none;font-weight:700;border-radius:12px;padding:12px">Falar no WhatsApp</a>`:""}
+  <div style="text-align:center;font-size:11px;color:#999">Orçamento feito com o Prumo: Vida em ordem</div>
+ </div></div>`}
+
+/* ============================================================
+   Orçamentos (Finanças > Orçamentos)
+   ============================================================ */
+function QS(){S.quotes=S.quotes||{};S.quotes.items=S.quotes.items||{};S.quotes.cfg=S.quotes.cfg||{};S.quotes.tpl=S.quotes.tpl||{};S.quotes.seq=S.quotes.seq||0;return S.quotes}
+const qList=()=>Object.values(QS().items).filter(Boolean).sort((a,b)=>(b.created||"").localeCompare(a.created||"")||(b.num||0)-(a.num||0));
+const Q_ST={rascunho:{n:"Rascunho",k:"info"},pendente:{n:"Pendente",k:"warn"},aprovado:{n:"Aprovado",k:"good"},recusado:{n:"Recusado",k:"bad"}};
+const qCanLink=()=>typeof qPublish==="function"&&typeof SB_ON!=="undefined"&&SB_ON&&Store.cloud&&!Store.demo;
+function qNewDraft(items){const c=QS().cfg;return{id:null,client:{name:"",phone:""},items:items?clone(items):[{d:"",q:1,u:"un",v:0}],discount:0,validity:+c.validity||7,notes:"",showPix:(c.show||{}).pix!==false&&!!c.pixKey,showWa:(c.show||{}).wa!==false&&!!c.wa}}
+function qDraft(){if(!UI.qd)UI.qd=qNewDraft();return UI.qd}
+function finQuotes(){const t=UI.qtab||"novo";const tabs=[["novo","Novo"],["hist","Histórico"],["cfg","Config"],["tpl","Modelos"]];
+ if(t==="hist"&&typeof qSync==="function"&&!UI.qSynced){UI.qSynced=1;setTimeout(qSync,0)}
+ return `<div class="chips">${tabs.map(([id,n])=>`<button class="chip ${t===id?"on":""}" data-act="qTab" data-v="${id}">${n}</button>`).join("")}</div>
+ ${{novo:qViewNew,hist:qViewHist,cfg:qViewCfg,tpl:qViewTpl}[t]()}`}
+/* ---------- Novo orçamento ---------- */
+function qViewNew(){const q=qDraft();const t=qTotals(q);const c=QS().cfg;
+ const it=(i,k)=>`<div class="card flat stack-s"><div class="row between"><span class="tiny muted" style="font-weight:700">Item ${k+1}</span>${q.items.length>1?`<button class="btn ghost sm" data-act="qDelItem" data-v="${k}" aria-label="Remover item">${I.trash.replace('<svg','<svg width="16" height="16"')}</button>`:""}</div>
+  <input data-qi="${k}" data-qk="d" value="${esc(i.d||"")}" placeholder="Descrição do serviço ou produto">
+  <div style="display:grid;grid-template-columns:70px 100px 1fr;gap:8px"><label class="field"><span>Qtd</span><input data-qi="${k}" data-qk="q" inputmode="decimal" value="${String(i.q??1).replace(".",",")}"></label><label class="field"><span>Unidade</span><select data-qi="${k}" data-qk="u">${[...new Set([...Q_UNITS,i.u||"un"])].map(u=>`<option ${u===(i.u||"un")?"selected":""}>${esc(u)}</option>`).join("")}</select></label><label class="field"><span>Valor unitário</span><input data-qi="${k}" data-qk="v" inputmode="decimal" value="${+i.v?String(i.v).replace(".",","):""}" placeholder="R$ 0,00"></label></div>
+  <div class="row between small"><span class="muted">Subtotal</span><b class="num" id="q_sub_${k}">${brl((+i.q||0)*(+i.v||0))}</b></div></div>`;
+ return `${!c.name?`<div class="banner info"><span class="small">Primeiro, coloque o nome do seu negócio, sua logo e seu PIX em <b>Config</b>. Eles aparecem em todos os orçamentos.</span><button class="btn ghost sm" data-act="qTab" data-v="cfg" style="flex:none">Config</button></div>`:""}
+ ${q.id?`<div class="banner warn"><span class="small">Editando o orçamento nº ${qNum(q)}.</span><button class="btn ghost sm" data-act="qNew" style="flex:none">Novo</button></div>`:""}
+ <div class="card stack"><h3>Cliente</h3><label class="field"><span>Nome do cliente *</span><input data-qf="client.name" value="${esc(q.client.name)}" placeholder="Ex.: Maria Silva"></label><label class="field"><span>Telefone / WhatsApp (opcional)</span><input data-qf="client.phone" inputmode="tel" value="${esc(q.client.phone)}" placeholder="Ex.: (44) 99999-9999"></label></div>
+ <div class="card stack"><div class="row between"><h3>Serviços e produtos</h3><button class="btn ghost sm" data-act="qSaveTpl">Salvar como modelo</button></div>
+  ${Object.keys(QS().tpl).length?`<div class="chips">${Object.values(QS().tpl).map(m=>`<button class="chip" data-act="qUseTpl" data-v="${m.id}">+ ${esc(m.name)}</button>`).join("")}</div>`:""}
+  ${q.items.map(it).join("")}<button class="btn line" data-act="qAddItem">${I.plus.replace('<svg','<svg width="16" height="16"')} Adicionar item</button></div>
+ <div class="card row between" style="background:${c.color||"var(--money)"};color:#fff;border:0"><span>Total do orçamento</span><b class="num" style="font-size:24px" id="q_total">${brl(t.total)}</b></div>
+ <div class="card stack"><h3>Opções</h3><div class="grid2"><label class="field"><span>Validade (dias)</span><input data-qf="validity" type="number" inputmode="numeric" min="0" value="${q.validity||""}"></label><label class="field"><span>Desconto (R$)</span><input data-qf="discount" inputmode="decimal" value="${+q.discount?String(q.discount).replace(".",","):""}" placeholder="0,00"></label></div>
+  <label class="field"><span>Observações (opcional)</span><textarea data-qf="notes" rows="3" placeholder="Prazo de entrega, forma de pagamento, garantia...">${esc(q.notes||"")}</textarea></label>
+  <label class="check"><input type="checkbox" data-qf="showPix" ${q.showPix?"checked":""} ${c.pixKey?"":"disabled"}><span>Mostrar meu PIX${c.pixKey?"":' <span class="tiny muted">(cadastre em Config)</span>'}</span></label>
+  <label class="check"><input type="checkbox" data-qf="showWa" ${q.showWa?"checked":""} ${c.wa?"":"disabled"}><span>Mostrar botão de WhatsApp${c.wa?"":' <span class="tiny muted">(cadastre em Config)</span>'}</span></label></div>
+ <div class="grid2"><button class="btn line" data-act="qPreview">Ver prévia</button><button class="btn" data-act="qSave">Salvar e enviar</button></div>`}
+function qInput(el){const q=qDraft();if(el.dataset.qi!=null){const i=q.items[+el.dataset.qi];const k=el.dataset.qk;i[k]=(k==="q"||k==="v")?parseMoney(el.value):el.value;const s=$("#q_sub_"+el.dataset.qi);if(s)s.textContent=brl((+i.q||0)*(+i.v||0))}
+ else if(el.dataset.qf){const f=el.dataset.qf;const val=el.type==="checkbox"?el.checked:f==="discount"?parseMoney(el.value):f==="validity"?(parseInt(el.value)||0):el.value;if(f.startsWith("client."))q.client[f.slice(7)]=val;else q[f]=val}
+ const tt=$("#q_total");if(tt)tt.textContent=brl(qTotals(q).total)}
+document.addEventListener("input",ev=>{const el=ev.target;if(el&&el.dataset&&(el.dataset.qi!=null||el.dataset.qf))qInput(el)});
+document.addEventListener("change",ev=>{const el=ev.target;if(el&&el.dataset&&(el.dataset.qi!=null||el.dataset.qf)&&(el.tagName==="SELECT"||el.type==="checkbox"))qInput(el)});
+/* ---------- Histórico ---------- */
+function qInRange(q){const f=UI.qf||"tudo";const d=(q.created||"").slice(0,10);if(f==="hoje")return d===today();if(f==="ontem")return d===addDays(today(),-1);if(f==="periodo"){const a=UI.qFrom||addDays(today(),-30),b=UI.qTo||today();return d>=a&&d<=b}return true}
+function qViewHist(){const all=qList();const s=(UI.qs||"").trim().toLowerCase();const stf=UI.qst||"todos";
+ const inR=all.filter(qInRange);const list=inR.filter(q=>(!s||String((q.client||{}).name).toLowerCase().includes(s))&&(stf==="todos"||q.status===stf));
+ const ap=inR.filter(q=>q.status==="aprovado"),pe=inR.filter(q=>q.status==="pendente");
+ return `<div class="card stack"><div class="chips">${[["tudo","Tudo"],["hoje","Hoje"],["ontem","Ontem"],["periodo","Período"]].map(([id,n])=>`<button class="chip ${(UI.qf||"tudo")===id?"on":""}" data-act="qFilter" data-v="${id}">${n}</button>`).join("")}</div>
+  ${UI.qf==="periodo"?`<div class="grid2"><label class="field"><span>De</span><input type="date" id="qFrom" value="${UI.qFrom||addDays(today(),-30)}"></label><label class="field"><span>Até</span><input type="date" id="qTo" value="${UI.qTo||today()}"></label></div>`:""}
+  <div class="grid3"><div class="card flat stack-s" style="padding:10px;background:color-mix(in srgb,var(--good) 12%,var(--surface))"><span class="tiny" style="color:var(--good);font-weight:700">APROVADOS</span><b class="num" style="font-size:20px">${ap.length}</b></div><div class="card flat stack-s" style="padding:10px;background:color-mix(in srgb,var(--good) 12%,var(--surface))"><span class="tiny" style="color:var(--good);font-weight:700">VALOR APROVADO</span><b class="num">${brl0(ap.reduce((a,q)=>a+qTotals(q).total,0))}</b></div><div class="card flat stack-s" style="padding:10px;background:color-mix(in srgb,var(--warn) 14%,var(--surface))"><span class="tiny" style="color:var(--warn);font-weight:700">PENDENTE</span><b class="num">${brl0(pe.reduce((a,q)=>a+qTotals(q).total,0))}</b></div></div></div>
+ <div class="row" style="gap:8px"><input id="qSearch" placeholder="Buscar cliente..." value="${esc(UI.qs||"")}"><select id="qStF" style="width:132px;flex:none">${[["todos","Todos"],["pendente","Pendentes"],["aprovado","Aprovados"],["recusado","Recusados"]].map(([k,n])=>`<option value="${k}" ${stf===k?"selected":""}>${n}</option>`).join("")}</select></div>
+ ${list.length?list.map(qHistItem).join(""):`<div class="card empty">${all.length?"Nenhum orçamento encontrado com esses filtros.":"Nenhum orçamento ainda. Crie o primeiro em Novo."}</div>`}`}
+function qHistItem(q){const t=qTotals(q);const st=Q_ST[q.status]||Q_ST.pendente;const open=UI.qOpen===q.id;const vu=qValidUntil(q);const expired=q.status==="pendente"&&vu&&vu<today();
+ return `<div class="card stack-s"><div class="row" style="gap:10px"><button class="row grow" style="border:0;background:none;padding:0;text-align:left;gap:10px;min-width:0" data-act="qToggle" data-v="${q.id}"><span class="ico" style="background:var(--surface2);color:var(--muted)">${I.book.replace('<svg','<svg width="18" height="18"')}</span><span class="grow stack-s" style="gap:1px;min-width:0"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc((q.client||{}).name||"Cliente")}</b><span class="tiny muted">nº ${qNum(q)} · ${qDateBR(q.created)} · ${t.items.length} ${t.items.length===1?"item":"itens"} · <b class="num" style="color:var(--ink)">${brl(t.total)}</b></span></span></button>
+  <span class="pill ${expired?"bad":st.k}">${expired?"Vencido":st.n}</span><button class="iconbtn" style="width:34px;height:34px" data-act="qMenu" data-v="${q.id}" aria-label="Opções"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button></div>
+  ${q.status==="aprovado"&&q.approvedName?`<span class="tiny" style="color:var(--good)">Aprovado por ${esc(q.approvedName)}${q.approvedAt?" em "+qDateBR(q.approvedAt):""}${q.pubId?" pelo link":""}</span>`:""}
+  ${q.status==="aprovado"&&!q.incomeId?`<button class="btn money sm" data-act="qIncome" data-v="${q.id}" style="align-self:flex-start">Lançar ${brl(t.total)} como renda</button>`:""}
+  ${open?`<div class="stack-s" style="border-top:1px solid var(--line);padding-top:8px">${t.items.map(i=>`<div class="row between small"><span>${esc(i.d||"Item")} <span class="tiny muted">${(+i.q||0).toLocaleString("pt-BR")} ${esc(i.u||"")}</span></span><b class="num">${brl((+i.q||0)*(+i.v||0))}</b></div>`).join("")}${t.disc?`<div class="row between small"><span class="muted">Desconto</span><b class="num">− ${brl(t.disc)}</b></div>`:""}<div class="row wrap" style="gap:6px;margin-top:4px"><button class="btn sm" data-act="qSend" data-v="${q.id}">Enviar</button><button class="btn line sm" data-act="qEdit" data-v="${q.id}">Editar</button><button class="btn ghost sm" data-act="qDup" data-v="${q.id}">Duplicar</button></div></div>`:""}</div>`}
+/* ---------- Config ---------- */
+function qViewCfg(){const c=QS().cfg;const sh=Object.assign({logo:true,phone:false,address:false,wa:true,validity:true,pix:true},c.show||{});const col=c.color||"#2F5D57";
+ const COLS=["#2F5D57","#1A73E8","#7C3AED","#C0392B","#E06A1B","#2E9D4F","#3E8AB0","#6366F1","#111111","#D9577E"];
+ return `<div class="card stack"><h3>Logo</h3><p class="tiny muted">Aparece no topo do orçamento e do PDF.</p><div class="row" style="gap:12px"><div style="width:72px;height:72px;border:1.5px dashed var(--line);border-radius:14px;display:grid;place-items:center;overflow:hidden;background:#fff;flex:none">${c.logo?`<img src="${c.logo}" alt="Logo" style="width:100%;height:100%;object-fit:contain">`:'<span class="tiny muted">sem logo</span>'}</div>
+  <div class="stack-s"><label class="btn sm" style="cursor:pointer">${c.logo?"Trocar logo":"Enviar logo"}<input type="file" id="qLogoFile" accept="image/*" style="display:none"></label>${c.logo?`<button class="btn ghost sm" data-act="qLogoDel">Remover</button>`:""}</div></div></div>
+ <div class="card stack"><h3>Dados do seu negócio</h3>
+  <label class="field"><span>Nome do negócio ou profissional</span><input id="qc_name" value="${esc(c.name||"")}" placeholder="Ex.: CriaMente Studio 3D"></label>
+  <label class="field"><span>CPF ou CNPJ (opcional)</span><input id="qc_doc" value="${esc(c.doc||"")}" placeholder="000.000.000-00"></label>
+  <div class="grid2"><label class="field"><span>Telefone</span><input id="qc_phone" inputmode="tel" value="${esc(c.phone||"")}" placeholder="(44) 3333-3333"></label><label class="field"><span>WhatsApp</span><input id="qc_wa" inputmode="tel" value="${esc(c.wa||"")}" placeholder="(44) 99999-9999"></label></div>
+  <label class="field"><span>Endereço</span><input id="qc_address" value="${esc(c.address||"")}" placeholder="Rua, número, bairro, cidade"></label>
+  <label class="field"><span>Cidade (usada no PIX)</span><input id="qc_city" value="${esc(c.city||"")}" placeholder="Ex.: Campo Mourão"></label></div>
+ <div class="card stack"><h3>Cor do orçamento</h3><div class="row wrap" style="gap:8px">${COLS.map(x=>`<button type="button" data-act="qColor" data-v="${x}" aria-label="Cor ${x}" style="width:36px;height:36px;border-radius:50%;background:${x};border:3px solid ${x===col?"var(--ink)":"transparent"}"></button>`).join("")}<input type="color" id="qc_color" value="${col}" style="width:44px;height:36px;padding:0;border-radius:10px" aria-label="Cor personalizada"></div>
+  <div id="qColorPrev" style="background:${col};color:#fff;border-radius:12px;padding:12px 14px"><b>Prévia do cabeçalho</b><br><span class="small">Seu orçamento terá esta cor</span></div></div>
+ <div class="card stack"><h3>Sua chave PIX</h3><div class="grid2"><label class="field"><span>Tipo</span><select id="qc_pixType">${Q_PIXT.map(([k,n])=>`<option value="${k}" ${(c.pixType||"cpf")===k?"selected":""}>${n}</option>`).join("")}</select></label><label class="field"><span>Chave</span><input id="qc_pixKey" value="${esc(c.pixKey||"")}"></label></div>
+  <label class="field"><span>Nome de quem recebe (como no banco)</span><input id="qc_pixName" value="${esc(c.pixName||"")}" placeholder="Ex.: Mateus Leal"></label><p class="tiny muted">Com isso, o cliente recebe também um PIX copia e cola e um QR Code já com o valor do orçamento.</p></div>
+ <div class="card stack"><h3>Mostrar no orçamento</h3>${[["logo","Logo"],["phone","Telefone"],["address","Endereço"],["wa","Botão de WhatsApp"],["validity","Validade"],["pix","PIX"]].map(([k,n])=>`<label class="check" style="justify-content:space-between"><span>${n}</span><input type="checkbox" class="qShow" data-k="${k}" ${sh[k]?"checked":""}></label>`).join("")}
+  <label class="field"><span>Validade padrão (dias)</span><input id="qc_validity" type="number" inputmode="numeric" min="0" value="${c.validity||7}"></label></div>
+ <button class="btn block" data-act="qSaveCfg">Salvar configurações</button>`}
+/* ---------- Modelos ---------- */
+function qViewTpl(){const ts=Object.values(QS().tpl).filter(Boolean);
+ return `<div class="card stack"><p class="small muted">Modelos guardam itens que você usa sempre, como "Sessão de 50 minutos" ou "Impressão 3D por hora". Para criar, monte os itens em Novo e toque em <b>Salvar como modelo</b>.</p></div>
+ ${ts.length?ts.map(m=>{const sub=(m.items||[]).reduce((s,i)=>s+(+i.q||0)*(+i.v||0),0);return `<div class="card stack-s"><div class="row between"><b>${esc(m.name)}</b><b class="num">${brl(sub)}</b></div><span class="tiny muted">${(m.items||[]).map(i=>esc(i.d)).join(" · ")}</span><div class="row" style="gap:6px"><button class="btn sm" data-act="qUseTpl" data-v="${m.id}">Usar</button><button class="btn danger sm" data-act="qDelTpl" data-v="${m.id}">Apagar</button></div></div>`}).join(""):`<div class="card empty">Nenhum modelo ainda.</div>`}`}
+/* ---------- Prévia, envio e PDF ---------- */
+function qCfgFor(){return QS().cfg}
+function qPreviewModal(q,title){openModal(title||"Prévia do orçamento",`<div class="stack"><div style="margin-inline:-6px">${qDocHTML(q,qCfgFor())}</div><p class="tiny muted" style="text-align:center">É assim que o cliente vai ver.</p></div>`)}
+function qSendModal(id){const q=QS().items[id];if(!q)return;const t=qTotals(q);const link=qCanLink();
+ openModal(`Enviar orçamento nº ${qNum(q)}`,`<div class="stack"><p class="small">${esc(q.client.name)} · <b>${brl(t.total)}</b></p>
+ ${link?`<button class="btn block" data-act="qLink" data-v="${id}" style="background:#25D366">Enviar link pelo WhatsApp</button><p class="tiny muted" style="margin-top:-6px">O cliente abre uma página com o orçamento e pode aprovar com um toque. O status muda sozinho aqui.</p><button class="btn line block" data-act="qCopyLink" data-v="${id}">Copiar link</button>`
+  :`<div class="banner info"><span class="small">${Store.demo?"Na demonstração o link não é enviado. O PDF funciona normalmente.":"Para enviar por link, entre com sua conta do Prumo."}</span></div>`}
+ <button class="btn line block" data-act="qPdf" data-v="${id}">Enviar PDF</button><p class="tiny muted" style="margin-top:-6px">No celular, abre a tela de compartilhar para você escolher o WhatsApp. No computador, o PDF é baixado.</p>
+ <button class="btn ghost block" data-act="qView" data-v="${id}">Ver o orçamento</button></div>`)}
+function loadScriptOnce(src){return new Promise((res,rej)=>{if(document.querySelector(`script[src="${src}"]`)){const t=setInterval(()=>{if(window.PDFLib||window.qrcode){clearInterval(t);res()}},50);setTimeout(()=>{clearInterval(t);res()},4000);return}const s=document.createElement("script");s.src=src;s.onload=()=>res();s.onerror=()=>rej(new Error("Sem internet para gerar o arquivo."));document.head.appendChild(s)})}
+async function qQR(text){try{if(!window.qrcode)await loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js");const qr=window.qrcode(0,"M");qr.addData(text);qr.make();return qr}catch(e){return null}}
+function qPixFor(q){const c=qCfgFor();const sh=Object.assign({pix:true},c.show||{});if(!sh.pix||q.showPix===false||!c.pixKey)return null;return qPixPayload(qNormKey(c.pixType,c.pixKey),c.pixName||c.name,c.city,qTotals(q).total,"ORC"+qNum(q))}
+async function qBuildPdf(q){if(!window.PDFLib)await loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js");if(!window.PDFLib)throw new Error("Sem internet para gerar o arquivo.");
+ const {PDFDocument,StandardFonts,rgb}=window.PDFLib;const pdf=await PDFDocument.create();const F=await pdf.embedFont(StandardFonts.Helvetica),FB=await pdf.embedFont(StandardFonts.HelveticaBold);
+ const c=qCfgFor();const sh=Object.assign({logo:true,phone:false,address:false,wa:true,validity:true,pix:true},c.show||{});const col=c.color||"#2F5D57";const C=rgb(...[1,3,5].map(i=>parseInt(col.slice(i,i+2),16)/255));const t=qTotals(q);
+ const W=595.28,H=841.89,M=42;let page=pdf.addPage([W,H]);let y=0;const g=v=>rgb(v/255,v/255,v/255),WHITE=rgb(1,1,1),INK=g(30);
+ const safe=s=>String(s??"").replace(/[−–—]/g,"-").replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/…/g,"...").replace(/[^\x0A\x20-\x7E\xA0-\xFF]/g,"");
+ const txt=(s,x,yy,o)=>{o=o||{};const f=o.b?FB:F,sz=o.s||10;s=safe(s);let xx=x;if(o.r)xx=x-f.widthOfTextAtSize(s,sz);if(o.cx)xx=x-f.widthOfTextAtSize(s,sz)/2;page.drawText(s,{x:xx,y:H-yy,size:sz,font:f,color:o.c||INK})};
+ const wrap=(s,sz,maxW,f)=>{f=f||F;const out=[];safe(s).split("\n").forEach(par=>{let line="";par.split(" ").forEach(w=>{const tr=line?line+" "+w:w;if(f.widthOfTextAtSize(tr,sz)>maxW&&line){out.push(line);line=w}else line=tr});out.push(line)});return out};
+ const newPage=()=>{page=pdf.addPage([W,H]);y=50};
+ page.drawRectangle({x:0,y:H-96,width:W,height:96,color:C});let tx=M;
+ if(sh.logo&&c.logo){try{const bytes=Uint8Array.from(atob(c.logo.split(",")[1]),ch=>ch.charCodeAt(0));const img=c.logo.includes("image/png")?await pdf.embedPng(bytes):await pdf.embedJpg(bytes);page.drawRectangle({x:M,y:H-82,width:66,height:66,color:WHITE});const sc=Math.min(58/img.width,58/img.height);page.drawImage(img,{x:M+4+(58-img.width*sc)/2,y:H-78+(58-img.height*sc)/2,width:img.width*sc,height:img.height*sc});tx=M+80}catch(e){}}
+ txt(c.name||"Seu negocio",tx,44,{b:1,s:17,c:WHITE});
+ const sub=[c.doc?"CPF/CNPJ "+c.doc:"",sh.phone&&c.phone?c.phone:"",sh.wa&&c.wa?"WhatsApp "+c.wa:"",sh.address&&c.address?c.address:""].filter(Boolean).join("  ·  ");wrap(sub,9,W-tx-M).slice(0,3).forEach((l,i)=>txt(l,tx,60+i*12,{s:9,c:WHITE}));
+ y=126;const vu=qValidUntil(q);txt(`ORÇAMENTO Nº ${qNum(q)}`,M,y,{b:1,s:9,c:g(120)});txt(`Emitido em ${qDateBR(q.created)}${sh.validity&&vu?"   ·   Válido até "+qDateBR(vu):""}`,W-M,y,{s:9,c:g(120),r:1});
+ y+=20;txt(q.client.name||"Cliente",M,y,{b:1,s:15});if(q.client.phone){y+=15;txt(q.client.phone,M,y,{s:10,c:g(100)})}
+ y+=26;page.drawRectangle({x:M,y:H-y-6,width:W-2*M,height:20,color:g(245)});const cQ=350,cV=450,cT=W-M-6;txt("DESCRIÇÃO",M+6,y+7,{b:1,s:8,c:g(90)});txt("QTD",cQ,y+7,{b:1,s:8,c:g(90),r:1});txt("VALOR UNIT.",cV,y+7,{b:1,s:8,c:g(90),r:1});txt("SUBTOTAL",cT,y+7,{b:1,s:8,c:g(90),r:1});y+=30;
+ t.items.forEach(i=>{const lines=wrap(i.d||"Item",10,cQ-60-M);if(y+lines.length*13>760)newPage();lines.forEach((l,k)=>txt(l,M+6,y+k*13,{s:10}));txt(`${(+i.q||0).toLocaleString("pt-BR")} ${i.u||""}`,cQ,y,{s:10,r:1});txt(qBRL(i.v),cV,y,{s:10,r:1});txt(qBRL((+i.q||0)*(+i.v||0)),cT,y,{s:10,r:1});y+=lines.length*13+8;page.drawLine({start:{x:M,y:H-y+10},end:{x:W-M,y:H-y+10},thickness:.6,color:g(232)})});
+ y+=8;if(t.disc){txt("Subtotal",400,y,{s:10,c:g(100)});txt(qBRL(t.sub),cT,y,{s:10,c:g(100),r:1});y+=16;txt("Desconto",400,y,{s:10,c:g(100)});txt("- "+qBRL(t.disc),cT,y,{s:10,c:g(100),r:1});y+=10}
+ page.drawRectangle({x:330,y:H-y-34,width:W-M-330,height:34,color:C});txt("TOTAL",342,y+21,{b:1,s:10,c:WHITE});txt(qBRL(t.total),W-M-10,y+22,{b:1,s:15,c:WHITE,r:1});y+=56;
+ if(q.notes){const nl=wrap(q.notes,10,W-2*M);if(y+nl.length*13+20>780)newPage();txt("Observações",M,y,{b:1,s:10});nl.forEach((l,k)=>txt(l,M,y+15+k*13,{s:10,c:g(60)}));y+=nl.length*13+30}
+ const pay=qPixFor(q);if(pay){if(y+130>800)newPage();const qr=await qQR(pay);const bx=M,bw=W-2*M,bh=124;page.drawRectangle({x:bx,y:H-y-bh,width:bw,height:bh,borderColor:C,borderWidth:1,borderDashArray:[4,3]});
+  if(qr){const n=qr.getModuleCount(),sz=108/n;for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(qr.isDark(r,k))page.drawRectangle({x:bx+8+k*sz,y:H-(y+8+(r+1)*sz),width:sz+.05,height:sz+.05,color:rgb(0,0,0)})}
+  const px=bx+(qr?128:12);txt("Pagamento por PIX",px,y+24,{b:1,s:11});txt(`Chave (${(Q_PIXT.find(x=>x[0]===c.pixType)||[,"PIX"])[1]}): ${c.pixKey}`,px,y+40,{s:9});txt("Aponte a câmera do app do banco para o QR Code ou use o PIX copia e cola:",px,y+54,{s:8.5,c:g(80)});
+  const pl=[];let cur="";for(const ch of pay){if(F.widthOfTextAtSize(cur+ch,6.5)>bx+bw-px-10){pl.push(cur);cur=ch}else cur+=ch}if(cur)pl.push(cur);pl.slice(0,6).forEach((l,k)=>page.drawText(l,{x:px,y:H-(y+68+k*9),size:6.5,font:F,color:g(110)}));y+=bh+16}
+ pdf.getPages().forEach(pg=>pg.drawText(safe("Orçamento feito com o Prumo: Vida em ordem"),{x:W/2-F.widthOfTextAtSize(safe("Orçamento feito com o Prumo: Vida em ordem"),8)/2,y:24,size:8,font:F,color:g(160)}));
+ const bytes=await pdf.save();return{bytes}}
+async function qPdfShare(q){const doc=await qBuildPdf(q);const name=`Orcamento-${qNum(q)}-${String(q.client.name||"cliente").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"-")}.pdf`;const blob=new Blob([doc.bytes],{type:"application/pdf"});const file=new File([blob],name,{type:"application/pdf"});
+ if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:`Orçamento nº ${qNum(q)}`,text:`Olá, ${String(q.client.name||"").split(" ")[0]}! Segue o orçamento nº ${qNum(q)}.`});return"shared"}catch(e){if(e&&e.name==="AbortError")return"cancel"}}
+ const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove()},1500);return"download"}
+function qMarkSent(id){const q=QS().items[id];if(q&&q.status==="rascunho")q.status="pendente";if(q){q.sentAt=q.sentAt||today();commit()}}
+Object.assign(A,{
+ qTab:el=>{UI.qtab=el.dataset.v;if(el.dataset.v==="hist")UI.qSynced=0;window.scrollTo(0,0);render()},
+ qNew:()=>{UI.qd=qNewDraft();render()},
+ qAddItem:()=>{qDraft().items.push({d:"",q:1,u:"un",v:0});render();setTimeout(()=>{const els=document.querySelectorAll('[data-qk="d"]');const l=els[els.length-1];if(l)l.focus()},50)},
+ qDelItem:el=>{qDraft().items.splice(+el.dataset.v,1);render()},
+ qPreview:()=>qPreviewModal(Object.assign({num:QS().seq+1,created:today()},qDraft())),
+ qSave:()=>{const q=qDraft();if(!q.client.name.trim()){toast("Informe o nome do cliente.");return}const t=qTotals(q);if(!t.items.length||!t.total){toast("Adicione pelo menos um item com valor.");return}
+  const Q=QS();let id=q.id;if(!id){id=rid();Q.seq=(Q.seq||0)+1;Object.assign(q,{id,num:Q.seq,created:today(),status:"pendente"})}
+  q.items=t.items.map(i=>({d:i.d,q:+i.q||0,u:i.u||"un",v:+i.v||0}));Q.items[id]=clone(q);UI.qd=null;markActive();commit();
+  if(Q.items[id].pubId&&qCanLink())qPublish(Q.items[id]).catch(()=>{});qSendModal(id)},
+ qSaveTpl:()=>{const t=qTotals(qDraft());if(!t.items.length){toast("Adicione itens antes de salvar o modelo.");return}openModal("Salvar como modelo",`<div class="stack"><label class="field"><span>Nome do modelo</span><input id="qt_name" placeholder="Ex.: Pacote de 4 sessões" value="${esc(t.items[0].d||"")}"></label><button class="btn block" data-act="qSaveTplGo">Salvar</button></div>`)},
+ qSaveTplGo:()=>{const n=v("qt_name").trim()||"Modelo";const id=rid();QS().tpl[id]={id,name:n,items:clone(qTotals(qDraft()).items)};commit();closeModal();toast("Modelo salvo.")},
+ qUseTpl:el=>{const m=QS().tpl[el.dataset.v];if(!m)return;const q=qDraft();const empty=q.items.length===1&&!q.items[0].d&&!+q.items[0].v;q.items=(empty?[]:q.items).concat(clone(m.items));UI.qtab="novo";render();toast(`Itens de "${m.name}" adicionados.`)},
+ qDelTpl:el=>{delete QS().tpl[el.dataset.v];commit()},
+ qFilter:el=>{UI.qf=el.dataset.v;render()},
+ qToggle:el=>{UI.qOpen=UI.qOpen===el.dataset.v?null:el.dataset.v;render()},
+ qSend:el=>qSendModal(el.dataset.v),
+ qView:el=>{const q=QS().items[el.dataset.v];if(q)qPreviewModal(q,`Orçamento nº ${qNum(q)}`)},
+ qEdit:el=>{const q=QS().items[el.dataset.v];if(!q)return;UI.qd=clone(q);UI.qtab="novo";closeModal();window.scrollTo(0,0);render()},
+ qDup:el=>{const q=QS().items[el.dataset.v];if(!q)return;UI.qd=Object.assign(qNewDraft(q.items),{client:clone(q.client),discount:q.discount,notes:q.notes,validity:q.validity,showPix:q.showPix,showWa:q.showWa});UI.qtab="novo";closeModal();window.scrollTo(0,0);render();toast("Cópia pronta para editar.")},
+ qMenu:el=>{const q=QS().items[el.dataset.v];if(!q)return;const id=q.id;const st=q.status;
+  openModal(`Orçamento nº ${qNum(q)}`,`<div class="stack"><p class="small">${esc(q.client.name)} · <b>${brl(qTotals(q).total)}</b> · ${(Q_ST[st]||Q_ST.pendente).n}</p>
+  <button class="btn block" data-act="qSend" data-v="${id}">Enviar</button><button class="btn line block" data-act="qView" data-v="${id}">Ver</button>
+  <div class="grid2"><button class="btn line" data-act="qEdit" data-v="${id}">Editar</button><button class="btn line" data-act="qDup" data-v="${id}">Duplicar</button></div>
+  ${st!=="aprovado"?`<button class="btn money block" data-act="qSetSt" data-v="${id}" data-s="aprovado">Marcar como aprovado</button>`:""}
+  ${st!=="recusado"?`<button class="btn ghost block" data-act="qSetSt" data-v="${id}" data-s="recusado">Marcar como recusado</button>`:""}
+  ${st!=="pendente"?`<button class="btn ghost block" data-act="qSetSt" data-v="${id}" data-s="pendente">Voltar para pendente</button>`:""}
+  <button class="btn danger sm" data-act="askDel" style="align-self:flex-start">Apagar orçamento</button>${confirmBox("qDel","Apagar este orçamento? O link enviado ao cliente deixa de funcionar.")}<input type="hidden" id="qDelId" value="${id}"></div>`)},
+ qSetSt:el=>{const q=QS().items[el.dataset.v];if(!q)return;q.status=el.dataset.s;if(el.dataset.s==="aprovado"){q.approvedAt=q.approvedAt||today();q.approvedName=q.approvedName||""}commit();closeModal();if(typeof qPushStatus==="function"&&q.pubId)qPushStatus(q).catch(()=>{});toast(el.dataset.s==="aprovado"?"Orçamento aprovado! Lance o valor como renda quando receber.":"Status atualizado.")},
+ qDelYes:()=>{const id=v("qDelId");const q=QS().items[id];if(q&&q.pubId&&typeof qUnpublish==="function")qUnpublish(q.pubId).catch(()=>{});delete QS().items[id];commit();closeModal();toast("Orçamento apagado.")},
+ qIncome:el=>{const q=QS().items[el.dataset.v];if(!q)return;const t=qTotals(q);const iid=rid();finPatch(mid(mkey()),{incomes:{[iid]:{v:Math.round(t.total*100)/100,desc:`Orçamento nº ${qNum(q)} · ${q.client.name}`,date:today(),by:ME.uid,t:Date.now()}}});q.incomeId=iid;markActive();commit();toast(`${brl(t.total)} lançado como renda neste mês.`)},
+ qPdf:async el=>{const q=QS().items[el.dataset.v];if(!q)return;el.disabled=true;el.textContent="Gerando PDF…";try{const r=await qPdfShare(q);if(r!=="cancel"){qMarkSent(q.id);closeModal();toast(r==="download"?"PDF baixado. Anexe na conversa do WhatsApp.":"PDF compartilhado.")}else{el.disabled=false;el.textContent="Enviar PDF"}}catch(e){el.disabled=false;el.textContent="Enviar PDF";toast((e&&e.message)||"Não foi possível gerar o PDF.")}},
+ qLink:async el=>{const q=QS().items[el.dataset.v];if(!q)return;const w=window.open("about:blank","_blank");el.disabled=true;try{const url=await qPublish(q);const first=String(q.client.name||"").split(" ")[0];const msg=`Olá${first?", "+first:""}! Segue o orçamento nº ${qNum(q)} de ${QS().cfg.name||""}:\n${url}\n\nPelo link você vê os detalhes e pode aprovar.`;const wa=qWaLink(q.client.phone,msg);if(w)w.location.href=wa;else location.href=wa;qMarkSent(q.id);closeModal()}catch(e){if(w)w.close();el.disabled=false;toast("Não foi possível criar o link: "+((e&&e.message)||"erro"))}},
+ qCopyLink:async el=>{const q=QS().items[el.dataset.v];if(!q)return;try{const url=await qPublish(q);await navigator.clipboard.writeText(url);qMarkSent(q.id);toast("Link copiado. Cole na conversa com o cliente.")}catch(e){toast("Não foi possível copiar: "+((e&&e.message)||"erro"))}},
+ qColor:el=>{$("#qc_color").value=el.dataset.v;qColorPrev(el.dataset.v)},
+ qLogoDel:()=>{QS().cfg.logo=null;commit()},
+ qSaveCfg:()=>{const c=QS().cfg;["name","doc","phone","wa","address","city","pixType","pixKey","pixName"].forEach(k=>c[k]=v("qc_"+k).trim());c.color=v("qc_color")||"#2F5D57";c.validity=parseInt(v("qc_validity"))||0;c.show={};document.querySelectorAll(".qShow").forEach(x=>c.show[x.dataset.k]=x.checked);
+  if(UI.qd){UI.qd.showPix=c.show.pix&&!!c.pixKey;UI.qd.showWa=c.show.wa&&!!c.wa;if(!UI.qd.id)UI.qd.validity=c.validity}commit();toast("Configurações salvas.")}
+});
+{const _rq=render;render=function(){_rq();const b=document.querySelector(".subtabs button.on");if(b&&b.parentElement){const p=b.parentElement;const x=b.offsetLeft-(p.clientWidth-b.offsetWidth)/2;if(Math.abs(p.scrollLeft-x)>4)p.scrollLeft=x}}}
+function qColorPrev(col){const p=$("#qColorPrev");if(p)p.style.background=col;document.querySelectorAll('[data-act="qColor"]').forEach(b=>b.style.borderColor=b.dataset.v===col?"var(--ink)":"transparent")}
+document.addEventListener("input",ev=>{const id=ev.target&&ev.target.id;if(id==="qc_color")qColorPrev(ev.target.value);if(id==="qSearch"){UI.qs=ev.target.value;clearTimeout(UI._qst);UI._qst=setTimeout(()=>{const p=ev.target.selectionStart;render();const e=$("#qSearch");if(e){e.focus();try{e.setSelectionRange(p,p)}catch(x){}}},250)}});
+document.addEventListener("change",ev=>{const el=ev.target;if(!el)return;if(el.id==="qStF"){UI.qst=el.value;render()}if(el.id==="qFrom"){UI.qFrom=el.value;render()}if(el.id==="qTo"){UI.qTo=el.value;render()}
+ if(el.id==="qLogoFile"&&el.files&&el.files[0]){const f=el.files[0];const img=new Image();const url=URL.createObjectURL(f);img.onload=()=>{const m=320,sc=Math.min(1,m/Math.max(img.width,img.height));const cv=document.createElement("canvas");cv.width=Math.round(img.width*sc);cv.height=Math.round(img.height*sc);cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);QS().cfg.logo=cv.toDataURL("image/png");URL.revokeObjectURL(url);commit();toast("Logo atualizada.")};img.onerror=()=>toast("Não consegui ler essa imagem.");img.src=url}});
+
+
+/* ============================================================
    Versão web: contas e dados no Supabase
    ============================================================ */
 const CFG=window.PRUMO_CONFIG||{};
@@ -3002,6 +3203,18 @@ A.admSend=async el=>{const body=v("admMsg").trim();if(!body){toast("Escreva a me
  try{const {error}=await sb.rpc("admin_send_message",{p_email:el.dataset.v,p_body:body});if(error)throw error;toast("Mensagem enviada. A pessoa vê quando abrir o app.");await admLoadMsgs(el.dataset.v);render()}catch(e){el.disabled=false;toast("Não foi possível enviar: "+((e&&e.message)||"erro"))}};
 async function admLoadMsgs(email){try{const {data}=await sb.rpc("admin_user_messages",{p_email:email});ADM.msgs=data||[]}catch(e){ADM.msgs=[]}}
 
+/* ---------- Orçamentos: link público para o cliente ---------- */
+function qPublicUrl(pubId){return new URL("o.html?id="+pubId,document.baseURI).href}
+function qSnapshot(q){const c=Object.assign({},QS().cfg);return{q:{num:q.num,client:q.client,items:q.items,discount:q.discount,validity:q.validity,notes:q.notes,showPix:q.showPix,showWa:q.showWa,created:q.created},cfg:c,pix:qPixFor(q),validUntil:qValidUntil(q)}}
+async function qPublish(q){if(!qCanLink())throw new Error("entre com sua conta");const Q=QS().items[q.id]||q;if(!Q.pubId){Q.pubId=(crypto.randomUUID?crypto.randomUUID():"10000000-1000-4000-8000-100000000000".replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)));saveApp()}
+ const {error}=await sb.from("quotes_public").upsert({id:Q.pubId,data:qSnapshot(Q),updated_at:new Date().toISOString()});if(error)throw error;return qPublicUrl(Q.pubId)}
+async function qPushStatus(q){if(!qCanLink()||!q.pubId)return;await sb.from("quotes_public").update({status:q.status==="rascunho"?"pendente":q.status}).eq("id",q.pubId)}
+async function qUnpublish(pubId){if(!qCanLink())return;await sb.from("quotes_public").delete().eq("id",pubId)}
+async function qSync(){if(!qCanLink())return;try{const {data,error}=await sb.from("quotes_public").select("id,status,approved_at,approved_name");if(error||!data)return;const by={};data.forEach(r=>by[r.id]=r);let changed=0,newly=[];
+ Object.values(QS().items).forEach(q=>{const r=q&&q.pubId&&by[q.pubId];if(!r)return;if(r.status==="aprovado"&&q.status!=="aprovado"){q.status="aprovado";q.approvedAt=(r.approved_at||"").slice(0,10);q.approvedName=r.approved_name||"";changed=1;newly.push(q)}});
+ if(changed){commit();toast(newly.length===1?`${newly[0].client.name} aprovou o orçamento nº ${qNum(newly[0])}!`:`${newly.length} orçamentos foram aprovados!`,5000)}}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&UI.tab==="fin"&&UI.fin==="orc")qSync()});
+
 
 /* ============================================================
    Modo demonstração: conta fictícia bem preenchida (nada é salvo)
@@ -3049,6 +3262,14 @@ function demoBuild(){const td=today();const D=n=>addDays(td,n);const K=n=>shiftM
  ["l1","l2","l3","l4","l5","l7","l13","cc1","f16","f21","f17"].forEach((l,i)=>{s.learn.read[l]=D(-i*5);if(i%2===0)s.learn.quiz[l]=D(-i*5)});
  // mascote
  s.pet.name="Bolota";["laco","oculos","gravata","cachecol","bone","lapis","escuros","coroa"].forEach(a=>s.pet.owned[a]=D(-10));s.pet.equip={head:"bone",face:"oculos",neck:"cachecol"};
+ // orçamentos
+ s.quotes={seq:4,cfg:{name:"Mateus Leal Psicologia",doc:"",phone:"",wa:"(44) 99999-0000",address:"",city:"Campo Mourao",color:"#2F5D57",pixType:"email",pixKey:"mateus@exemplo.com",pixName:"Mateus Leal",validity:7,show:{logo:true,phone:false,address:false,wa:true,validity:true,pix:true}},
+  tpl:{t1:{id:"t1",name:"Sessão individual",items:[{d:"Sessão de psicoterapia (50 min)",q:1,u:"sessão",v:180}]},t2:{id:"t2",name:"Palestra",items:[{d:"Palestra: dinheiro, hábitos e saúde mental (1h30)",q:1,u:"serviço",v:1500}]}},
+  items:{
+   q1:{id:"q1",num:1,created:D(-20),status:"aprovado",approvedAt:D(-18),approvedName:"Juliana (RH)",client:{name:"Empresa Horizonte",phone:"(44) 98888-0000"},items:[{d:"Palestra: dinheiro, hábitos e saúde mental (1h30)",q:1,u:"serviço",v:1500},{d:"Material de apoio impresso",q:40,u:"un",v:6}],discount:140,validity:10,notes:"Inclui roda de conversa ao final.",showPix:true,showWa:true,incomeId:"x"},
+   q2:{id:"q2",num:2,created:D(-6),status:"pendente",client:{name:"Carla Mendes",phone:"(44) 97777-0000"},items:[{d:"Pacote de 4 sessões de psicoterapia (50 min)",q:4,u:"sessão",v:170}],discount:0,validity:15,notes:"Sessões semanais, online ou presenciais.",showPix:true,showWa:true},
+   q3:{id:"q3",num:3,created:D(-1),status:"pendente",client:{name:"Escola Aprender",phone:""},items:[{d:"Oficina de organização financeira para pais",q:2,u:"h",v:350}],discount:0,validity:7,notes:"",showPix:true,showWa:true},
+   q4:{id:"q4",num:4,created:D(-35),status:"recusado",client:{name:"Rafael Costa",phone:""},items:[{d:"Sessão de psicoterapia (50 min)",q:1,u:"sessão",v:180}],discount:0,validity:7,notes:"",showPix:true,showWa:true}}};
  // finanças
  const F={};const put=(k,e)=>{const m=mid(k);F[m]=F[m]||{incomes:{},expenses:{}};F[m].expenses[id("e")]=Object.assign({by:"demo",t:Date.now(),added:td},e)};
  const inc=(k,e)=>{const m=mid(k);F[m]=F[m]||{incomes:{},expenses:{}};F[m].incomes[id("i")]=Object.assign({by:"demo",t:Date.now()},e)};

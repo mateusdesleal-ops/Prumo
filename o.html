@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Orçamento</title>
+<link rel="icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&display=swap">
+<style>
+:root{--bg:#F3F4F6;--ink:#1f2328;--muted:#6b7280}
+@media (prefers-color-scheme: dark){:root{--bg:#111315;--ink:#f3f4f6;--muted:#9ca3af}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Figtree,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:16px 16px 40px;line-height:1.45}
+.wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.msg{background:#fff;color:#1f2328;border-radius:16px;padding:24px;text-align:center}
+.btn{display:flex;justify-content:center;align-items:center;gap:8px;border:0;border-radius:12px;padding:13px 16px;font:inherit;font-weight:700;cursor:pointer;width:100%}
+.btn.sm{padding:8px 12px;font-size:13px;width:auto}
+input{font:inherit;width:100%;padding:12px;border-radius:12px;border:1.5px solid #ddd;margin-bottom:8px}
+.ok{background:#E8F5EE;color:#1E8A5A;border-radius:12px;padding:12px;font-weight:700;text-align:center}
+.warn{background:#FFF6E0;color:#8a5a00;border-radius:12px;padding:12px;text-align:center}
+@media print{body{background:#fff;padding:0}.noprint{display:none!important}}
+</style>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+</head>
+<body>
+<div class="wrap" id="root"><div class="msg">Carregando orçamento…</div></div>
+<script>
+"use strict";
+
+/* ============================================================
+   Orçamentos: cálculo e desenho (usado no app e na página do cliente)
+   ============================================================ */
+const qEsc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const qBRL=n=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(+n||0);
+function qTotals(q){const items=(q.items||[]).filter(i=>i&&(i.d||+i.v));const sub=items.reduce((s,i)=>s+(+i.q||0)*(+i.v||0),0);const disc=Math.min(sub,+q.discount||0);return{items,sub,disc,total:Math.max(0,sub-disc)}}
+function qDateBR(s){if(!s)return"";const [y,m,d]=String(s).slice(0,10).split("-");return `${d}/${m}/${y}`}
+function qValidUntil(q){if(!q.validity||!q.created)return null;const d=new Date(String(q.created).slice(0,10)+"T12:00:00");d.setDate(d.getDate()+(+q.validity||0));return d.toISOString().slice(0,10)}
+function qNum(q){return String(q.num||0).padStart(4,"0")}
+function qNormKey(type,key){key=String(key||"").trim();if(type==="cpf"||type==="cnpj")return key.replace(/\D/g,"");if(type==="telefone"){const d=key.replace(/\D/g,"");return key.startsWith("+")?"+"+d:"+55"+d.replace(/^55(?=\d{10,11}$)/,"")}if(type==="email")return key.toLowerCase();return key}
+function qPixPayload(key,name,city,amount,txid){const norm=t=>String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"");const f=(id,v)=>id+String(v.length).padStart(2,"0")+v;const clean=(t,n,dflt)=>norm(t).toUpperCase().replace(/[^A-Z0-9 ]/g,"").trim().slice(0,n)||dflt;
+ const acc=f("00","BR.GOV.BCB.PIX")+f("01",key);
+ const body=f("00","01")+f("26",acc)+f("52","0000")+f("53","986")+(amount>0?f("54",amount.toFixed(2)):"")+f("58","BR")+f("59",clean(name,25,"RECEBEDOR"))+f("60",clean(city,15,"BRASIL"))+f("62",f("05",(txid||"***").replace(/[^A-Za-z0-9]/g,"").slice(0,25)||"***"))+"6304";
+ let c=0xFFFF;for(let i=0;i<body.length;i++){c^=body.charCodeAt(i)<<8;for(let j=0;j<8;j++)c=(c&0x8000)?((c<<1)^0x1021)&0xFFFF:(c<<1)&0xFFFF}
+ return body+c.toString(16).toUpperCase().padStart(4,"0")}
+const Q_UNITS=["un","h","sessão","serviço","m","m²","kg","dia","mês","pacote"];
+const Q_PIXT=[["cpf","CPF"],["cnpj","CNPJ"],["email","E-mail"],["telefone","Telefone"],["aleatoria","Chave aleatória"]];
+function qWaLink(num,text){const d=String(num||"").replace(/\D/g,"");const n=d?(d.length<=11?"55"+d:d):"";return `https://wa.me/${n}${text?"?text="+encodeURIComponent(text):""}`}
+/* desenho do orçamento: o mesmo no app (prévia) e na página do cliente */
+function qDocHTML(q,cfg,o){o=o||{};cfg=cfg||{};const sh=Object.assign({logo:true,phone:false,address:false,wa:true,validity:true,pix:true},cfg.show||{});
+ const col=cfg.color||"#2F5D57";const t=qTotals(q);const vu=qValidUntil(q);const pixOn=sh.pix&&q.showPix!==false&&cfg.pixKey;const waOn=sh.wa&&q.showWa!==false&&cfg.wa;
+ const row=(l,r,b)=>`<div style="display:flex;justify-content:space-between;gap:12px;${b?"font-weight:700;font-size:18px":"color:#5b5b5b"}"><span>${l}</span><span style="white-space:nowrap">${r}</span></div>`;
+ return `<div style="font-family:Figtree,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1f2328;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e6e6e6;max-width:640px;margin:0 auto;text-align:left">
+ <div style="background:${col};color:#fff;padding:18px 20px;display:flex;gap:14px;align-items:center">
+  ${sh.logo&&cfg.logo?`<img src="${cfg.logo}" alt="" style="width:64px;height:64px;object-fit:contain;background:#fff;border-radius:12px;padding:4px;flex:none">`:""}
+  <div style="min-width:0"><div style="font-size:19px;font-weight:700;line-height:1.2">${qEsc(cfg.name||"Seu negócio")}</div>
+  <div style="font-size:12.5px;opacity:.9;line-height:1.5">${[cfg.doc?"CPF/CNPJ "+qEsc(cfg.doc):"",sh.phone&&cfg.phone?qEsc(cfg.phone):"",sh.address&&cfg.address?qEsc(cfg.address):""].filter(Boolean).join(" · ")}</div></div></div>
+ <div style="padding:18px 20px;display:flex;flex-direction:column;gap:14px">
+  <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><div style="font-size:12px;color:#777;text-transform:uppercase;letter-spacing:.06em;font-weight:700">Orçamento nº ${qNum(q)}</div><div style="font-size:17px;font-weight:700">${qEsc((q.client||{}).name||"Cliente")}</div>${(q.client||{}).phone?`<div style="font-size:13px;color:#666">${qEsc(q.client.phone)}</div>`:""}</div>
+  <div style="text-align:right;font-size:13px;color:#555">Emitido em ${qDateBR(q.created)}${sh.validity&&vu?`<br>Válido até <b>${qDateBR(vu)}</b>`:""}</div></div>
+  <div style="border:1px solid #eee;border-radius:12px;overflow:hidden">${t.items.map((i,k)=>`<div style="padding:10px 12px;${k?"border-top:1px solid #f0f0f0":""}"><div style="font-weight:600">${qEsc(i.d||"Item")}</div><div style="display:flex;justify-content:space-between;font-size:13px;color:#666;margin-top:2px"><span>${(+i.q||0).toLocaleString("pt-BR")} ${qEsc(i.u||"un")} × ${qBRL(i.v)}</span><b style="color:#1f2328">${qBRL((+i.q||0)*(+i.v||0))}</b></div></div>`).join("")||`<div style="padding:12px;color:#888">Nenhum item.</div>`}</div>
+  <div style="display:flex;flex-direction:column;gap:4px">${t.disc?row("Subtotal",qBRL(t.sub))+row("Desconto","− "+qBRL(t.disc)):""}<div style="background:${col};color:#fff;border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span>Total</span><b style="font-size:22px">${qBRL(t.total)}</b></div></div>
+  ${q.notes?`<div style="font-size:14px;color:#444;white-space:pre-wrap;background:#f7f7f7;border-radius:12px;padding:10px 12px">${qEsc(q.notes)}</div>`:""}
+  ${pixOn?`<div style="border:1px dashed ${col};border-radius:12px;padding:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">${o.qrSvg?`<div style="width:120px;height:120px;flex:none">${o.qrSvg}</div>`:""}<div style="min-width:0;flex:1"><div style="font-weight:700">Pagamento por PIX</div><div style="font-size:13px;color:#555">Chave (${qEsc((Q_PIXT.find(x=>x[0]===cfg.pixType)||[,"PIX"])[1])}): <b style="overflow-wrap:anywhere">${qEsc(cfg.pixKey)}</b></div>${o.pixButtons||""}</div></div>`:""}
+  ${o.actions||""}
+  ${waOn?`<a href="${qWaLink(cfg.wa,`Olá! Sobre o orçamento nº ${qNum(q)}`)}" target="_blank" rel="noopener" style="display:flex;justify-content:center;gap:8px;align-items:center;background:#25D366;color:#fff;text-decoration:none;font-weight:700;border-radius:12px;padding:12px">Falar no WhatsApp</a>`:""}
+  <div style="text-align:center;font-size:11px;color:#999">Orçamento feito com o Prumo: Vida em ordem</div>
+ </div></div>`}
+
+(function(){
+ const root=document.getElementById("root");const id=new URLSearchParams(location.search).get("id");
+ const fail=t=>{root.innerHTML=`<div class="msg"><b>${qEsc(t)}</b><p style="color:#666;font-size:14px">Peça um novo link a quem enviou o orçamento.</p></div>`};
+ const C=window.PRUMO_CONFIG||{};if(!id||!/^[0-9a-f-]{36}$/i.test(id))return fail("Link de orçamento inválido.");
+ if(!window.supabase||!C.supabaseUrl)return fail("Não foi possível carregar agora. Verifique a internet.");
+ const sb=window.supabase.createClient(C.supabaseUrl,C.supabaseKey,{auth:{persistSession:false}});
+ let R=null;
+ function draw(){const d=R.data||{};const q=d.q||{};const cfg=d.cfg||{};const col=cfg.color||"#2F5D57";const today=new Date(Date.now()-3*3600e3).toISOString().slice(0,10);
+  const expired=R.status==="pendente"&&d.validUntil&&d.validUntil<today;
+  document.title=`Orçamento nº ${qNum(q)} · ${cfg.name||""}`;
+  let qrSvg="";if(d.pix&&window.qrcode){try{const qr=qrcode(0,"M");qr.addData(d.pix);qr.make();qrSvg=qr.createSvgTag({cellSize:4,margin:0,scalable:true})}catch(e){}}
+  const pixButtons=d.pix?`<button class="btn sm noprint" id="copyPix" style="background:${col};color:#fff;margin-top:8px">Copiar PIX copia e cola</button>`:"";
+  let actions="";
+  if(R.status==="aprovado")actions=`<div class="ok">Orçamento aprovado${R.approved_name?" por "+qEsc(R.approved_name):""}${R.approved_at?" em "+qDateBR(R.approved_at):""}. Obrigado!</div>`;
+  else if(R.status==="recusado")actions=`<div class="warn">Este orçamento foi encerrado.</div>`;
+  else if(expired)actions=`<div class="warn">Este orçamento venceu em ${qDateBR(d.validUntil)}. Fale com quem enviou para atualizar.</div>`;
+  else actions=`<div class="noprint" id="apBox"><input id="apName" placeholder="Seu nome (para confirmar)" value="${qEsc((q.client||{}).name||"")}"><button class="btn" id="apBtn" style="background:${col};color:#fff">Aprovar orçamento</button></div>`;
+  root.innerHTML=qDocHTML(q,cfg,{qrSvg,pixButtons,actions})+`<button class="btn noprint" onclick="window.print()" style="background:#fff;color:#1f2328;border:1.5px solid #ddd">Salvar em PDF ou imprimir</button>`;
+  const cp=document.getElementById("copyPix");if(cp)cp.onclick=async()=>{try{await navigator.clipboard.writeText(d.pix);cp.textContent="Copiado! Cole no app do banco"}catch(e){prompt("Copie o código PIX:",d.pix)}};
+  const ab=document.getElementById("apBtn");if(ab)ab.onclick=async()=>{const n=document.getElementById("apName").value.trim();if(!n){document.getElementById("apName").focus();return}ab.disabled=true;ab.textContent="Aprovando…";
+   const {data,error}=await sb.rpc("approve_public_quote",{p_id:id,p_name:n});if(error||!data){ab.disabled=false;ab.textContent="Aprovar orçamento";alert("Não foi possível aprovar agora. Tente de novo.");return}R=data;draw();
+   if(R.status==="aprovado"&&cfg.wa){const go=confirm("Orçamento aprovado! Quer avisar pelo WhatsApp?");if(go)location.href=qWaLink(cfg.wa,`Olá! Aprovei o orçamento nº ${qNum(q)}.`)}}}
+ sb.rpc("get_public_quote",{p_id:id}).then(({data,error})=>{if(error)return fail("Não foi possível carregar agora. Tente de novo em instantes.");if(!data)return fail("Este orçamento não existe mais.");R=data;draw()}).catch(()=>fail("Sem conexão com a internet."));
+})();
+</script>
+</body>
+</html>

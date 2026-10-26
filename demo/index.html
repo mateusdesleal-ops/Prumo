@@ -3084,6 +3084,25 @@ document.head.insertAdjacentHTML("beforeend",`<style>.tab-k{display:none}@media 
 
 
 /* ============================================================
+   Não perder o que a pessoa digitou quando a tela se redesenha
+   (sincronização com a nuvem, lembretes etc.)
+   ============================================================ */
+const KEEP={view:"",vals:{}};
+function keepView(){return [UI.tab,UI.fin,UI.qtab,UI.study,UI.ex,UI.agendaSub,UI.learnTrack].join("|")}
+function keepKey(el){if(el.id)return "#"+el.id;if(el.dataset&&el.dataset.k&&el.className)return "."+el.className.split(" ")[0]+"|"+el.dataset.k;return null}
+function keepMark(ev){const el=ev.target;if(!el||!el.closest||!el.closest("#app"))return;if(!/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)||el.type==="file"||el.type==="range")return;
+ if(el.dataset&&(el.dataset.qi!=null||el.dataset.qf))return; // o orçamento já guarda sozinho
+ const k=keepKey(el);if(!k)return;const v=keepView();if(KEEP.view!==v){KEEP.view=v;KEEP.vals={}}KEEP.vals[k]=el.type==="checkbox"||el.type==="radio"?{c:el.checked}:{v:el.value}}
+document.addEventListener("input",keepMark,true);document.addEventListener("change",keepMark,true);
+{const _rk=render;render=function(){const app=document.getElementById("app");const ae=document.activeElement;const fk=ae&&app&&app.contains(ae)?keepKey(ae):null;let sel=null;try{if(fk&&ae.selectionStart!=null)sel=[ae.selectionStart,ae.selectionEnd]}catch(e){}
+ _rk();if(KEEP.view!==keepView()){KEEP.view=keepView();KEEP.vals={};return}
+ for(const k in KEEP.vals){const el=k[0]==="#"?document.getElementById(k.slice(1)):(()=>{const [c,dk]=k.slice(1).split("|");return document.querySelector(`#app .${c}[data-k="${dk}"]`)})();if(!el||!app.contains(el))continue;const s=KEEP.vals[k];if("c" in s)el.checked=s.c;else if(el.value!==s.v)el.value=s.v}
+ if(fk){const el=fk[0]==="#"?document.getElementById(fk.slice(1)):null;if(el&&document.activeElement!==el){el.focus({preventScroll:true});try{if(sel)el.setSelectionRange(sel[0],sel[1])}catch(e){}}}}}
+/* depois de salvar, o que estava digitado vira o valor salvo */
+document.addEventListener("click",ev=>{const b=ev.target&&ev.target.closest&&ev.target.closest("[data-act]");if(b&&/^(save|qSave)/.test(b.dataset.act))setTimeout(()=>{KEEP.vals={}},0)},true);
+
+
+/* ============================================================
    Versão web: contas e dados no Supabase
    ============================================================ */
 const CFG=window.PRUMO_CONFIG||{};

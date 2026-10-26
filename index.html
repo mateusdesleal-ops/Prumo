@@ -1781,7 +1781,7 @@ function viewHome(){
  return `<div class="stack">
  <div class="stack-s" style="margin-top:4px"><h1>${hi}${first?", "+esc(first):""}</h1><p class="muted">${dayLabel(today())==="Hoje"?new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"}):""}</p></div>
  ${whyCard()}
- ${missionsCard()}
+ ${missionsCard()}${shareCard()}
  ${pigCard}
  ${envWarning()}${studyWarning()}${taskWarning()}
  <div class="card"><div class="label" style="margin-bottom:12px">Metas de hoje</div>
@@ -2032,6 +2032,7 @@ function viewProfile(){const p=S.profile;
  ${canDonate()?`<button class="btn money" data-act="donate">${I.heart.replace('<svg','<svg width="18" height="18"')} Apoie o Prumo com uma doação</button>`:""}
  <button class="btn ghost" data-act="about">Sobre o Prumo</button>
  ${SB_ON?(Store.cloud?`<button class="btn line" data-act="signOut">Sair da conta</button><button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:`<button class="btn line" data-act="goLogin">Entrar ou criar conta</button>`):""}
+ ${shareToggle()}
  ${(checkAdmin(),UI.isAdmin)?`<button class="btn line" data-act="goAdmin">Painel do administrador</button>`:""}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão de testes</p>
@@ -2847,7 +2848,7 @@ async function checkAdmin(){if(!sb||!Store.cloud||UI.isAdmin!==undefined)return;
 const ADM={stats:null,users:null,err:null,loading:false,all:false,q:""};
 async function admLoad(){ADM.loading=true;ADM.err=null;render();try{const [a,b]=await Promise.all([sb.rpc("admin_stats"),sb.rpc("admin_users")]);if(a.error||b.error)throw(a.error||b.error);ADM.stats=a.data;ADM.users=b.data||[]}catch(e){ADM.err=(e&&e.message)||"erro"}ADM.loading=false;render()}
 function admDate(s,withTime){if(!s)return"—";const d=new Date(s);return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit"})+(withTime?" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"")}
-function viewAdmin(){if(!UI.isAdmin)return `<div class="card empty">Acesso restrito.</div>`;const s=ADM.stats;
+function viewAdmin(){if(!UI.isAdmin)return `<div class="card empty">Acesso restrito.</div>`;if(ADM.sel)return admDetail();const s=ADM.stats;
  if(!s&&!ADM.loading&&!ADM.err)setTimeout(admLoad,0);
  const kpi=(n,v,sub)=>`<div class="card stack-s" style="padding:12px"><span class="tiny muted">${n}</span><span class="big num" style="font-size:26px">${v}</span>${sub?`<span class="tiny muted">${sub}</span>`:""}</div>`;
  const pct=(n,t)=>t?Math.round(n/t*100):0;
@@ -2866,18 +2867,80 @@ function viewAdmin(){if(!UI.isAdmin)return `<div class="card empty">Acesso restr
   ${Object.keys(s.focus||{}).length?`<div class="card stack"><div class="label">Por onde quiseram começar</div>${Object.entries(s.focus).sort((a,b)=>b[1]-a[1]).map(([k,v])=>bar(FN[k]||k,v,base)).join("")}</div>`:""}
   <div class="card stack"><div class="row between"><div class="label">Contas</div><button class="btn ghost sm" data-act="admCsv">Baixar lista</button></div>
    <input id="admQ" placeholder="Buscar por e-mail" value="${esc(ADM.q)}">
-   <div class="list">${list.map(u=>`<div class="item" style="align-items:flex-start"><div class="grow stack-s" style="gap:1px"><p class="small"><b>${esc(u.email)}</b></p><p class="tiny muted">Criada ${admDate(u.created_at)} · último acesso ${admDate(u.last_sign_in_at)}${u.last_activity?" · usou "+admDate(u.last_activity,true):""}</p></div>${!u.confirmed?`<span class="pill warn">sem confirmar</span>`:!u.onboarded?`<span class="pill info">cadastro incompleto</span>`:""}</div>`).join("")||`<p class="small muted">Nenhuma conta encontrada.</p>`}</div>
+   <p class="tiny muted">Toque em uma conta para ver os detalhes. O perfil completo só aparece para quem autorizou as dicas personalizadas (${(ADM.users||[]).filter(u=>u.shared).length} de ${(ADM.users||[]).length}).</p>
+   <div class="list">${list.map(u=>`<button class="item" style="width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;padding-inline:0;align-items:flex-start" data-act="admOpen" data-v="${esc(u.email)}"><div class="grow stack-s" style="gap:1px"><p class="small"><b>${esc(u.email)}</b></p><p class="tiny muted">Criada ${admDate(u.created_at)} · último acesso ${admDate(u.last_sign_in_at)}${u.last_activity?" · usou "+admDate(u.last_activity,true):""}</p></div>${!u.confirmed?`<span class="pill warn">sem confirmar</span>`:!u.onboarded?`<span class="pill info">cadastro incompleto</span>`:u.shared?`<span class="pill good">autorizou</span>`:""}</button>`).join("")||`<p class="small muted">Nenhuma conta encontrada.</p>`}</div>
    ${!ADM.all&&us.length>30?`<button class="btn ghost sm" data-act="admAll">Ver todas (${us.length})</button>`:""}</div>`}
  return `<div class="stack"><div class="row between" style="margin-top:4px"><h1>Painel do administrador</h1><button class="iconbtn" data-act="tab" data-v="profile" aria-label="Voltar">${I.left}</button></div>
  <div class="banner info"><span class="small">Você vê números gerais e a lista de contas. Finanças, saúde, orações e os demais registros de cada pessoa continuam privados, como diz a política de privacidade.</span></div>
  <button class="btn line sm" data-act="admReload" style="align-self:flex-start" ${ADM.loading?"disabled":""}>${ADM.loading?"Atualizando…":"Atualizar números"}</button>
  ${body}</div>`}
-A.goAdmin=()=>{UI.tab="admin";window.scrollTo(0,0);ADM.stats=null;render()};
+A.goAdmin=()=>{UI.tab="admin";window.scrollTo(0,0);ADM.stats=null;ADM.sel=null;render()};
 A.admReload=()=>admLoad();
 A.admAll=()=>{ADM.all=true;render()};
 A.admCsv=()=>{const rows=[["email","criada_em","ultimo_acesso","confirmada","ultima_atividade","cadastro_completo"],...(ADM.users||[]).map(u=>[u.email,u.created_at||"",u.last_sign_in_at||"",u.confirmed?"sim":"nao",u.last_activity||"",u.onboarded?"sim":"nao"])];
  const csv="\uFEFF"+rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(";")).join("\n");const blob=new Blob([csv],{type:"text/csv"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="prumo-contas-"+today()+".csv";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove()},1000)};
 document.addEventListener("input",ev=>{if(ev.target&&ev.target.id==="admQ"){ADM.q=ev.target.value;clearTimeout(ADM._t);ADM._t=setTimeout(()=>{const pos=ev.target.selectionStart;render();const el=$("#admQ");if(el){el.focus();try{el.setSelectionRange(pos,pos)}catch(e){}}},300)}});
+
+/* ---------- Consentimento para dicas personalizadas ---------- */
+const SHARE_TXT="Permito que o responsável pelo Prumo veja meu perfil e meus registros no app, inclusive saúde e oração se eu usar essas áreas, para me enviar mensagens e dicas mais adequadas. Posso desligar quando quiser.";
+function shareCard(){if(!SB_ON||!Store.cloud||S.profile.shareAsked||!S.profile.created||S.profile.created===today())return"";
+ return `<div class="card stack"><div class="label" style="color:var(--pig-deep)">Dicas feitas para você</div><p class="small">Quer receber mensagens e dicas pensadas para o seu momento? Para isso, o responsável pelo Prumo precisa poder ver o seu perfil e os seus registros no app.</p><p class="tiny muted">${SHARE_TXT}</p><div class="row" style="gap:8px"><button class="btn sm" data-act="shareYes">Quero receber</button><button class="btn ghost sm" data-act="shareNo">Agora não</button></div></div>`}
+function shareToggle(){if(!SB_ON||!Store.cloud)return"";return `<div class="card stack"><label class="check"><input type="checkbox" id="shareAdminTg" ${S.profile.shareAdmin?"checked":""}><span><b>Dicas personalizadas</b><br><span class="tiny muted">${SHARE_TXT}</span></span></label>${S.profile.shareAdmin&&S.profile.shareAt?`<span class="tiny muted">Autorizado em ${parseDate(S.profile.shareAt).toLocaleDateString("pt-BR")}.</span>`:""}</div>`}
+A.shareYes=()=>{S.profile.shareAdmin=true;S.profile.shareAt=today();S.profile.shareAsked=1;commit();toast("Obrigado! Você pode mudar isso quando quiser em Perfil.")};
+A.shareNo=()=>{S.profile.shareAsked=1;commit();toast("Tudo bem. Se mudar de ideia, está em Perfil.")};
+document.addEventListener("change",ev=>{if(ev.target&&ev.target.id==="shareAdminTg"){S.profile.shareAdmin=ev.target.checked;S.profile.shareAt=ev.target.checked?today():null;S.profile.shareAsked=1;commit();toast(ev.target.checked?"Dicas personalizadas ligadas.":"Dicas personalizadas desligadas. Seu perfil não aparece mais para o administrador.")}});
+
+/* ---------- Perfil de um usuário no painel (só com autorização) ---------- */
+A.admOpen=async el=>{ADM.sel=el.dataset.v;ADM.detail=null;ADM.detErr=null;window.scrollTo(0,0);render();
+ try{const {data,error}=await sb.rpc("admin_user_detail",{p_email:ADM.sel});if(error)throw error;ADM.detail=data}catch(e){ADM.detErr=(e&&e.message)||"erro"}render()};
+A.admClose=()=>{ADM.sel=null;ADM.detail=null;render()};
+function admDetail(){const u=(ADM.users||[]).find(x=>x.email===ADM.sel)||{email:ADM.sel};
+ const head=`<div class="row between" style="margin-top:4px"><h2 style="overflow-wrap:anywhere">${esc(u.email)}</h2><button class="iconbtn" data-act="admClose" aria-label="Voltar">${I.left}</button></div>
+ <p class="tiny muted">Conta criada ${admDate(u.created_at)} · último acesso ${admDate(u.last_sign_in_at)}${u.last_activity?" · usou "+admDate(u.last_activity,true):""}</p>`;
+ if(ADM.detErr)return `<div class="stack">${head}<div class="banner ${/autoriza/.test(ADM.detErr)?"info":"bad"}"><span class="small">${/autoriza/.test(ADM.detErr)?"Esta pessoa não autorizou as dicas personalizadas, então o perfil dela fica privado. Você só vê o e-mail e as datas.":"Não consegui carregar: "+esc(ADM.detErr)}</span></div></div>`;
+ if(!ADM.detail)return `<div class="stack">${head}<div class="card empty">Carregando…</div></div>`;
+ const a=ADM.detail.app||{},F=ADM.detail.fin||{},p=a.profile||{};const td=today(),d30=addDays(td,-30);
+ const v=o=>Object.values(o||{}).filter(Boolean);const in30=x=>x.date&&x.date>=d30;
+ const row=(k,val)=>val===""||val==null?"":`<div class="row between small" style="gap:12px;align-items:flex-start"><span class="muted" style="flex:none;max-width:48%">${k}</span><b style="text-align:right">${val}</b></div>`;
+ const sec=(t,inner)=>inner.trim()?`<div class="card stack-s"><div class="label">${t}</div>${inner}</div>`:"";
+ // atividade e sequência
+ const act=Object.keys(a.activity||{}).sort();let st=0;{let d=td;if(!(a.activity||{})[d])d=addDays(d,-1);while((a.activity||{})[d]){st++;d=addDays(d,-1)}}
+ const act30=act.filter(d=>d>=d30).length;
+ // finanças
+ const months=Object.keys(F).filter(k=>/^m\d{6}$/.test(k)).sort().slice(-3);let inc=0,sp=0;const bk={N:0,D:0,F:0};const catT={};
+ months.forEach(k=>{v(F[k].incomes).forEach(x=>inc+=+x.v||0);v(F[k].expenses).forEach(x=>{sp+=+x.v||0;const c=CAT[x.cat]||CAT.outros;bk[c.b]+=+x.v||0;catT[c.n]=(catT[c.n]||0)+(+x.v||0)})});
+ const nm=Math.max(1,months.length);const meta=F.meta||{};const dbs=v(meta.debts);const cds=v(meta.cards);const subs=v(meta.subs).filter(s=>s.active!==false);const bills=v(meta.bills);
+ const topCats=Object.entries(catT).sort((x,y)=>y[1]-x[1]).slice(0,3).map(([n,t])=>`${n} (${brl0(t/nm)}/mês)`).join(", ");
+ const DK=typeof DEBT_KINDS!=="undefined"?DEBT_KINDS:{};
+ // saúde e estudo
+ const ex30=v((a.ex||{}).logs).filter(in30);const exMin=ex30.reduce((s,x)=>s+(+x.min||0),0);
+ const food30=v((a.food||{}).logs).filter(in30);const foodDays=new Set(food30.map(x=>x.date)).size;
+ const wts=v((a.weight||{}).entries).sort((x,y)=>(x.date||"").localeCompare(y.date||""));const wNow=wts.length?wts[wts.length-1].kg:p.weight;
+ const st30=v((a.study||{}).logs).filter(in30);const stMin=st30.reduce((s,x)=>s+(+x.min||0),0);const books=v((a.study||{}).books);
+ const tasks=v((a.tasks||{}).items);const tOpen=tasks.filter(t=>t.status!=="done");const tLate=tOpen.filter(t=>t.date&&t.date<td);
+ const prDays=Object.keys((a.prayer||{}).log||{}).filter(d=>d>=d30&&Object.values(a.prayer.log[d]||{}).some(Boolean)).length;
+ const FN={fin:"Dinheiro",saude:"Saúde",estudo:"Estudos",rotina:"Rotina",fe:"Fé e mente"};
+ // sugestões de mensagem
+ const sug=[];const lastAct=act[act.length-1];
+ if(!lastAct||lastAct<addDays(td,-7))sug.push("Não usa o app há mais de uma semana. Uma mensagem leve de retorno, lembrando que errar faz parte e que a sequência tem dia de folga.");
+ if(dbs.some(x=>(+x.rate||0)>2))sug.push("Tem dívida com juros altos. Indicar a lição sobre juros e o plano avalanche ou bola de neve, e falar sobre negociação (Serasa Limpa Nome, Procon).");
+ if(cds.length&&inc&&sp/nm>inc/nm)sug.push("Gasta mais do que ganha e usa cartão. Falar sobre controle da fatura e evitar novas compras parceladas.");
+ if(!(+meta.reserveStart)&&!catT["Reserva de emergência"])sug.push("Ainda não começou a reserva de emergência. Incentivar a mini-reserva de R$ 1.000.");
+ if((p.focus||[]).includes("saude")&&!ex30.length)sug.push("Escolheu cuidar da saúde, mas não registrou exercícios no último mês. Sugerir começar com caminhadas de 10 minutos.");
+ if((p.focus||[]).includes("estudo")&&stMin<60)sug.push("Quer estudar mais, mas registrou pouco tempo. Sugerir o Pomodoro de 25 minutos.");
+ if(tLate.length>=3)sug.push(`Tem ${tLate.length} tarefas atrasadas. Mensagem sobre priorizar poucas tarefas por dia e remarcar sem culpa.`);
+ if(st>=7)sug.push(`Está numa sequência de ${st} dias. Uma mensagem de parabéns reforça o hábito.`);
+ if(subs.length>=4)sug.push(`Tem ${subs.length} assinaturas. Sugerir o pente-fino das assinaturas.`);
+ return `<div class="stack">${head}
+ <div class="banner info"><span class="small">Esta pessoa autorizou as dicas personalizadas${p.shareAt?" em "+parseDate(p.shareAt).toLocaleDateString("pt-BR"):""}. Use estes dados só para ajudá-la, e nunca os repasse a ninguém.</span></div>
+ ${sug.length?`<div class="card stack-s" style="border:2px solid var(--pig)"><div class="label" style="color:var(--pig-deep)">Ideias de mensagem</div>${sug.map(s=>`<p class="small">· ${s}</p>`).join("")}</div>`:""}
+ ${sec("Perfil",row("Nome",esc(p.name||""))+row("Idade",p.age?p.age+" anos":"")+row("Começou a usar",p.created?parseDate(p.created).toLocaleDateString("pt-BR"):"")+row("Por onde quis começar",(p.focus||[]).map(f=>FN[f]||f).join(", "))+row("Motivo",esc(p.why||""))+row("Lembrete diário",p.remindAt||"")+row("Porquinho",p.pet?(a.pet&&a.pet.name?esc(a.pet.name):"ligado"):"desligado")+row("Sequência atual",st+" dia(s)")+row("Dias com uso no último mês",act30)+row("Lições lidas",Object.keys((a.learn||{}).read||{}).length))}
+ ${sec("Finanças",row("Renda informada",+p.income?brl0(p.income):"")+row(`Renda média (${nm} ${nm>1?"meses":"mês"})`,inc?brl0(inc/nm):"")+row("Gasto médio por mês",sp?brl0(sp/nm):"")+(sp?row("Necessidades / Desejos / Futuro",["N","D","F"].map(k=>Math.round(bk[k]/sp*100)+"%").join(" / ")):"")+row("Onde mais gasta",topCats)+row("Dívidas",dbs.length?`${dbs.length} · ${brl0(dbs.reduce((s,x)=>s+(+x.balance||0),0))} (${[...new Set(dbs.map(x=>(DK[x.kind]||{}).n||x.kind))].join(", ")})`:"nenhuma")+row("Cartões",cds.length?`${cds.length} · limite ${brl0(cds.reduce((s,x)=>s+(+x.limit||0),0))}`:"nenhum")+row("Assinaturas",subs.length?`${subs.length} · ${brl0(subs.reduce((s,x)=>s+(+x.v||0),0))}/mês`:"")+row("Contas anuais",bills.length||"")+row("Reserva inicial",+meta.reserveStart?brl0(meta.reserveStart):"")+row("Investimentos iniciais",+meta.investStart?brl0(meta.investStart):""))}
+ ${sec("Saúde",row("Peso",wNow?wNow+" kg":"")+row("Meta de peso",(a.weight||{}).goal?a.weight.goal+" kg":"")+row("Altura",p.height?p.height+" cm":"")+row("Nível de exercício",p.level||"")+row("Exercícios no último mês",ex30.length?`${ex30.length} · ${exMin} min`:"nenhum")+row("Dias com alimentação registrada",foodDays||"")+row("Objetivo da alimentação",((a.food||{}).cfg||{}).goal||""))}
+ ${sec("Estudos",row("Tempo no último mês",stMin?stMin+" min":"nenhum")+row("Livros lendo",books.filter(b=>b.status==="lendo").map(b=>esc(b.title)).join(", "))+row("Livros lidos",books.filter(b=>b.status==="lido").length||""))}
+ ${sec("Rotina",row("Tarefas abertas",tOpen.length)+row("Atrasadas",tLate.length)+row("Concluídas no total",(a.tasks||{}).doneTotal||tasks.filter(t=>t.status==="done").length))}
+ ${p.prayer?sec("Fé",row("Tradição",esc(((typeof PRAYER_TRADS!=="undefined"&&PRAYER_TRADS[(a.prayer||{}).trad])||{}).n||(a.prayer||{}).trad||""))+row("Dias com oração no último mês",prDays)):""}
+ </div>`}
 
 /* início */
 (function boot(){

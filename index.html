@@ -1772,7 +1772,7 @@ function viewHome(){
  const finToday=S.checkins[today()]||finActivity(today());
  const first=(S.profile.name||"").split(" ")[0];
  const hour=new Date().getHours();const hi=hour<12?"Bom dia":hour<18?"Boa tarde":"Boa noite";
- const up=upcoming(3);
+ const up=(()=>{const seen={};return upcoming(14).filter(e=>{const k=e.id||e.title;if(seen[k])return false;seen[k]=1;return true}).slice(0,3)})();
  const moodTxt={feliz:"está gordinho e feliz",ok:"está bem",preocupado:"está preocupado",triste:"está magrinho e triste"}[h.mood];
  const pigCard=S.profile.pet?`<button class="card" data-act="tab" data-v="pig" style="padding:0;text-align:left;border:0;overflow:hidden">
    <div class="pigstage">${pigSVG({score:h.score,mood:h.mood,equip:effectiveEquip(),env:envLevel(),dry:envDry(),peace:prayerPeace()})}</div>
@@ -2979,6 +2979,12 @@ document.head.insertAdjacentHTML("beforeend",`<style id="desktopCSS">
  #app[data-tab="home"]>.stack>*:first-child{column-span:all}
  #app[data-tab="home"]>.stack>.grid2,#app[data-tab="home"]>.stack>.grid3{display:grid}
  #app[data-tab="home"]>.stack>.card.row,#app[data-tab="home"]>.stack>button.card{display:flex}
+ #app[data-tab="home"]>.stack>button.card[data-v="pig"]{column-span:all;display:grid!important;grid-template-columns:min(560px,55%) 1fr;align-items:center;width:100%;border:1px solid var(--line)!important}
+ #app[data-tab="home"]>.stack>button.card[data-v="pig"]>.pigstage{border-radius:0;height:100%}
+ #app[data-tab="home"]>.stack>button.card[data-v="pig"]>.pigstage svg{max-height:none;width:100%;height:100%}
+ #app[data-tab="home"]>.stack>button.card[data-v="pig"]>div:last-child{padding:28px 32px!important}
+ #app[data-tab="home"]>.stack>button.card[data-v="pig"] h3{font-size:26px}
+ #app[data-tab="home"]>.stack>button.card[data-v="pig"] p{font-size:15px}
  /* telas de lista e formulários: largura confortável para ler */
  #app[data-tab="fin"]>.stack,#app[data-tab="study"]>.stack,#app[data-tab="ex"]>.stack,#app[data-tab="prayer"]>.stack,#app[data-tab="learn"]>.stack,#app[data-tab="profile"]>.stack,#app[data-tab="pig"]>.stack,#app[data-tab="admin"]>.stack{max-width:860px}
  #app[data-tab="agenda"]>.stack{max-width:none}
@@ -2992,7 +2998,7 @@ document.head.insertAdjacentHTML("beforeend",`<style id="desktopCSS">
  #app[data-tab="home"]>.stack{column-count:3}
 }
 </style>`);
-{const _rd=render;render=function(){_rd();const a=document.getElementById("app");if(a)a.dataset.tab=S.profile.created?UI.tab:"onb";const t=document.getElementById("tabs");if(t&&!t.querySelector(".side-logo"))t.insertAdjacentHTML("afterbegin",`<div class="side-logo">${logoHTML(30)}<div class="tiny muted" style="margin-top:4px;font-weight:700;letter-spacing:.06em">VIDA EM ORDEM</div></div>`)}}
+{const _rd=render;render=function(){_rd();const a=document.getElementById("app");if(a)a.dataset.tab=S.profile.created?UI.tab:"onb";if(a&&UI.tab==="home"&&window.innerWidth>=1000){const st=a.querySelector(":scope>.stack");const pc=st&&st.querySelector(':scope>button.card[data-v="pig"]');if(pc&&st.children[1]!==pc)st.insertBefore(pc,st.children[1])}const t=document.getElementById("tabs");if(t&&!t.querySelector(".side-logo"))t.insertAdjacentHTML("afterbegin",`<div class="side-logo">${logoHTML(30)}<div class="tiny muted" style="margin-top:4px;font-weight:700;letter-spacing:.06em">VIDA EM ORDEM</div></div>`)}}
 
 
 /* ============================================================

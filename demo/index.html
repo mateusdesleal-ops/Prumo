@@ -3258,7 +3258,7 @@ if(DEMO_ON)Store.demo=true;
 {const _ls=lsPut;lsPut=function(){if(Store.demo)return;_ls()}}
 function demoBuild(){const td=today();const D=n=>addDays(td,n);const K=n=>shiftMonth(mkey(),n);let seq=0;const id=p=>p+"_"+(++seq);
  const s=defaultState();
- Object.assign(s.profile,{name:"Mateus Leal",income:6500,pet:true,age:34,weight:82.1,height:176,level:"intermediario",cleared:true,created:D(-95),studyGoal:25,limit48:150,prayer:true,focus:["fin","saude"],why:"Juntar para viajar com a família",remindAt:"21:00",shareAsked:1});
+ Object.assign(s.profile,{name:"José da Silva",income:6500,pet:true,age:34,weight:82.1,height:176,level:"intermediario",cleared:true,created:D(-95),studyGoal:25,limit48:150,prayer:true,focus:["fin","saude"],why:"Juntar para viajar com a família",remindAt:"21:00",shareAsked:1});
  s.agenda.events.prumo_daily={id:"prumo_daily",title:"Dois minutos no Prumo",date:D(-95),time:"21:00",remind:0,repeat:"daily",place:"",notes:""};
  // atividade: 23 dias seguidos + dias espalhados antes
  for(let i=0;i<23;i++)s.activity[D(-i)]=1;for(let i=24;i<95;i++)if(i%3!==0)s.activity[D(-i)]=1;
@@ -3296,7 +3296,7 @@ function demoBuild(){const td=today();const D=n=>addDays(td,n);const K=n=>shiftM
  // mascote
  s.pet.name="Bolota";["laco","oculos","gravata","cachecol","bone","lapis","escuros","coroa"].forEach(a=>s.pet.owned[a]=D(-10));s.pet.equip={head:"bone",face:"oculos",neck:"cachecol"};
  // orçamentos
- s.quotes={seq:4,cfg:{name:"Mateus Leal Psicologia",doc:"",phone:"",wa:"(44) 99999-0000",address:"",city:"Campo Mourao",color:"#2F5D57",pixType:"email",pixKey:"mateus@exemplo.com",pixName:"Mateus Leal",validity:7,show:{logo:true,phone:false,address:false,wa:true,validity:true,pix:true}},
+ s.quotes={seq:4,cfg:{name:"José da Silva Psicologia",doc:"",phone:"",wa:"(44) 99999-0000",address:"",city:"Campo Mourao",color:"#2F5D57",pixType:"email",pixKey:"jose@exemplo.com",pixName:"Jose da Silva",validity:7,show:{logo:true,phone:false,address:false,wa:true,validity:true,pix:true}},
   tpl:{t1:{id:"t1",name:"Sessão individual",items:[{d:"Sessão de psicoterapia (50 min)",q:1,u:"sessão",v:180}]},t2:{id:"t2",name:"Palestra",items:[{d:"Palestra: dinheiro, hábitos e saúde mental (1h30)",q:1,u:"serviço",v:1500}]}},
   items:{
    q1:{id:"q1",num:1,created:D(-20),status:"aprovado",approvedAt:D(-18),approvedName:"Juliana (RH)",client:{name:"Empresa Horizonte",phone:"(44) 98888-0000"},items:[{d:"Palestra: dinheiro, hábitos e saúde mental (1h30)",q:1,u:"serviço",v:1500},{d:"Material de apoio impresso",q:40,u:"un",v:6}],discount:140,validity:10,notes:"Inclui roda de conversa ao final.",showPix:true,showWa:true,incomeId:"x"},
@@ -3328,27 +3328,43 @@ function demoBuild(){const td=today();const D=n=>addDays(td,n);const K=n=>shiftM
  return{S:s,F}}
 function startDemo(){Store.demo=true;Store.cloud=false;Store.localOnly=true;UI.needAuth=false;try{Store.unsubs.forEach(u=>u())}catch(e){}
  const d=demoBuild();S=hydrate(d.S);for(const k in PFIN)delete PFIN[k];Object.assign(PFIN,d.F);ME.uid="demo";UI.tab="home";UI.onb=-1;
- MSG.list=[{id:"demo",body:"Oi, Mateus! Vi que você já está há 23 dias seguidos cuidando das suas finanças. Que orgulho! Continue assim que a viagem com a família está cada vez mais perto.",created_at:new Date().toISOString()}];
+ MSG.list=[{id:"demo",body:"Oi, José! Vi que você já está há 23 dias seguidos cuidando das suas finanças. Que orgulho! Continue assim que a viagem com a família está cada vez mais perto.",created_at:new Date().toISOString()}];
  applyTheme();render()}
 function demoBar(){if(!Store.demo)return;let b=document.getElementById("demobar");if(!b){b=document.createElement("div");b.id="demobar";b.style.cssText="position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--ink);color:var(--bg);border-radius:999px;padding:6px 6px 6px 14px;font-size:12px;font-weight:700;display:flex;gap:10px;align-items:center;box-shadow:0 6px 18px rgba(0,0,0,.25)";b.innerHTML=`Demonstração · nada é salvo <button data-act="demoExit" aria-label="Recomeçar a demonstração" style="border:0;border-radius:999px;padding:5px 10px;background:var(--pig-deep);color:#fff;font-weight:700;font-size:12px">Recomeçar</button>`;document.body.appendChild(b)}}
 {const _r=render;render=function(){_r();demoBar()}}
 A.demoExit=()=>{location.reload()};
 A.openDemo=()=>{location.href=location.pathname+"?demo"};
 
-/* Simulador da evolução do porquinho (só na demonstração) */
-const SIM={v:null};
-function simParams(x){const mood=x<20?"triste":x<40?"preocupado":x<70?"ok":"feliz";
- const accs=[["head","laco",30],["face","oculos",45],["neck","gravata",55],["head","bone",65],["neck","cachecol",75],["face","escuros",85],["head","coroa",95]];const equip={head:null,face:null,neck:null};accs.forEach(([sl,id,t])=>{if(x>=t)equip[sl]=id});
- return{score:Math.max(5,x),mood,equip,env:Math.min(6,Math.floor(x/15)),dry:x<15,peace:Math.min(7,Math.floor(x/13))}}
-function simLabel(x){return x<20?"Gastando mais do que ganha, sem exercícios nem estudos: o porquinho fica magrinho, triste e o ambiente seca.":x<40?"Ainda no aperto: o porquinho fica preocupado e o ambiente é simples.":x<70?"Contas em dia e alguns hábitos: o porquinho está bem e ganha as primeiras roupinhas.":x<90?"Guardando dinheiro, estudando e se exercitando: porquinho feliz, gordinho e com jardim florido.":"Vida em ordem: reserva cheia, hábitos firmes e sequência longa. Até coroa ele ganha!"}
-function simCard(){const x=SIM.v??70;return `<div class="card stack" id="simcard"><div class="row between"><b>Simular a evolução</b><span class="pill info">demonstração</span></div><p class="tiny muted">Arraste para ver como o porquinho muda conforme a vida da pessoa melhora ou piora.</p>
- <div class="pigstage" id="simstage">${pigSVG(simParams(x))}</div>
- <input type="range" id="simrange" min="0" max="100" value="${x}" style="width:100%;min-height:36px;padding:0;border:0;background:none;accent-color:var(--pig-deep)" aria-label="Simular evolução">
- <div class="row between tiny muted"><span>Vida bagunçada</span><span>Vida em ordem</span></div>
- <p class="small" id="simtxt">${simLabel(x)}</p></div>`}
-function simInject(){if(!Store.demo||!["home","pig"].includes(UI.tab)||document.getElementById("simcard"))return;const st=document.querySelector("#app .pigstage");if(!st)return;const host=st.closest(".card")||st;host.insertAdjacentHTML("afterend",simCard())}
+/* Simuladores da evolução do porquinho (só na demonstração): um controle para cada área */
+const SIMD=[
+ {k:"fin",n:"Finanças",u:"saúde financeira",min:0,max:100,v:70,fmt:x=>x+" de 100",fx:x=>x<20?"Gastando mais do que ganha: fica magrinho e triste.":x<40?"No aperto: fica preocupado.":x<70?"Contas em dia: fica bem.":"Guardando dinheiro: fica gordinho e feliz."},
+ {k:"study",n:"Estudos",u:"minutos estudados",min:0,max:2400,step:50,v:900,fmt:x=>x+" min",fx:x=>{const o=simOwned(x).map(a=>a.n.toLowerCase());return o.length?`Cada 5 minutos vira 1 ponto. Já comprou: ${o.join(", ")}.`:"Cada 5 minutos estudados vira 1 ponto para comprar roupinhas."}},
+ {k:"ex",n:"Exercícios",u:"minutos de exercício",min:0,max:3000,step:30,v:900,fmt:x=>x+" min",fx:x=>`Ambiente: ${ENV_LEVELS[lvlFor(x)].n.toLowerCase()}.`},
+ {k:"gap",n:"Dias sem se exercitar",u:"dias parado",min:0,max:21,v:0,fmt:x=>x+(x===1?" dia":" dias"),fx:x=>x>=7?`Perdeu ${Math.floor(x/7)} item do ambiente, e o chão secou. Uma hora de exercício recupera cada item.`:x>=4?"O chão começa a secar.":"Ambiente conservado."},
+ {k:"tasks",n:"Tarefas concluídas",u:"tarefas",min:0,max:60,v:27,fmt:x=>x+"",fx:x=>x>=50?"Ganhou lápis, óculos escuros e faixa de campeão.":x>=25?"Ganhou lápis na orelha e óculos escuros.":x>=10?"Ganhou o lápis na orelha.":"Com 10 tarefas concluídas, ganha o primeiro prêmio."},
+ {k:"late",n:"Tarefas atrasadas",u:"atrasadas há 2 dias ou mais",min:0,max:3,v:0,fmt:x=>x+"",fx:x=>x?`Guardou ${x} acessório${x>1?"s":""} no guarda-roupa até a tarefa ser feita ou remarcada.`:"Nenhuma tarefa esquecida."},
+ {k:"prayer",n:"Oração",u:"dias com oração na semana",min:0,max:7,v:5,fmt:x=>x+" de 7",fx:x=>x>=7?"Luz suave no ambiente.":x>=4?"Brilho no ar.":x>=1?"Uma pombinha aparece.":"Sem paz no ambiente ainda."},
+ {k:"streak",n:"Sequência",u:"dias seguidos",min:0,max:40,v:23,fmt:x=>x+(x===1?" dia":" dias"),fx:x=>x>=30?"30 dias seguidos: ganhou a coroa!":`Faltam ${30-x} dias para ganhar a coroa.`}];
+const SIMV={};SIMD.forEach(d=>SIMV[d.k]=d.v);
+function simOwned(min){const pts=Math.floor(min/5);const shop=ACCESSORIES.filter(a=>a.cost>0).sort((a,b)=>a.cost-b.cost);const out=[];let left=pts;shop.forEach(a=>{if(left>=a.cost){out.push(a);left-=a.cost}});return out}
+function simParams(){const V=SIMV;const x=V.fin;const mood=x<20?"triste":x<40?"preocupado":x<70?"ok":"feliz";
+ const have=new Set(simOwned(V.study).map(a=>a.id));if(V.tasks>=10)have.add("lapis");if(V.tasks>=25)have.add("escuros");if(V.tasks>=50)have.add("faixa");if(V.streak>=30)have.add("coroa");
+ const pref={head:["coroa","capelo","fone","bone","lapis","laco"],face:["escuros","oculos"],neck:["faixa","cachecol","gravata"]};const equip={};for(const sl in pref)equip[sl]=pref[sl].find(id=>have.has(id))||null;
+ ["neck","face","head"].slice(0,V.late).forEach(sl=>equip[sl]=null);
+ return{score:Math.max(5,x),mood,equip,env:Math.max(0,lvlFor(V.ex)-Math.floor(V.gap/7)),dry:V.gap>=4,peace:V.prayer}}
+function simRow(d){return `<div class="stack-s" style="gap:4px"><div class="row between small"><b>${d.n}</b><span class="num muted" id="simv_${d.k}">${d.fmt(SIMV[d.k])}</span></div>
+ <input type="range" class="simr" data-k="${d.k}" min="${d.min}" max="${d.max}" step="${d.step||1}" value="${SIMV[d.k]}" style="width:100%;min-height:30px;padding:0;border:0;background:none;accent-color:var(--pig-deep)" aria-label="${d.n}: ${d.u}">
+ <span class="tiny muted" id="simx_${d.k}">${d.fx(SIMV[d.k])}</span></div>`}
+function simCard(){return `<div class="card stack" id="simcard"><div class="row between"><b>Simular a evolução</b><span class="pill info">demonstração</span></div>
+ <p class="tiny muted">Cada área da vida muda uma parte do porquinho. Arraste para ver.</p>
+ <div class="pigstage" id="simstage" style="position:sticky;top:calc(env(safe-area-inset-top,0px) + 60px);z-index:2">${pigSVG(simParams())}</div>
+ <div class="row" style="gap:6px"><button class="btn ghost sm" data-act="simPreset" data-v="bad">Vida bagunçada</button><button class="btn ghost sm" data-act="simPreset" data-v="mid">No caminho</button><button class="btn ghost sm" data-act="simPreset" data-v="good">Vida em ordem</button></div>
+ ${SIMD.filter(d=>d.k!=="prayer"||S.profile.prayer).map(simRow).join("")}</div>`}
+function simRedraw(){const s=document.getElementById("simstage");if(s)s.innerHTML=pigSVG(simParams());SIMD.forEach(d=>{const a=document.getElementById("simv_"+d.k),b=document.getElementById("simx_"+d.k),r=document.querySelector(`.simr[data-k="${d.k}"]`);if(a)a.textContent=d.fmt(SIMV[d.k]);if(b)b.textContent=d.fx(SIMV[d.k]);if(r&&+r.value!==SIMV[d.k])r.value=SIMV[d.k]})}
+function simInject(){if(!Store.demo||!["home","pig"].includes(UI.tab)||document.getElementById("simcard"))return;const st=[...document.querySelectorAll("#app .pigstage")].find(e=>e.offsetWidth>160);if(!st)return;const host=st.closest(".card")||st;host.insertAdjacentHTML("afterend",simCard())}
 {const _r2=render;render=function(){_r2();simInject()}}
-document.addEventListener("input",ev=>{if(ev.target&&ev.target.id==="simrange"){const x=+ev.target.value;SIM.v=x;const s=document.getElementById("simstage");if(s)s.innerHTML=pigSVG(simParams(x));const t=document.getElementById("simtxt");if(t)t.textContent=simLabel(x)}});
+document.addEventListener("input",ev=>{const t=ev.target;if(t&&t.classList&&t.classList.contains("simr")){SIMV[t.dataset.k]=+t.value;simRedraw()}});
+A.simPreset=el=>{const P={bad:{fin:10,study:0,ex:0,gap:14,tasks:2,late:3,prayer:0,streak:0},mid:{fin:50,study:600,ex:500,gap:2,tasks:15,late:1,prayer:3,streak:9},good:{fin:95,study:2400,ex:3000,gap:0,tasks:55,late:0,prayer:7,streak:35}}[el.dataset.v];Object.assign(SIMV,P);simRedraw()};
 
 /* início */
 (function boot(){

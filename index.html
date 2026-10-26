@@ -1782,7 +1782,7 @@ function viewHome(){
  return `<div class="stack">
  <div class="stack-s" style="margin-top:4px"><h1>${hi}${first?", "+esc(first):""}</h1><p class="muted">${dayLabel(today())==="Hoje"?new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"}):""}</p></div>
  ${whyCard()}
- ${letterHomeCard()}${msgCard()}${missionsCard()}${shareCard()}
+ ${letterHomeCard()}${prumoCard()}${msgCard()}${missionsCard()}${shareCard()}
  ${pigCard}
  ${envWarning()}${studyWarning()}${taskWarning()}
  <div class="card"><div class="label" style="margin-bottom:12px">Metas de hoje</div>
@@ -2076,6 +2076,7 @@ function aboutHTML(intro){
  return `<div class="stack" style="gap:18px">
  ${intro?`<div style="text-align:center" class="stack-s">${logoHTML(56)}<p class="label" style="color:var(--money);font-size:13px">Vida em ordem</p></div>`:""}
  ${letterBlock()}
+ ${prumoAboutBlock()}
  <div class="grid2">${pill(I.money,"Dinheiro","var(--money)")}${pill(I.book,"Aprendizado","var(--pig-deep)")}${pill(I.run,"Corpo","var(--need)")}${pill(I.cal,"Rotina","var(--warn)")}</div>
  <div class="card stack" style="border-color:color-mix(in srgb,var(--money) 45%,var(--line));background:color-mix(in srgb,var(--money) 7%,var(--surface))">
   <div class="label" style="color:var(--money)">Nosso compromisso</div>
@@ -2999,6 +3000,85 @@ document.head.insertAdjacentHTML("beforeend",`<style id="desktopCSS">
 }
 </style>`);
 {const _rd=render;render=function(){_rd();const a=document.getElementById("app");if(a)a.dataset.tab=S.profile.created?UI.tab:"onb";if(a&&UI.tab==="home"&&window.innerWidth>=1000){const st=a.querySelector(":scope>.stack");const pc=st&&st.querySelector(':scope>button.card[data-v="pig"]');if(pc&&st.children[1]!==pc)st.insertBefore(pc,st.children[1])}const t=document.getElementById("tabs");if(t&&!t.querySelector(".side-logo"))t.insertAdjacentHTML("afterbegin",`<div class="side-logo">${logoHTML(30)}<div class="tiny muted" style="margin-top:4px;font-weight:700;letter-spacing:.06em">VIDA EM ORDEM</div></div>`)}}
+
+
+/* ============================================================
+   Método PRUMO: Propósito, Recursos, Uso do tempo, Mente, Organismo
+   ============================================================ */
+const PRUMO=[
+ {k:"P",n:"Propósito",a:"Oração e pausas",tab:"prayer",c:"#8A6FD1",d:"Paz e sentido",tip:"Um minuto de silêncio, uma oração ou um momento de gratidão já endireitam o prumo.",act:["pauseDone","Fiz minha pausa"]},
+ {k:"R",n:"Recursos",a:"Finanças",tab:"fin",c:"var(--money)",d:"Segurança",tip:"Lance os gastos de hoje ou toque em Hoje não gastei. Ver o dinheiro é o primeiro passo para cuidar dele.",act:["addExpense","Lançar gasto"]},
+ {k:"U",n:"Uso do tempo",a:"Agenda e tarefas",tab:"agenda",c:"var(--warn)",d:"Ordem",tip:"Escolha uma tarefa para hoje e remarque sem culpa as que ficaram para trás.",act:["addTask","Anotar tarefa"]},
+ {k:"M",n:"Mente",a:"Estudos e leitura",tab:"study",c:"var(--pig-deep)",d:"Crescimento",tip:"Dez minutos de leitura ou uma lição curta já alimentam a mente.",act:["addStudy","Registrar estudo"]},
+ {k:"O",n:"Organismo",a:"Saúde do corpo",tab:"ex",c:"var(--need)",d:"Energia",tip:"Uma caminhada de 10 minutos e um copo de água já fazem o corpo agradecer.",act:["addEx","Registrar exercício"]}];
+function prumoScores(){const td=today();const days=[];for(let i=0;i<7;i++)days.push(addDays(td,-i));const in7=d=>d&&d>=days[6]&&d<=td;
+ // P: dias com oração ou pausa
+ const pDays=days.filter(d=>(S.prayer.log[d]&&Object.values(S.prayer.log[d]).some(Boolean))||S.checkins["pausa_"+d]).length;
+ const P=Math.round(Math.min(1,pDays/5)*100);
+ // R: saúde financeira do porquinho
+ const R=Math.round(pigHealth().score);
+ // U: tarefas feitas na semana, menos as atrasadas
+ const tl=taskList();const done7=tl.filter(t=>t.doneAt&&in7(ymd(new Date(t.doneAt)))).length;const late=tl.filter(t=>t.status!=="done"&&t.date&&t.date<td).length;
+ const evs=Object.keys(S.agenda.events||{}).filter(k=>k!=="prumo_daily").length;
+ const U=tl.length||evs?clamp(55+done7*9-late*15+(evs?5:0),0,100):25;
+ // M: minutos de estudo na semana em relação à meta, mais lições lidas
+ const goal=(+S.profile.studyGoal||20)*5;const sm=days.reduce((s,d)=>s+studyMin(d),0);const lr=Object.values(S.learn.read||{}).filter(in7).length;
+ const M=Math.round(Math.min(1,sm/goal+lr*0.1)*100);
+ // O: 150 min de exercício (OMS), água e alimentação
+ const exm=vals(S.ex.logs).filter(l=>in7(l.date)).reduce((s,l)=>s+(+l.min||0),0);const wd=days.filter(d=>(+S.food.water[d]||0)>=4).length;const fd=days.filter(d=>vals(S.food.logs).some(l=>l.date===d)).length;
+ const O=Math.round((Math.min(1,exm/150)*0.6+wd/7*0.2+fd/7*0.2)*100);
+ const sc={P,R,U,M,O};const arr=PRUMO.map(a=>({...a,s:sc[a.k]}));const avg=Math.round(arr.reduce((s,a)=>s+a.s,0)/5);const low=arr.slice().sort((a,b)=>a.s-b.s)[0];
+ return{arr,avg,low,ok:low.s>=60}}
+function prumoSVG(r){const idx=PRUMO.findIndex(a=>a.k===r.low.k);const pull=r.ok?0:Math.min(1,(60-r.low.s)/60+0.25);const dx=((idx+.5)/5)*300-150;const ang=r.ok?0:-Math.atan2(dx,150)*180/Math.PI*pull;
+ const W=300,H=150,cx=150,top=14,len=104;
+ return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Seu prumo" style="width:100%;height:auto;display:block">
+ <line x1="${cx-60}" y1="${top}" x2="${cx+60}" y2="${top}" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/>
+ <line x1="${cx}" y1="${top+6}" x2="${cx}" y2="${top+len+18}" stroke="var(--line)" stroke-width="2" stroke-dasharray="4 5"/>
+ <g style="transform-origin:${cx}px ${top}px;transform:rotate(${ang}deg);transition:transform 1.2s cubic-bezier(.3,1.6,.5,1)" class="prumo-swing">
+  <line x1="${cx}" y1="${top}" x2="${cx}" y2="${top+len}" stroke="var(--ink)" stroke-width="2"/>
+  <path d="M${cx-11} ${top+len} h22 l-11 24 z" fill="${r.ok?"var(--good)":r.low.c}"/><circle cx="${cx}" cy="${top+len}" r="4" fill="var(--ink)"/></g></svg>`}
+function prumoCard(){if(!S.profile.created)return"";const r=prumoScores();const L=r.low;
+ return `<div class="card stack" id="prumoCard"><div class="row between"><div class="stack-s" style="gap:1px"><div class="label" style="color:var(--pig-deep)">Seu prumo</div><b>${r.ok?"Você está no prumo!":`Pendeu para o lado de ${L.k} · ${L.n}`}</b></div><button class="btn ghost sm" data-act="prumoInfo">O que é?</button></div>
+ <div style="max-width:320px;margin:0 auto;width:100%">${prumoSVG(r)}</div>
+ <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">${r.arr.map(a=>`<button class="stack-s" style="align-items:center;gap:4px;border:0;background:${!r.ok&&a.k===L.k?"color-mix(in srgb,"+a.c+" 14%,transparent)":"none"};border-radius:12px;padding:6px 2px" data-act="prumoArea" data-v="${a.k}" aria-label="${a.n}: ${a.s} de 100"><b style="font-family:var(--f-display);font-size:22px;color:${a.c}">${a.k}</b><div class="meter" style="height:6px;width:80%"><i style="width:${a.s}%;background:${a.c}"></i></div><span class="tiny muted" style="font-size:10.5px;line-height:1.1;text-align:center">${a.n}</span></button>`).join("")}</div>
+ <p class="small">${r.ok?"As cinco áreas estão em dia. Continue com os pequenos passos de cada dia.":L.tip}</p>
+ ${r.ok?"":`<button class="btn sm" data-act="${L.act[0]}" style="align-self:flex-start">${L.act[1]}</button>`}</div>`}
+function prumoInfoHTML(){return `<div class="stack prose" style="gap:12px">
+ <p><b>Estar no prumo</b> quer dizer estar equilibrado, nos eixos. O prumo é o fio com um peso que o pedreiro usa para ver se a parede está reta.</p>
+ <p>O Prumo cuida de cinco áreas da vida. Quando uma fica esquecida, a vida sai do prumo, e as áreas puxam umas às outras: dívida tira o sono, sono ruim tira a vontade de se mexer, e o humor cai. O contrário também vale: um passo pequeno numa área ajuda todas as outras.</p>
+ <div class="stack-s">${PRUMO.map(a=>`<div class="row" style="gap:12px;align-items:flex-start"><b style="font-family:var(--f-display);font-size:26px;color:${a.c};width:26px;flex:none;line-height:1">${a.k}</b><div class="stack-s" style="gap:1px"><b>${a.n} <span class="tiny muted">· ${a.d}</span></b><span class="small muted">${a.a}${a.k==="P"?". Para quem não tem fé: pausa, silêncio e gratidão.":""}</span></div></div>`).join("")}</div>
+ <div class="card flat stack-s"><b>Os cinco princípios</b>
+  <p class="small">1. <b>Equilíbrio, não perfeição.</b> O objetivo é nenhuma área ficar abandonada.</p>
+  <p class="small">2. <b>Ver para mudar.</b> Registrar parece chato, mas é o que traz clareza.</p>
+  <p class="small">3. <b>Pequenos passos todo dia.</b> Dois minutos por dia valem mais que um esforço enorme uma vez por mês.</p>
+  <p class="small">4. <b>Tudo está ligado.</b> Cuidar de uma área ajuda as outras.</p>
+  <p class="small">5. <b>Sair do prumo é normal.</b> O que importa é voltar, sem culpa.</p></div>
+ <p class="tiny muted">O Método PRUMO é a forma de pensar do Prumo, criada pelo psicólogo que fez o app. Ele se inspira no modelo biopsicossocial-espiritual, na definição de saúde da OMS e na Roda da Vida. Não é uma teoria científica testada nem substitui acompanhamento profissional.</p></div>`}
+function prumoAreaModal(k){const r=prumoScores();const a=r.arr.find(x=>x.k===k);if(!a)return;
+ openModal(`${a.k} · ${a.n}`,`<div class="stack"><div class="row between"><span class="small muted">${a.a}</span><b class="num" style="color:${a.c}">${a.s} de 100</b></div><div class="meter"><i style="width:${a.s}%;background:${a.c}"></i></div>
+ <p class="small muted">Calculado com os seus últimos 7 dias.</p><p>${a.tip}</p>
+ <div class="row wrap" style="gap:8px"><button class="btn sm" data-act="${a.act[0]}">${a.act[1]}</button>${a.k!=="P"||S.profile.prayer?`<button class="btn ghost sm" data-act="prumoGo" data-v="${a.tab}">Abrir ${a.k==="P"?"Oração":a.a.split(" ")[0]}</button>`:""}<button class="btn ghost sm" data-act="lesson" data-v="pm_${a.k.toLowerCase()}">Ler a lição ${a.k}</button></div></div>`)}
+Object.assign(A,{
+ prumoInfo:()=>openModal("O Método PRUMO",`${prumoInfoHTML()}<button class="btn block" data-act="lesson" data-v="pm0" style="margin-top:12px">Começar a trilha do Método PRUMO</button>`),
+ prumoArea:el=>prumoAreaModal(el.dataset.v),
+ prumoGo:el=>{closeModal();UI.tab=el.dataset.v;window.scrollTo(0,0);render()}
+});
+if(!A.pauseDone)A.pauseDone=()=>{S.checkins["pausa_"+today()]=1;markActive();commit();toast("Pausa registrada. Respira fundo, você está cuidando de você.")};
+/* trilha de lições, a primeira da lista */
+{const old=Object.assign({},TRACKS);Object.keys(TRACKS).forEach(k=>delete TRACKS[k]);TRACKS.prumo={n:"Método PRUMO",d:"As cinco áreas que deixam a vida no prumo, e por que uma puxa a outra.",c:"#D9577E",ic:"spark"};Object.assign(TRACKS,old)}
+LESSONS.push(
+{id:"pm0",tr:"prumo",t:"O que é estar no prumo",a:"Método PRUMO, inspirado no modelo biopsicossocial-espiritual e na Roda da Vida",b:["Prumo é o fio com um peso na ponta que o pedreiro usa para ver se a parede está reta. Estar no prumo é estar nos eixos, equilibrado.","O Método PRUMO olha para cinco áreas: Propósito, Recursos, Uso do tempo, Mente e Organismo. Quando uma fica abandonada, a vida pende para aquele lado.","O objetivo não é ser perfeito em tudo, e sim não deixar nenhuma área esquecida. Na tela inicial, o seu prumo mostra para onde você está pendendo agora."],p:"Olhe o seu prumo no Início e veja qual área está mais fraca esta semana.",q:{q:"No Método PRUMO, o objetivo é:",o:["Não deixar nenhuma área abandonada","Ser nota 100 em todas as áreas","Focar só no dinheiro"],a:0,e:"Equilíbrio, não perfeição: cuidar um pouco de cada área."}},
+{id:"pm_p",tr:"prumo",t:"P de Propósito",a:"Base: estudos sobre espiritualidade, gratidão e saúde mental",b:["Propósito é o que dá sentido aos dias. Para quem tem fé, passa pela oração e pela comunidade. Para quem não tem, passa por valores, gratidão e pausas de silêncio.","Pesquisas associam práticas de gratidão e espiritualidade a menos ansiedade e mais satisfação com a vida. Não é preciso muito: um minuto por dia já conta.","Quando o propósito está claro, fica mais fácil dizer não para gastos por impulso e sim para hábitos que demoram a dar resultado."],p:"Hoje, antes de dormir, anote três coisas pelas quais você é grato.",q:{q:"Para quem não tem fé, o P de Propósito pode ser cuidado com:",o:["Pausas, silêncio e gratidão","Nada, a área não vale para ele","Só trabalho"],a:0,e:"Propósito vale para todos: fé, valores, pausa e gratidão."}},
+{id:"pm_r",tr:"prumo",t:"R de Recursos",a:"Base: regra 50/30/20 adaptada e psicologia econômica",b:["Recursos é o dinheiro e o que ele garante: casa, comida, segurança e liberdade de escolha.","Dívida e falta de controle financeiro estão entre as maiores fontes de estresse. A preocupação com dinheiro rouba atenção de tudo o resto, inclusive do sono.","O primeiro passo é ver: registrar os gastos e as parcelas do cartão. O segundo é dividir a renda entre necessidades, desejos e futuro."],p:"Registre hoje todos os gastos do dia, até o cafezinho.",q:{q:"Por que o dinheiro afeta as outras áreas?",o:["A preocupação financeira tira atenção, sono e energia","Não afeta, são áreas separadas","Só afeta quem ganha pouco"],a:0,e:"No Método PRUMO, tudo está ligado: o estresse financeiro pesa no corpo e na mente."}},
+{id:"pm_u",tr:"prumo",t:"U de Uso do tempo",a:"Base: estudos sobre hábitos e sobrecarga mental",b:["Uso do tempo é saber o que precisa ser feito e quando. Tarefas soltas na cabeça cansam, porque o cérebro fica tentando lembrar de tudo.","Anotar tira o peso da memória. Uma agenda e uma lista de tarefas simples já reduzem a sensação de estar sempre atrasado.","Atrasou? Remarque com honestidade. Melhor uma data real do que uma tarefa esquecida que pesa na consciência."],p:"Anote agora as três tarefas que estão rondando a sua cabeça.",q:{q:"Por que anotar tarefas ajuda?",o:["Tira o peso da memória e diminui a sensação de atraso","Porque o app obriga","Não ajuda, só ocupa tempo"],a:0,e:"Anotar libera a mente para focar no que importa agora."}},
+{id:"pm_m",tr:"prumo",t:"M de Mente",a:"Base: estudos sobre aprendizagem contínua e leitura",b:["Mente é o cuidado com o que você aprende e lê. Aprender algo novo mantém o cérebro ativo e aumenta a sensação de progresso.","Não precisa ser muito: dez minutos de leitura por dia somam mais de 60 horas por ano, o bastante para vários livros.","A mente também se cuida com descanso: telas antes de dormir atrapalham o sono e a memória."],p:"Leia 10 minutos hoje e registre em Estudos.",q:{q:"Dez minutos de leitura por dia somam, em um ano:",o:["Mais de 60 horas","Cerca de 1 hora","Nada que faça diferença"],a:0,e:"10 minutos × 365 dias = mais de 60 horas de leitura."}},
+{id:"pm_o",tr:"prumo",t:"O de Organismo",a:"Base: Organização Mundial da Saúde e Guia Alimentar para a População Brasileira",b:["Organismo é o corpo: movimento, comida, água e sono. É a base de energia para todas as outras áreas.","A OMS recomenda pelo menos 150 minutos de atividade moderada por semana, como caminhar rápido. Dá cerca de 20 minutos por dia.","Comida de verdade, água ao longo do dia e sono regular fazem o humor e a disposição mudarem em poucas semanas."],p:"Faça uma caminhada de 10 minutos hoje e registre em Saúde.",q:{q:"Quanto a OMS recomenda de atividade moderada por semana?",o:["150 minutos","15 minutos","Só aos fins de semana"],a:0,e:"150 minutos por semana, cerca de 20 por dia."}});
+
+function prumoAboutBlock(){return `<div class="card stack" style="gap:10px"><div class="label" style="color:var(--pig-deep)">O Método PRUMO</div><p class="small">O app cuida de cinco áreas que deixam a vida no prumo:</p>
+ <div class="stack-s" style="gap:6px">${PRUMO.map(a=>`<div class="row" style="gap:10px"><b style="font-family:var(--f-display);font-size:22px;color:${a.c};width:22px;flex:none">${a.k}</b><span class="small"><b>${a.n}</b> <span class="muted">· ${a.a}</span></span></div>`).join("")}</div>
+ <p class="tiny muted">Equilíbrio, não perfeição: o objetivo é nenhuma área ficar esquecida.</p></div>`}
+document.head.insertAdjacentHTML("beforeend",`<style>.tab-k{display:none}@media (min-width:1000px){.tab-k{display:inline-grid;place-items:center;margin-left:auto;width:22px;height:22px;border-radius:7px;font-family:var(--f-display);font-size:13px;background:var(--surface2);color:var(--muted)}.tab.on .tab-k{background:var(--pig-deep);color:#fff}}</style>`);
+{const TK={prayer:"P",fin:"R",agenda:"U",study:"M",ex:"O"};const _rp=render;render=function(){_rp();document.querySelectorAll("#tabs .tab[data-v]").forEach(t=>{const k=TK[t.dataset.v];if(k&&!t.querySelector(".tab-k"))t.insertAdjacentHTML("beforeend",`<b class="tab-k" aria-hidden="true">${k}</b>`)})}}
 
 
 /* ============================================================

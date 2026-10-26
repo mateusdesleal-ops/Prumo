@@ -1781,7 +1781,7 @@ function viewHome(){
  return `<div class="stack">
  <div class="stack-s" style="margin-top:4px"><h1>${hi}${first?", "+esc(first):""}</h1><p class="muted">${dayLabel(today())==="Hoje"?new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"}):""}</p></div>
  ${whyCard()}
- ${missionsCard()}${shareCard()}
+ ${msgCard()}${missionsCard()}${shareCard()}
  ${pigCard}
  ${envWarning()}${studyWarning()}${taskWarning()}
  <div class="card"><div class="label" style="margin-bottom:12px">Metas de hoje</div>
@@ -2745,6 +2745,7 @@ function sbDb(){
   collection(path){return{onSnapshot(cb){return subscribe("parent",path,rows=>cb({docs:rows.map(snap)}))}}}}}
 let SESSION=null;
 async function connectCloud(){
+ if(typeof DEMO_ON!=="undefined"&&DEMO_ON){startDemo();return}
  if(!SB_ON)return;
  let data=null;try{({data}=await sb.auth.getSession())}catch(e){}SESSION=data&&data.session;
  if(!SESSION){UI.needAuth=localModeChosen()?false:true;render();return}
@@ -2760,7 +2761,7 @@ async function connectWithUser(uid){
  else if(localS.profile.created){S=localS;await db.doc(appPath()).set(clone(S)).catch(()=>{});
   for(const k in localFin){await db.doc(`data/users/${uid}/fin-${k}`).set(stripNulls(localFin[k])).catch(()=>{})}}
  else{S=defaultState();UI.onb=-1}
- subscribePersonal();if(S.profile.household)subscribeHousehold();applyTheme();render();
+ subscribePersonal();if(S.profile.household)subscribeHousehold();applyTheme();render();loadMessages();
 }
 const localModeChosen=()=>{try{return localStorage.getItem("prumo.localMode")==="1"}catch(e){return false}};
 async function hhJoin(code){if(!sb)return;const {error}=await sb.from("household_members").upsert({code,uid:ME.uid});if(error)throw fail2(error)}
@@ -2872,7 +2873,7 @@ function viewAdmin(){if(!UI.isAdmin)return `<div class="card empty">Acesso restr
    ${!ADM.all&&us.length>30?`<button class="btn ghost sm" data-act="admAll">Ver todas (${us.length})</button>`:""}</div>`}
  return `<div class="stack"><div class="row between" style="margin-top:4px"><h1>Painel do administrador</h1><button class="iconbtn" data-act="tab" data-v="profile" aria-label="Voltar">${I.left}</button></div>
  <div class="banner info"><span class="small">Você vê números gerais e a lista de contas. Finanças, saúde, orações e os demais registros de cada pessoa continuam privados, como diz a política de privacidade.</span></div>
- <button class="btn line sm" data-act="admReload" style="align-self:flex-start" ${ADM.loading?"disabled":""}>${ADM.loading?"Atualizando…":"Atualizar números"}</button>
+ <div class="row wrap" style="gap:8px"><button class="btn line sm" data-act="admReload" ${ADM.loading?"disabled":""}>${ADM.loading?"Atualizando…":"Atualizar números"}</button><button class="btn sm" data-act="openDemo">Abrir demonstração</button></div>
  ${body}</div>`}
 A.goAdmin=()=>{UI.tab="admin";window.scrollTo(0,0);ADM.stats=null;ADM.sel=null;render()};
 A.admReload=()=>admLoad();
@@ -2906,13 +2907,13 @@ A.shareSetAll=el=>{const a={};SHARE_AREAS.forEach(([k])=>a[k]=el.dataset.v==="1"
 document.addEventListener("change",ev=>{const t=ev.target;if(!t||!t.classList)return;if(t.classList.contains("shPro")){shareApply(shareRead("shPro"));toast(shareAny(shareAreas())?"Preferência salva.":"Nada é compartilhado. Seu perfil fica privado.")}if(t.classList.contains("shTmp"))UI.shareTmp=shareRead("shTmp")});
 
 /* ---------- Perfil de um usuário no painel (só com autorização) ---------- */
-A.admOpen=async el=>{ADM.sel=el.dataset.v;ADM.detail=null;ADM.detErr=null;window.scrollTo(0,0);render();
+A.admOpen=async el=>{ADM.sel=el.dataset.v;ADM.detail=null;ADM.detErr=null;ADM.msgs=[];window.scrollTo(0,0);render();admLoadMsgs(ADM.sel).then(()=>render());
  try{const {data,error}=await sb.rpc("admin_user_detail",{p_email:ADM.sel});if(error)throw error;ADM.detail=data}catch(e){ADM.detErr=(e&&e.message)||"erro"}render()};
 A.admClose=()=>{ADM.sel=null;ADM.detail=null;render()};
 function admDetail(){const u=(ADM.users||[]).find(x=>x.email===ADM.sel)||{email:ADM.sel};
  const head=`<div class="row between" style="margin-top:4px"><h2 style="overflow-wrap:anywhere">${esc(u.email)}</h2><button class="iconbtn" data-act="admClose" aria-label="Voltar">${I.left}</button></div>
  <p class="tiny muted">Conta criada ${admDate(u.created_at)} · último acesso ${admDate(u.last_sign_in_at)}${u.last_activity?" · usou "+admDate(u.last_activity,true):""}</p>`;
- if(ADM.detErr)return `<div class="stack">${head}<div class="banner ${/autoriza/.test(ADM.detErr)?"info":"bad"}"><span class="small">${/autoriza/.test(ADM.detErr)?"Esta pessoa não autorizou as dicas personalizadas, então o perfil dela fica privado. Você só vê o e-mail e as datas.":"Não consegui carregar: "+esc(ADM.detErr)}</span></div></div>`;
+ if(ADM.detErr)return `<div class="stack">${head}<div class="banner ${/autoriza/.test(ADM.detErr)?"info":"bad"}"><span class="small">${/autoriza/.test(ADM.detErr)?"Esta pessoa não autorizou as dicas personalizadas, então o perfil dela fica privado. Você só vê o e-mail e as datas, mas pode mandar uma mensagem.":"Não consegui carregar: "+esc(ADM.detErr)}</span></div>${admMsgBlock(u.email,"",null,null,{inactive:!u.last_activity||new Date(u.last_activity)<new Date(Date.now()-7*864e5)})}</div>`;
  if(!ADM.detail)return `<div class="stack">${head}<div class="card empty">Carregando…</div></div>`;
  const a=ADM.detail.app||{},F=ADM.detail.fin||{},p=a.profile||{};const ar=ADM.detail.areas||{};const td=today(),d30=addDays(td,-30);
  const v=o=>Object.values(o||{}).filter(Boolean);const in30=x=>x.date&&x.date>=d30;
@@ -2954,6 +2955,7 @@ function admDetail(){const u=(ADM.users||[]).find(x=>x.email===ADM.sel)||{email:
  return `<div class="stack">${head}
  <div class="banner info"><span class="small">Esta pessoa autorizou as dicas personalizadas${p.shareAt?" em "+parseDate(p.shareAt).toLocaleDateString("pt-BR"):""} e liberou: ${SHARE_AREAS.filter(([k])=>ar[k]).map(([,n])=>n.toLowerCase()).join(", ")||"só o perfil"}. Use estes dados só para ajudá-la, e nunca os repasse a ninguém.</span></div>
  ${sug.length?`<div class="card stack-s" style="border:2px solid var(--pig)"><div class="label" style="color:var(--pig-deep)">Ideias de mensagem</div>${sug.map(s=>`<p class="small">· ${s}</p>`).join("")}</div>`:""}
+ ${admMsgBlock(u.email,p.name||"",!!p.pet,(a.pet||{}).name||"",{inactive:!lastAct||lastAct<addDays(td,-7),debt:dbs.some(x=>(+x.rate||0)>2),over:!!(cds.length&&inc&&sp/nm>inc/nm),reserve:!!(ar.fin&&!(+meta.reserveStart)&&!catT["Reserva de emergência"]),health:!!(ar.saude&&(p.focus||[]).includes("saude")&&!ex30.length),study:!!(ar.estudo&&(p.focus||[]).includes("estudo")&&stMin<60),late:tLate.length>=3,streak:st>=7?st:0,subs:subs.length>=4?subs.length:0})}
  ${sec("Perfil",row("Nome",esc(p.name||""))+row("Idade",p.age?p.age+" anos":"")+row("Começou a usar",p.created?parseDate(p.created).toLocaleDateString("pt-BR"):"")+row("Por onde quis começar",(p.focus||[]).map(f=>FN[f]||f).join(", "))+row("Motivo",esc(p.why||""))+row("Lembrete diário",p.remindAt||"")+row("Porquinho",p.pet?(a.pet&&a.pet.name?esc(a.pet.name):"ligado"):"desligado")+row("Sequência atual",st+" dia(s)")+row("Dias com uso no último mês",act30)+row("Lições lidas",Object.keys((a.learn||{}).read||{}).length))}
  ${!ar.fin?off("Finanças"):sec("Finanças",row("Renda informada",+p.income?brl0(p.income):"")+row(`Renda média (${nm} ${nm>1?"meses":"mês"})`,inc?brl0(inc/nm):"")+row("Gasto médio por mês",sp?brl0(sp/nm):"")+(sp?row("Necessidades / Desejos / Futuro",["N","D","F"].map(k=>Math.round(bk[k]/sp*100)+"%").join(" / ")):"")+row("Onde mais gasta",topCats)+row("Dívidas",dbs.length?`${dbs.length} · ${brl0(dbs.reduce((s,x)=>s+(+x.balance||0),0))} (${[...new Set(dbs.map(x=>(DK[x.kind]||{}).n||x.kind))].join(", ")})`:"nenhuma")+row("Cartões",cds.length?`${cds.length} · limite ${brl0(cds.reduce((s,x)=>s+(+x.limit||0),0))}`:"nenhum")+row("Assinaturas",subs.length?`${subs.length} · ${brl0(subs.reduce((s,x)=>s+(+x.v||0),0))}/mês`:"")+row("Contas anuais",bills.length||"")+row("Reserva inicial",+meta.reserveStart?brl0(meta.reserveStart):"")+row("Investimentos iniciais",+meta.investStart?brl0(meta.investStart):"")+(recent.length?`<div class="tiny muted" style="margin-top:6px;font-weight:700">Últimos gastos</div>`+lst(recent.slice(0,15).map(x=>li(x.desc?`${esc(x.desc)} <span class="muted">· ${(CAT[x.cat]||CAT.outros).n}</span>`:(CAT[x.cat]||CAT.outros).n,`${ddmm(x.date)} · ${brl(x.v)}`))):""))}
  ${!ar.saude?off("Saúde"):sec("Saúde",row("Peso",wNow?wNow+" kg":"")+row("Meta de peso",(a.weight||{}).goal?a.weight.goal+" kg":"")+row("Altura",p.height?p.height+" cm":"")+row("Nível de exercício",p.level||"")+row("Exercícios no último mês",ex30.length?`${ex30.length} · ${exMin} min`:"nenhum")+row("Dias com alimentação registrada",foodDays||"")+row("Objetivo da alimentação",((a.food||{}).cfg||{}).goal||""))}
@@ -2961,6 +2963,122 @@ function admDetail(){const u=(ADM.users||[]).find(x=>x.email===ADM.sel)||{email:
  ${!ar.rotina?off("Agenda e tarefas"):sec("Agenda e tarefas",row("Tarefas abertas",tOpen.length)+row("Atrasadas",tLate.length)+row("Concluídas no total",(a.tasks||{}).doneTotal||tasks.filter(t=>t.status==="done").length)+(tOpen.length?`<div class="tiny muted" style="margin-top:6px;font-weight:700">Tarefas abertas</div>`+lst(tOpen.slice(0,10).map(t=>li(esc(t.title),t.date?ddmm(t.date):"sem data"))):"")+`<div class="tiny muted" style="margin-top:6px;font-weight:700">Próximos 30 dias na agenda</div>`+(evs.length?lst(evs.map(e=>li(esc(e.title)+(e.repeat&&e.repeat!=="none"?` <span class="muted">· ${{daily:"todo dia",weekly:"toda semana",monthly:"todo mês",yearly:"todo ano"}[e.repeat]||""}</span>`:""),`${ddmm(e.day)}${e.time?" "+esc(e.time):""}`))):`<span class="tiny muted">Nada marcado.</span>`))}
  ${!ar.fe?off("Oração"):sec("Oração",row("Tradição",esc(((typeof PRAYER_TRADS!=="undefined"&&PRAYER_TRADS[(a.prayer||{}).trad])||{}).n||(a.prayer||{}).trad||""))+row("Dias com oração no último mês",prDays))}
  </div>`}
+
+/* ---------- Mensagens do Prumo (ou do mascote) para o usuário ---------- */
+const MSG={list:[]};
+async function loadMessages(){if(!sb||!Store.cloud||Store.demo)return;try{const {data,error}=await sb.from("messages").select("id,body,created_at").is("read_at",null).order("created_at",{ascending:true}).limit(10);if(!error){MSG.list=data||[];render()}}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)loadMessages()});
+function msgCard(){const m=MSG.list[0];if(!m)return"";const body=esc(m.body).replace(/\n/g,"<br>");const more=MSG.list.length>1?`<span class="tiny muted">1 de ${MSG.list.length}</span>`:"";
+ if(S.profile.pet){return `<div class="card stack" style="border:2px solid var(--pig)"><div class="row" style="gap:12px;align-items:flex-end"><div class="pigstage" style="width:84px;flex:none;border-radius:50%;aspect-ratio:1;overflow:hidden" data-act="pigPoke">${pigSVG({score:80,mood:"feliz",equip:effectiveEquip(),env:envLevel(),dry:false,peace:0})}</div>
+  <div class="grow stack-s" style="gap:2px"><b style="color:var(--pig-deep)">${esc(petCap())} tem um recado para você</b>${more}</div></div>
+  <div style="position:relative;background:var(--pig-soft);border-radius:16px;padding:12px 14px;font-size:15px"><span style="position:absolute;top:-8px;left:34px;width:16px;height:16px;background:var(--pig-soft);transform:rotate(45deg)"></span><span style="position:relative">${body}</span></div>
+  <button class="btn sm" data-act="msgRead" data-v="${m.id}" style="align-self:flex-end">Oinc! Li</button></div>`}
+ return `<div class="card stack" style="border:2px solid var(--pig)"><div class="row between"><div class="row" style="gap:8px">${logoHTML(22)}<span class="small muted">tem um recado para você</span></div>${more}</div><p style="font-size:15px">${body}</p><button class="btn sm" data-act="msgRead" data-v="${m.id}" style="align-self:flex-end">Li a mensagem</button></div>`}
+A.msgRead=async el=>{const id=el.dataset.v;MSG.list=MSG.list.filter(x=>x.id!==id);render();if(Store.demo||!sb)return;try{await sb.rpc("mark_message_read",{p_id:id})}catch(e){}};
+
+/* envio pelo painel */
+function admTemplates(name,ctx){const n=name?name.split(" ")[0]:"";const oi=n?`Oi, ${n}!`:"Oi!";const T=[];
+ if(ctx.inactive)T.push(["Sentimos sua falta",`${oi} Sentimos sua falta por aqui. Não precisa colocar tudo em dia: que tal registrar só o dia de hoje? Dois minutos já contam, e sua sequência tem um dia de folga por semana.`]);
+ if(ctx.debt)T.push(["Dívida cara",`${oi} Vi que você está enfrentando uma dívida com juros altos. Uma dica: ligue para o banco e peça para trocar por um empréstimo mais barato ou para negociar um desconto à vista. Na aba Aprender tem uma lição curtinha sobre isso. Você consegue!`]);
+ if(ctx.over)T.push(["Gastos acima da renda",`${oi} Este mês os gastos passaram da renda. Que tal segurar novas compras parceladas até as faturas baixarem? Em Finanças > Cartões dá para ver quanto já está comprometido nos próximos meses.`]);
+ if(ctx.reserve)T.push(["Começar a reserva",`${oi} Que tal começar sua reserva de emergência? Pode ser pouco: R$ 50 por mês já é o primeiro passo para chegar à mini-reserva de R$ 1.000.`]);
+ if(ctx.health)T.push(["Começar a se mexer",`${oi} Você escolheu cuidar da saúde, e começar pequeno funciona: que tal uma caminhada de 10 minutos hoje? Depois é só registrar no app.`]);
+ if(ctx.study)T.push(["Estudar com foco",`${oi} Que tal testar o Pomodoro hoje? São só 25 minutos de foco, e fica em Estudos.`]);
+ if(ctx.late)T.push(["Tarefas atrasadas",`${oi} Você tem algumas tarefas atrasadas. Escolha só uma para hoje e remarque as outras sem culpa. Um passo de cada vez.`]);
+ if(ctx.streak)T.push(["Parabéns pela sequência",`Parabéns${n?", "+n:""}! São ${ctx.streak} dias seguidos cuidando da sua vida no Prumo. Continue assim!`]);
+ if(ctx.subs)T.push(["Pente-fino nas assinaturas",`${oi} Você tem ${ctx.subs} assinaturas. Que tal um pente-fino? Se não usou alguma nos últimos 30 dias, vale cancelar e economizar.`]);
+ T.push(["Incentivo geral",`${oi} Passando para lembrar que cada registro conta. Organizar a vida é um passo de cada vez, e você já começou. Conte com o Prumo!`]);
+ return T}
+function admMsgBlock(email,name,pet,petName,ctx){const T=admTemplates(name,ctx);ADM.tpl=T;const hist=ADM.msgs||[];
+ return `<div class="card stack"><div class="label">Enviar mensagem</div>
+ <p class="tiny muted">${pet===true?`Esta pessoa usa o mascote: a mensagem aparece como se ${petName?esc(petName):"o porquinho"} estivesse falando com ela.`:pet===false?"Esta pessoa não usa o mascote: a mensagem aparece como um recado do Prumo.":"Se a pessoa usar o mascote, ele entrega o recado. Se não, aparece como recado do Prumo."} Ela vê no Início, na próxima vez que abrir o app.</p>
+ <div class="chips" style="flex-wrap:wrap">${T.map(([l],i)=>`<button type="button" class="chip" data-act="admTpl" data-v="${i}">${esc(l)}</button>`).join("")}</div>
+ <textarea id="admMsg" rows="5" maxlength="1000" placeholder="Escreva a mensagem ou escolha um modelo acima"></textarea>
+ <button class="btn block" data-act="admSend" data-v="${esc(email)}">Enviar para o app da pessoa</button>
+ ${hist.length?`<div class="stack-s"><div class="tiny muted" style="font-weight:700">Mensagens enviadas</div>${hist.map(h=>`<div class="card flat" style="padding:8px 12px"><p class="small">${esc(h.body)}</p><span class="tiny ${h.read_at?"":"muted"}" style="${h.read_at?"color:var(--good)":""}">${admDate(h.created_at,true)} · ${h.read_at?"lida em "+admDate(h.read_at,true):"ainda não lida"}</span></div>`).join("")}</div>`:""}</div>`}
+A.admTpl=el=>{const t=ADM.tpl&&ADM.tpl[+el.dataset.v];if(t){$("#admMsg").value=t[1];$("#admMsg").focus()}};
+A.admSend=async el=>{const body=v("admMsg").trim();if(!body){toast("Escreva a mensagem.");return}el.disabled=true;
+ try{const {error}=await sb.rpc("admin_send_message",{p_email:el.dataset.v,p_body:body});if(error)throw error;toast("Mensagem enviada. A pessoa vê quando abrir o app.");await admLoadMsgs(el.dataset.v);render()}catch(e){el.disabled=false;toast("Não foi possível enviar: "+((e&&e.message)||"erro"))}};
+async function admLoadMsgs(email){try{const {data}=await sb.rpc("admin_user_messages",{p_email:email});ADM.msgs=data||[]}catch(e){ADM.msgs=[]}}
+
+
+/* ============================================================
+   Modo demonstração: conta fictícia bem preenchida (nada é salvo)
+   Abra com ?demo no endereço ou pelo painel do administrador.
+   ============================================================ */
+const DEMO_ON=/[?&]demo\b/.test(location.search);
+if(DEMO_ON)Store.demo=true;
+{const _ls=lsPut;lsPut=function(){if(Store.demo)return;_ls()}}
+function demoBuild(){const td=today();const D=n=>addDays(td,n);const K=n=>shiftMonth(mkey(),n);let seq=0;const id=p=>p+"_"+(++seq);
+ const s=defaultState();
+ Object.assign(s.profile,{name:"Ana Souza",income:6500,pet:true,age:34,weight:72.1,height:165,level:"intermediario",cleared:true,created:D(-95),studyGoal:25,limit48:150,prayer:true,focus:["fin","saude"],why:"Juntar para viajar com a família",remindAt:"21:00",shareAsked:1});
+ s.agenda.events.prumo_daily={id:"prumo_daily",title:"Dois minutos no Prumo",date:D(-95),time:"21:00",remind:0,repeat:"daily",place:"",notes:""};
+ // atividade: 23 dias seguidos + dias espalhados antes
+ for(let i=0;i<23;i++)s.activity[D(-i)]=1;for(let i=24;i<95;i++)if(i%3!==0)s.activity[D(-i)]=1;
+ for(let i=0;i<20;i++)if(i%2===0)s.missionDays[D(-i)]=1;
+ for(let i=1;i<20;i+=4)s.checkins[D(-i)]=1;
+ // estudos
+ s.study.books={b1:{id:"b1",title:"Hábitos Atômicos",author:"James Clear",pages:320,page:142,status:"lendo"},b2:{id:"b2",title:"Pai Rico, Pai Pobre",author:"Robert Kiyosaki",pages:336,page:336,status:"lido"},b3:{id:"b3",title:"O Homem Mais Rico da Babilônia",author:"George S. Clason",pages:160,page:0,status:"quero"},b4:{id:"b4",title:"A Psicologia Financeira",author:"Morgan Housel",pages:304,page:304,status:"lido"}};
+ for(let i=0;i<40;i++){if(i%5===3)continue;const t=i%4===1?"podcast":i%6===2?"curso":"livro";const k=id("st");s.study.logs[k]={id:k,date:D(-i),t:Date.now()-i*864e5,type:t,bookId:t==="livro"?"b1":null,min:[20,25,30,40,35][i%5],pages:t==="livro"?8+i%6:0,desc:t==="podcast"?"Podcast sobre finanças":t==="curso"?"Curso de Excel":"Hábitos Atômicos"}}
+ // exercícios
+ const exT=["caminhada","forca","caminhada","bike","forca","alongamento"];
+ for(let i=0;i<35;i++){if([1,3,5].includes(i%7))continue;const k=id("ex");const ty=exT[i%exT.length];s.ex.logs[k]={id:k,type:ty,min:[30,45,40,35][i%4],int:(EXT[ty]||{}).int||"moderada",desc:"",date:D(-i),t:Date.now()-i*864e5}}
+ // peso
+ const kg=[74.8,74.5,74.1,73.9,73.6,73.2,72.9,72.6,72.4,72.1];kg.forEach((w,i)=>{const k=id("w");s.weight.entries[k]={id:k,kg:w,date:D(-(9-i)*7),t:Date.now()}});s.weight.goal=68;
+ // alimentação: hoje e ontem
+ const meals={cafe:["Pão francês","Café com leite","Banana"],almoco:["Arroz branco cozido","Feijão carioca cozido","Frango grelhado","Salada de alface e tomate"],lanche:["Iogurte natural","Maçã"],jantar:["Omelete","Salada de alface e tomate"]};
+ const FD={};FOODS.forEach(f=>{const o=Array.isArray(f)?{n:f[0],por:f[1],kcal:f[2],nova:f[3],g:f[4]}:f;FD[o.n]=o});
+ [0,-1].forEach(off=>Object.entries(meals).forEach(([m,list])=>{if(off===0&&m==="jantar")return;list.forEach(n=>{const f=FD[n]||Object.values(FD).find(x=>String(x.n).startsWith(n.split(" ")[0]));if(!f)return;const mc=MACROS[f.n]||[f.p||0,f.c||0,f.f||0,f.fib||0];const k=id("fd");s.food.logs[k]={id:k,date:D(off),t:Date.now(),meal:m,n:f.n,por:f.por||"1 porção",kcal:f.kcal!=null?+f.kcal:null,nova:f.nova||"n",g:f.g||"",qty:1,p:+mc[0]||0,c:+mc[1]||0,f:+mc[2]||0,fib:+mc[3]||0}})}));
+ s.food.water[td]=5;s.food.water[D(-1)]=8;s.food.cfg={kcal:true,sex:"f",goal:"perder"};
+ // tarefas
+ const tk=(title,kind,prio,date,status,extra)=>{const k=id("tk");s.tasks.items[k]=Object.assign({id:k,title,kind,prio,date,time:"",remind:30,cal:true,place:"",value:null,notes:"",subs:[],status,created:Date.now()-5*864e5,doneAt:status==="done"?Date.now()-864e5:null,resched:0,reschedLog:[]},extra||{})};
+ tk("Pagar conta de luz","pagar","alta",D(1),"todo",{value:186.4});
+ tk("Levar o carro na revisão","ir","media",D(4),"todo",{place:"Oficina do Zé"});
+ tk("Ligar para o banco e renegociar o empréstimo","falar","alta",D(0),"doing",{subs:[{t:"Separar o contrato",done:true},{t:"Pedir proposta com juros menores",done:false}]});
+ tk("Organizar documentos do IR","casa","baixa",null,"todo");
+ tk("Montar planilha da viagem","pessoal","media",D(7),"todo");
+ tk("Matrícula da natação do Pedro","pessoal","media",D(-2),"done");tk("Comprar presente da mãe","pessoal","media",D(-4),"done");tk("Entregar relatório mensal","trabalho","alta",D(-1),"done");
+ s.tasks.doneTotal=27;
+ // agenda
+ const ev=(title,date,time,repeat,place)=>{const k=id("ev");s.agenda.events[k]={id:k,title,date,time,remind:60,repeat:repeat||"none",place:place||"",notes:""}};
+ ev("Dentista",D(3),"14:00","none","Clínica Sorriso");ev("Reunião na escola do Pedro",D(6),"19:00");ev("Aniversário da mãe",D(12),"","yearly");ev("Academia",D(-30),"07:00","weekly");ev("Missa",D(-((new Date().getDay()+7)%7)),"10:00","weekly");
+ // oração
+ s.prayer.trad="catolica";const daily=(PRAYER_TRADS.catolica||{}).daily||[];for(let i=0;i<30;i++){if(i%6===4)continue;s.prayer.log[D(-i)]={};daily.slice(0,i%3===0?4:2).forEach(p=>s.prayer.log[D(-i)][p]=1)}
+ // lições
+ ["l1","l2","l3","l4","l5","l7","l13","cc1","f16","f21","f17"].forEach((l,i)=>{s.learn.read[l]=D(-i*5);if(i%2===0)s.learn.quiz[l]=D(-i*5)});
+ // mascote
+ s.pet.name="Bolota";["laco","oculos","gravata","cachecol","bone","lapis","escuros","coroa"].forEach(a=>s.pet.owned[a]=D(-10));s.pet.equip={head:"bone",face:"oculos",neck:"cachecol"};
+ // finanças
+ const F={};const put=(k,e)=>{const m=mid(k);F[m]=F[m]||{incomes:{},expenses:{}};F[m].expenses[id("e")]=Object.assign({by:"demo",t:Date.now(),added:td},e)};
+ const inc=(k,e)=>{const m=mid(k);F[m]=F[m]||{incomes:{},expenses:{}};F[m].incomes[id("i")]=Object.assign({by:"demo",t:Date.now()},e)};
+ F.meta={reserveStart:3500,investStart:1200,
+  cards:{nu:{name:"Nubank",limit:6000,close:3,due:10,color:"#8A05BE",cal:true,by:"demo"},it:{name:"Itaú",limit:3500,close:20,due:28,color:"#EC7000",cal:true,by:"demo"}},
+  debts:{d1:{name:"Empréstimo pessoal",kind:"emprestimo",balance:4800,rate:3.2,min:420,inst:12,late:false,created:D(-95)},d2:{name:"Celular parcelado",kind:"parcelado",balance:1200,rate:0,min:200,inst:6,late:false,created:D(-60)}},
+  subs:{s1:{name:"Netflix",v:44.9,day:12,cat:"assinaturas",start:K(-3),by:"demo"},s2:{name:"Spotify",v:21.9,day:5,cat:"assinaturas",start:K(-3),by:"demo"},s3:{name:"Academia",v:99.9,day:10,cat:"saude",start:K(-3),by:"demo"}},
+  bills:{b1:{kind:"ipva",name:"IPVA do carro",total:1850,due:(new Date().getFullYear()+1)+"-01-20",n:3,paid:{}},b2:{kind:"iptu",name:"IPTU",total:920,due:(new Date().getFullYear()+1)+"-02-10",n:1,paid:{}},b3:{kind:"conselho",name:"Anuidade do conselho",total:640,due:(new Date().getFullYear()+1)+"-03-31",n:1,paid:{}}},
+  cardPaid:{}};
+ const dayK=(k,d)=>dayIn(k,d)<=td?dayIn(k,d):null;
+ for(let m=-3;m<=0;m++){const k=K(m);const P=(d,e)=>{const dt=dayK(k,d);if(dt)put(k,Object.assign({date:dt},e))};
+  if(dayK(k,5))inc(k,{v:6500,desc:"Salário",date:dayIn(k,5)});if(m===-2&&dayK(k,18))inc(k,{v:650,desc:"Freela de design",date:dayIn(k,18)});
+  P(6,{v:1500,desc:"Aluguel",cat:"moradia",fixed:true});P(8,{v:186,desc:"Luz",cat:"contas",fixed:true});P(9,{v:120,desc:"Internet",cat:"contas",fixed:true});P(11,{v:78,desc:"Água",cat:"contas",fixed:true});
+  P(7,{v:612.4,desc:"Mercado do mês",cat:"mercado"});P(14,{v:184.3,desc:"Feira e açougue",cat:"mercado"});P(21,{v:236.9,desc:"Mercado",cat:"mercado"});
+  P(6,{v:300,desc:"Reserva de emergência",cat:"reserva"});P(6,{v:200,desc:"Tesouro IPCA+",cat:"investimento"});P(10,{v:420,desc:"Parcela do empréstimo",cat:"divida",debtId:"d1"});P(10,{v:200,desc:"Parcela do celular",cat:"divida",debtId:"d2"});
+  P(15,{v:180,desc:"Gasolina",cat:"transporte"});P(16,{v:62.5,desc:"Farmácia",cat:"saude"});P(19,{v:150,desc:"Natação do Pedro",cat:"filhos",fixed:true});P(23,{v:250,desc:"Sonho: viagem",cat:"sonho"})}
+ // compras no cartão (lançadas como no app)
+ const buy=(card,total,n,desc,cat,bought)=>{const c={id:card,...F.meta.cards[card]};const ent=ccPurchaseEntries(c,{total,n,desc,cat,bought,grp:id("g"),by:"demo",t:Date.now(),added:bought});Object.keys(ent).forEach(k=>{const m=mid(k);F[m]=F[m]||{incomes:{},expenses:{}};Object.assign(F[m].expenses,ent[k])})};
+ buy("nu",2400,10,"Geladeira","compras",D(-70));buy("nu",459,3,"Tênis de corrida","compras",D(-25));buy("it",780,4,"Passagens para a praia","lazer",D(-40));
+ [[-3,"iFood",54.9,"delivery"],[-6,"Uber",23.1,"transporte"],[-9,"Cinema",68,"lazer"],[-12,"iFood",71.4,"delivery"],[-15,"Renner",189.9,"compras"],[-18,"Padaria",32.5,"delivery"],[-22,"Presente da mãe",149,"presentes"],[-27,"Restaurante",136,"delivery"],[-33,"Salão",90,"beleza"],[-40,"Livraria",79.9,"educacao"],[-48,"iFood",48.2,"delivery"]].forEach(([d,n,vv,c],i)=>buy(i%3===2?"it":"nu",vv,1,n,c,D(d)));
+ // faturas passadas pagas
+ Object.keys(F.meta.cards).forEach(cid=>{const c={id:cid,...F.meta.cards[cid]};const open=invoiceMonth(c,td);F.meta.cardPaid[cid]={};for(let m=-4;m<0;m++){const k=shiftMonth(open,m);if(dayIn(k,c.due)<td)F.meta.cardPaid[cid][ccKey(k)]=1}});
+ return{S:s,F}}
+function startDemo(){Store.demo=true;Store.cloud=false;Store.localOnly=true;UI.needAuth=false;try{Store.unsubs.forEach(u=>u())}catch(e){}
+ const d=demoBuild();S=hydrate(d.S);for(const k in PFIN)delete PFIN[k];Object.assign(PFIN,d.F);ME.uid="demo";UI.tab="home";UI.onb=-1;
+ MSG.list=[{id:"demo",body:"Oi, Ana! Vi que você já está há 23 dias seguidos cuidando das suas finanças. Que orgulho! Continue assim que a viagem com a família está cada vez mais perto.",created_at:new Date().toISOString()}];
+ applyTheme();render()}
+function demoBar(){if(!Store.demo)return;let b=document.getElementById("demobar");if(!b){b=document.createElement("div");b.id="demobar";b.style.cssText="position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--ink);color:var(--bg);border-radius:999px;padding:6px 6px 6px 14px;font-size:12px;font-weight:700;display:flex;gap:10px;align-items:center;box-shadow:0 6px 18px rgba(0,0,0,.25)";b.innerHTML=`Demonstração · nada é salvo <button data-act="demoExit" style="border:0;border-radius:999px;padding:5px 10px;background:var(--pig-deep);color:#fff;font-weight:700;font-size:12px">Sair</button>`;document.body.appendChild(b)}}
+{const _r=render;render=function(){_r();demoBar()}}
+A.demoExit=()=>{location.href=location.pathname};
+A.openDemo=()=>{location.href=location.pathname+"?demo"};
 
 /* início */
 (function boot(){

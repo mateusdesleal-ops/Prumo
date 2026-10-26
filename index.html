@@ -611,7 +611,7 @@ function pigHealth(){
  score=Math.round(clamp(score,0,100));
  const mood=score>=70?"feliz":score>=45?"ok":score>=25?"preocupado":"triste";
  return{score,mood,reasons,plan}}
-function finActivity(day){for(const k of [mkey(day)]){const m=monthData(k);if(m.expenses.some(e=>e.added===day||e.date===day)||m.incomes.some(e=>e.date===day))return true}return false}
+function finActivity(day){for(const k of [mkey(day),shiftMonth(mkey(day),1),shiftMonth(mkey(day),2)]){const m=monthData(k);if(m.expenses.some(e=>e.added===day||(e.date===day&&!e.card))||m.incomes.some(e=>e.date===day))return true}return false}
 
 /* ============================================================
    Estudos e exercícios: cálculos
@@ -951,7 +951,7 @@ const GUIA_TIPS=[
  "Planeje o tempo para dar à alimentação o espaço que ela merece.",
  "Desconfie de propagandas de alimentos. Elas querem vender, não cuidar da sua saúde.",
 ];
-const norm=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
+const norm=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 const foodLogs=day=>vals(S.food.logs).filter(l=>l.date===day).sort((a,b)=>(a.t||0)-(b.t||0));
 const portionsOf=l=>+l.qty||1;
 function foodDay(day){const ls=foodLogs(day);let kcal=0,fv=0,real=0,ultra=0,p=0,c=0,f=0,fib=0;ls.forEach(l=>{const q=portionsOf(l);kcal+=(+l.kcal||0)*q;p+=(+l.p||0)*q;c+=(+l.c||0)*q;f+=(+l.f||0)*q;fib+=(+l.fib||0)*q;if(l.g==="f"||l.g==="v")fv+=q;if(l.nova==="n")real++;if(l.nova==="u")ultra++});return{ls,p,c,f,fib,kcal:Math.round(kcal),fv:Math.round(fv*10)/10,real,ultra,count:ls.length,meals:new Set(ls.map(l=>l.meal)).size}}
@@ -1259,9 +1259,11 @@ function billParcels(b){const n=Math.max(1,+b.n||1);const each=Math.round((+b.to
 function billSaveMonthly(b){const next=billParcels(b).find(p=>!p.paid);if(!next)return 0;const d=parseDate(today()),due=parseDate(next.date);const months=Math.max(1,(due.getFullYear()-d.getFullYear())*12+due.getMonth()-d.getMonth());const left=billParcels(b).filter(p=>!p.paid).reduce((s,p)=>s+p.v,0);return +b.n>1?0:Math.ceil(left/months)}
 function monthDueCard(k){const items=[];billsList().forEach(b=>billParcels(b).forEach(p=>{if(!p.paid&&mkey(p.date)===k)items.push({b,p})}));
  const subsNext=subsList().filter(s=>s.active!==false&&(s.start||k)<=k).filter(s=>{const id=`sub_${s.id}_${k.replace("-","")}`;const m=finDocs()[mid(k)];return!(m&&m.expenses&&m.expenses[id])&&!(meta().subSkip||{})[id]});
- if(!items.length&&!subsNext.length)return"";
+ const invs=[];cardsList().forEach(c=>{const inv=cardInvoices(c).find(i=>i.k===k&&!i.paid);if(inv&&inv.total>0)invs.push({c,inv})});
+ if(!items.length&&!subsNext.length&&!invs.length)return"";
  return `<div class="card stack"><div class="row between"><div class="label">A vencer em ${MONTHS[+k.slice(5)-1]}</div><button class="btn ghost sm" data-act="fin" data-v="fixos">Fixos</button></div>
  ${items.map(({b,p})=>`<div class="row between small"><span>${esc(b.name||BILLK[b.kind])} · ${parseDate(p.date).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}${p.date<today()?' <span class="pill bad">venceu</span>':""}</span><span class="row" style="gap:8px"><b class="num">${brl(p.v)}</b><button class="btn money sm" data-act="payBill" data-v="${b.id}" data-i="${p.i}">Paguei</button></span></div>`).join("")}
+ ${invs.map(({c,inv})=>`<div class="row between small"><span>Fatura ${esc(c.name)} · ${ddmm(inv.due)}${inv.due<today()?' <span class="pill bad">venceu</span>':""}</span><span class="row" style="gap:8px"><b class="num">${brl(inv.total)}</b>${inv.k<invoiceMonth(c,today())?`<button class="btn money sm" data-act="ccPaid" data-v="${c.id}" data-k="${inv.k}">Paguei</button>`:`<span class="pill info">aberta</span>`}</span></div>`).join("")}
  ${subsNext.length?`<p class="tiny muted">Assinaturas que ainda serão lançadas: ${subsNext.map(s=>`${esc(s.name)} (dia ${s.day})`).join(", ")}, somando ${brl0(subsNext.reduce((a,s)=>a+(+s.v||0),0))}.</p>`:""}</div>`}
 function finFixos(){const subs=subsList().filter(s=>s.active!==false);const off=subsList().filter(s=>s.active===false);const mTot=subs.reduce((s,x)=>s+(+x.v||0),0);const inc=refIncome(mkey());
  const bills=billsList().sort((a,b)=>(billParcels(a).find(p=>!p.paid)||{date:"9"}).date.localeCompare((billParcels(b).find(p=>!p.paid)||{date:"9"}).date));
@@ -1664,6 +1666,9 @@ const MORE_LESSONS=[
 {id:"s8",tr:"mind",t:"Quando pedir ajuda",a:"Orientação de saúde mental",b:["Todo mundo passa por dias difíceis. Mas quando a tristeza, a ansiedade ou o desânimo duram semanas, atrapalham o trabalho, o sono, a alimentação ou as relações, é hora de procurar ajuda.","Psicólogos e psiquiatras cuidam da saúde mental como médicos cuidam do corpo. Pelo SUS, a porta de entrada é a Unidade Básica de Saúde, e há os CAPS para casos mais graves. Muitas faculdades de psicologia oferecem atendimento gratuito ou barato.","Se você estiver pensando em se machucar ou sentir que não aguenta mais, ligue para o CVV pelo 188, de graça e a qualquer hora, ou procure um pronto-socorro. Pedir ajuda é um ato de coragem."],p:"Salve o número 188 nos contatos do seu celular. Pode ser útil para você ou para alguém próximo.",q:{q:"Onde começar a buscar atendimento em saúde mental pelo SUS?",o:["Na Unidade Básica de Saúde","Só em hospitais particulares","Não existe atendimento pelo SUS"],a:0,e:"A UBS é a porta de entrada, e os CAPS atendem casos mais graves."}}];
 LESSONS.forEach(l=>{l.tr="fin";if(QUIZ_FIN[l.id])l.q=QUIZ_FIN[l.id]});
 LESSONS.push(...MORE_LESSONS);
+LESSONS.push(
+{id:"cc1",tr:"fin",t:"Controle total: chato no começo, libertador depois",a:"Base: Prelec e Simester (MIT, 2001) e Banco Central do Brasil",b:["Anotar cada gasto e cada compra no cartão pode parecer chato, e é normal sentir isso no começo. Mas quem não sabe para onde o dinheiro vai só descobre quando a fatura chega, e aí já é tarde para mudar.","O cartão esconde o gasto: você compra hoje e só sente no mês que vem. Pesquisas de economia comportamental mostram que, no cartão, as pessoas aceitam pagar mais do que pagariam em dinheiro, porque a dor de pagar diminui.","Somadas, as parcelas pequenas viram uma fatura grande que ocupa o salário antes mesmo de ele cair. Ter tudo anotado é o que permite ver esse peso antes que ele vire dívida.","O controle não precisa ser perfeito, só constante. Lançar na hora ou importar a fatura uma vez por mês já muda o jogo. Com o tempo, o que era obrigação vira tranquilidade: você sabe quanto pode gastar sem medo."],p:"Hoje, cadastre seus cartões com limite, fechamento e vencimento, e importe a última fatura.",q:{q:"Por que vale lançar uma compra parcelada logo que você compra?",o:["Porque as parcelas já comprometem os próximos meses","Porque o banco cobra menos juros","Não faz diferença"],a:0,e:"Cada parcela é um pedaço do salário futuro que já tem dono. Vendo isso antes, você evita a fatura surpresa."}},
+{id:"cc2",tr:"fin",t:"Como funciona a fatura do cartão",a:"Base: Banco Central do Brasil e Lei 14.690/2023",b:["Fechamento é o dia em que o banco fecha a conta do mês: o que você comprar depois dele vai para a fatura seguinte. Vencimento é o dia de pagar, normalmente de 7 a 10 dias depois do fechamento.","Por isso, o melhor dia de compra é o próprio dia do fechamento ou logo depois: você ganha até 40 dias para pagar sem juros.","Numa compra parcelada, o banco bloqueia o valor inteiro do limite e vai liberando a cada fatura paga. Por isso o limite disponível parece encolher.","Pagar só o mínimo joga o resto no rotativo, um dos juros mais altos do país. O rotativo só pode durar até a fatura seguinte; depois disso o banco precisa oferecer um parcelamento. Desde 2024, por lei, os juros e encargos do rotativo e do parcelamento da fatura não podem passar de 100% do valor da dívida."],p:"Descubra o dia de fechamento dos seus cartões e cadastre no Prumo, em Finanças > Cartões.",q:{q:"Seu cartão fecha dia 3 e vence dia 10. Qual o melhor dia para uma compra grande?",o:["Dia 3, no fechamento","Dia 9, véspera do vencimento","Dia 1"],a:0,e:"Comprando no fechamento, a compra vai para a fatura seguinte e você ganha quase 40 dias para pagar."}});
 const trackLessons=tr=>LESSONS.filter(l=>l.tr===tr);
 const quizDone=()=>Object.keys(S.learn.quiz||{}).filter(k=>S.learn.quiz[k]).length;
 function trackCard(tr,compact){const t=TRACKS[tr];const ls=trackLessons(tr);const rd=ls.filter(l=>S.learn.read[l.id]).length;
@@ -1832,10 +1837,10 @@ function viewPig(){
 
 /* ---------- Finanças ---------- */
 function viewFin(){
- const sub=[["mes","Mês"],["plano","Plano"],["fixos","Fixos"],["dividas","Dívidas"],["comprar","Posso comprar?"],["aprender","Aprender"]];
+ const sub=[["mes","Mês"],["cartoes","Cartões"],["plano","Plano"],["fixos","Fixos"],["dividas","Dívidas"],["comprar","Posso comprar?"],["aprender","Aprender"]];
  return `<div class="stack"><h1 style="margin-top:4px">Finanças</h1>
  <div class="subtabs" role="tablist">${sub.map(([id,n])=>`<button class="${UI.fin===id?"on":""}" data-act="fin" data-v="${id}">${n}</button>`).join("")}</div>
- ${{mes:finMonth,plano:finPlan,fixos:finFixos,dividas:finDebts,comprar:finBuy,aprender:finLearn}[UI.fin]()}</div>`}
+ ${{mes:finMonth,cartoes:finCards,plano:finPlan,fixos:finFixos,dividas:finDebts,comprar:finBuy,aprender:finLearn}[UI.fin]()}</div>`}
 function scopeBanner(){if(finScope()!=="h")return"";const ms=HH&&HH.members?Object.entries(HH.members).filter(([,v])=>v):[];
  const nm=ms.map(([id,m])=>id===ME.uid?"você":esc(m.nick||"parceiro")).join(" e ");
  return `<div class="banner info">${I.people.replace('<svg','<svg width="20" height="20" style="flex:none"')}<span>Finanças compartilhadas entre ${nm||"vocês"}. Os dois veem e lançam tudo aqui.</span></div>
@@ -1865,7 +1870,7 @@ function txItem(x){const c=x.kind==="in"?null:(CAT[x.cat]||CAT.outros);const who
  const color=x.kind==="in"?"var(--good)":BUCKETS[c.b].color;
  return `<button class="item" style="width:100%;border-left:0;border-right:0;border-top:0;background:none;text-align:left;padding-inline:0" data-act="${x.kind==="in"?"editIncome":"editExpense"}" data-v="${x.id}" data-m="${mkey(x.date)}">
  <span class="ico" style="background:color-mix(in srgb,${color} 16%,transparent);color:${color}">${x.kind==="in"?"R$":c.i}</span>
- <div class="grow stack-s" style="gap:1px"><p><b>${esc(x.desc||(c?c.n:"Renda"))}</b></p><p class="tiny muted">${x.kind==="in"?"Renda":c.n}${x.fixed?" · fixa":""}${x.sub?" · assinatura":""}${who?" · "+esc(who):""}</p></div>
+ <div class="grow stack-s" style="gap:1px"><p><b>${esc(x.desc||(c?c.n:"Renda"))}</b></p><p class="tiny muted">${x.kind==="in"?"Renda":c.n}${x.fixed?" · fixa":""}${x.sub?" · assinatura":""}${x.card?" · "+esc((cardById(x.card)||{name:"cartão"}).name)+(+x.n>1?" "+x.i+"/"+x.n:""):""}${who?" · "+esc(who):""}</p></div>
  <span class="amount ${x.kind==="in"?"pos":"neg"}">${x.kind==="in"?"+":"−"} ${brl(x.v)}</span></button>`}
 function trendChart(){const ms=[];for(let i=5;i>=0;i--)ms.push(shiftMonth(UI.month,-i));const data=ms.map(k=>{const t=totals(k,true);return{k,inc:t.income,sp:t.spent}});
  const max=Math.max(1,...data.map(d=>Math.max(d.inc,d.sp)));if(!data.some(d=>d.inc||d.sp))return"";
@@ -2134,17 +2139,19 @@ const v=id=>{const e=document.getElementById(id);return e?e.value:""};
 function confirmBox(id,label){return `<div id="${id}" hidden class="banner bad stack" style="flex-direction:column"><span>${label}</span><div class="row"><button class="btn danger sm" data-act="${id}Yes">Sim, apagar</button><button class="btn ghost sm" data-act="hideEl" data-v="${id}">Cancelar</button></div></div>`}
 
 function expenseForm(e,month){e=e||{};const debtsOpen=debts().filter(d=>d.left>0||d.id===e.debtId);
- const isEdit=!!e.id;const curCat=e.cat||"mercado";
+ const isEdit=!!e.id;const isCard=!!(e.card&&cardById(e.card));const showV=isCard&&e.total?e.total:e.v;const showD=isCard&&e.bought?e.bought:e.date;const curCat=e.cat||"mercado";
  openModal(isEdit?"Editar gasto":"Novo gasto",`<div class="stack">
- <label class="field"><span>Valor</span><input id="f_v" inputmode="decimal" placeholder="0,00" value="${e.v?String(e.v).replace(".",","):""}" style="font-size:24px;font-weight:700"></label>
+ ${isEdit&&+e.n>1?`<div class="banner info"><span>Parcela ${e.i} de ${e.n}. As alterações valem para a compra inteira e todas as parcelas.</span></div>`:""}
+ <label class="field"><span id="f_vlab">${isCard?"Valor total da compra":"Valor"}</span><input id="f_v" inputmode="decimal" placeholder="0,00" value="${showV?String(Math.round(showV*100)/100).replace(".",","):""}" style="font-size:24px;font-weight:700"></label>
  <label class="field"><span>Descrição</span><input id="f_desc" value="${esc(e.desc||"")}" placeholder="Ex.: mercado do mês"></label>
+ ${payField(e)}
  <div class="field"><span>Categoria</span><div class="stack-s">${["N","D","F"].map(b=>`<div class="tiny muted" style="font-weight:700">${BUCKETS[b].name}</div><div class="chips" style="flex-wrap:wrap">${CATS.filter(c=>c.b===b).map(c=>`<button type="button" class="chip ${c.id===curCat?"on":""}" data-act="pickCat" data-v="${c.id}">${c.n}</button>`).join("")}</div>`).join("")}</div><input type="hidden" id="f_cat" value="${curCat}"><p class="tiny muted" id="f_bdesc">${BUCKETS[(CAT[curCat]||CAT.outros).b].name}: ${BUCKETS[(CAT[curCat]||CAT.outros).b].desc} <button type="button" class="btn ghost sm" data-act="bucketInfo" data-v="${(CAT[curCat]||CAT.outros).b}" style="min-height:26px;padding:2px 8px">Saber mais</button></p></div>
  <label class="field ${curCat==="divida"?"":"hide"}" id="debtField"><span>Qual dívida?</span><select id="f_debt"><option value="">Nenhuma específica</option>${debtsOpen.map(d=>`<option value="${d.id}" ${d.id===e.debtId?"selected":""}>${esc(d.name)} (${brl0(d.left)})</option>`).join("")}</select></label>
- <div class="grid2"><label class="field"><span>Data</span><input id="f_date" type="date" value="${e.date||(month&&month!==mkey()?month+"-01":today())}"></label><label class="field"><span>&nbsp;</span><label class="check" style="min-height:44px;align-items:center"><input type="checkbox" id="f_fixed" ${e.fixed?"checked":""}><span>Conta fixa todo mês</span></label></label></div>
+ <div class="grid2"><label class="field"><span id="f_dlab">${isCard?"Data da compra":"Data"}</span><input id="f_date" type="date" value="${showD||(month&&month!==mkey()?month+"-01":today())}"></label><label class="field ${isCard?"hide":""}" id="f_fixedwrap"><span>&nbsp;</span><label class="check" style="min-height:44px;align-items:center"><input type="checkbox" id="f_fixed" ${e.fixed?"checked":""}><span>Conta fixa todo mês</span></label></label></div>
  <div id="f_warn"></div>
  <button class="btn block" data-act="saveExpense" data-v="${e.id||""}" data-m="${month||""}">${isEdit?"Salvar":"Lançar gasto"}</button>
  ${isEdit?`<button class="btn danger" data-act="askDel">Apagar gasto</button>${confirmBox("delExp","Apagar este gasto?")}`:""}</div>`,()=>{
-  const vi=$("#f_v");const warn=()=>{const val=parseMoney(vi.value);const lim=+S.profile.limit48||0;const c=CAT[v("f_cat")];$("#f_warn").innerHTML=(!isEdit&&lim&&val>=lim&&c&&c.b==="D")?`<div class="banner warn">É uma compra não planejada? Pela regra das 48 horas, espere dois dias antes de comprar acima de ${brl0(lim)}.</div>`:""};vi.addEventListener("input",warn);UI._warn=warn})}
+  const vi=$("#f_v");const warn=()=>{const val=parseMoney(vi.value);const lim=+S.profile.limit48||0;const c=CAT[v("f_cat")];$("#f_warn").innerHTML=(!isEdit&&lim&&val>=lim&&c&&c.b==="D")?`<div class="banner warn">É uma compra não planejada? Pela regra das 48 horas, espere dois dias antes de comprar acima de ${brl0(lim)}.</div>`:""};vi.addEventListener("input",warn);UI._warn=warn;ccPreview()})}
 function incomeForm(e,month){e=e||{};const isEdit=!!e.id;
  openModal(isEdit?"Editar renda":"Nova renda",`<div class="stack">
  <label class="field"><span>Valor líquido</span><input id="f_v" inputmode="decimal" placeholder="0,00" value="${e.v?String(e.v).replace(".",","):""}" style="font-size:24px;font-weight:700"></label>
@@ -2257,11 +2264,16 @@ const A={
  copyFixed:()=>{const k=UI.month;const prev=monthData(shiftMonth(k,-1)).expenses.filter(e=>e.fixed);const patch={expenses:{}};prev.forEach(e=>{const id=rid();const day=e.date.slice(8);const [y,m]=k.split("-").map(Number);const dim=new Date(y,m,0).getDate();patch.expenses[id]={v:e.v,desc:e.desc,cat:e.cat,date:k+"-"+pad(Math.min(+day,dim)),fixed:true,by:ME.uid,t:Date.now(),added:today(),debtId:e.debtId||null}});finPatch(mid(k),patch);markActive();saveApp();toast(`${prev.length} conta(s) fixa(s) lançada(s).`)},
  pickCat:el=>{document.querySelectorAll('[data-act="pickCat"]').forEach(b=>b.classList.toggle("on",b===el));$("#f_cat").value=el.dataset.v;{const bk=(CAT[el.dataset.v]||CAT.outros).b;const bd=$("#f_bdesc");if(bd)bd.innerHTML=`${BUCKETS[bk].name}: ${BUCKETS[bk].desc} <button type="button" class="btn ghost sm" data-act="bucketInfo" data-v="${bk}" style="min-height:26px;padding:2px 8px">Saber mais</button>`}$("#debtField").classList.toggle("hide",el.dataset.v!=="divida");if(UI._warn)UI._warn()},
  saveExpense:el=>{const val=parseMoney(v("f_v"));if(!val){toast("Informe o valor do gasto.");return}const date=v("f_date")||today();const id=el.dataset.v||rid();const old=el.dataset.v?findTx("expenses",id):null;
+  const card=cardById(v("f_card"));
+  if(card||(old&&old.grp)){if(old){if(old.grp)ccRemoveGroup(old.grp);else finPatch(mid(mkey(old.date)),{expenses:{[id]:null}})}
+   if(card){const n=+v("f_n")||1;const grp=old&&old.grp||rid();ccApply(ccPurchaseEntries(card,{total:val,n,desc:v("f_desc").trim(),cat:v("f_cat"),bought:date,grp,by:old?old.by:ME.uid,t:old?old.t:Date.now(),added:old?old.added:today()}));
+    markActive();saveApp();closeModal();const k=invoiceMonth(card,date);toast(`${old?"Compra atualizada":"Compra lançada"} no ${card.name}. ${n>1?`${n} parcelas, a 1ª na fatura`:"Entra na fatura"} que vence em ${ddmm(dayIn(k,card.due))}.`,4500);return}
+   const e={v:val,desc:v("f_desc").trim(),cat:v("f_cat"),date,fixed:$("#f_fixed").checked,by:old.by,t:old.t,added:old.added,debtId:null};finPatch(mid(mkey(date)),{expenses:{[rid()]:e}});markActive();saveApp();closeModal();toast("Gasto atualizado.");return}
   const e={v:val,desc:v("f_desc").trim(),cat:v("f_cat"),date,fixed:$("#f_fixed").checked,by:old?old.by:ME.uid,t:old?old.t:Date.now(),added:old?old.added:today(),debtId:v("f_cat")==="divida"?(v("f_debt")||null):null};
   if(old&&mkey(old.date)!==mkey(date))finPatch(mid(mkey(old.date)),{expenses:{[id]:null}});
   finPatch(mid(mkey(date)),{expenses:{[id]:e}});markActive();saveApp();closeModal();toast(old?"Gasto atualizado.":"Gasto lançado.")},
  editExpense:el=>{const e=findTx("expenses",el.dataset.v,el.dataset.m);if(e)expenseForm(e,el.dataset.m)},
- delExpYes:()=>{const id=document.querySelector('[data-act="saveExpense"]').dataset.v;const e=findTx("expenses",id);if(e){finPatch(mid(mkey(e.date)),{expenses:{[id]:null}});if(e.subId)finPatch("meta",{subSkip:{[id]:1}})}closeModal();toast("Gasto apagado.")},
+ delExpYes:()=>{const id=document.querySelector('[data-act="saveExpense"]').dataset.v;const e=findTx("expenses",id);if(e&&e.grp){ccRemoveGroup(e.grp);closeModal();toast(+e.n>1?"Compra e todas as parcelas apagadas.":"Compra apagada.");return}if(e){finPatch(mid(mkey(e.date)),{expenses:{[id]:null}});if(e.subId)finPatch("meta",{subSkip:{[id]:1}})}closeModal();toast("Gasto apagado.")},
  saveIncome:el=>{const val=parseMoney(v("f_v"));if(!val){toast("Informe o valor da renda.");return}const date=v("f_date")||today();const id=el.dataset.v||rid();const old=el.dataset.v?findTx("incomes",id):null;
   const e={v:val,desc:v("f_desc").trim()||"Renda",date,by:old?old.by:ME.uid,t:old?old.t:Date.now()};
   if(old&&mkey(old.date)!==mkey(date))finPatch(mid(mkey(old.date)),{incomes:{[id]:null}});
@@ -2474,6 +2486,233 @@ function applyTheme(){const t=S.profile.theme;if(t==="light"||t==="dark")documen
 function importBackup(file){const r=new FileReader();r.onload=async()=>{try{const d=JSON.parse(r.result);if(d.app!=="porquinho")throw 0;S=hydrate(d.S);const hh=S.profile.household;
   for(const k in d.PFIN||{}){PFIN[k]=d.PFIN[k];if(Store.cloud)await Store.db.doc(`data/users/${ME.uid}/fin-${k}`).set(d.PFIN[k]).catch(()=>{})}
   if(hh&&!Store.cloud)S.profile.household=null;applyTheme();commit();toast("Backup restaurado.")}catch(e){toast("Arquivo inválido. Use um backup exportado pelo Prumo.")}};r.readAsText(file)}
+
+
+/* ============================================================
+   Cartões de crédito: limite, faturas, parcelas e importação
+   ============================================================ */
+const CARD_QUICK=["Nubank","Itaú","Bradesco","Santander","Banco do Brasil","Caixa","Inter","C6 Bank","Mercado Pago","PicPay","Neon","XP"];
+const CARD_COLORS=["#8A05BE","#EC7000","#CC092F","#E8101A","#F2C200","#005CA9","#FF7A00","#2B2B2B","#00A0E3","#1FA855"];
+function cardsList(){return Object.entries(meta().cards||{}).filter(([,v])=>v).map(([id,v])=>({id,...v}))}
+function cardById(id){const c=(meta().cards||{})[id];return c?{id,...c}:null}
+function dayIn(k,day){const [y,m]=k.split("-").map(Number);const dim=new Date(y,m,0).getDate();return k+"-"+pad(Math.min(Math.max(1,+day||1),dim))}
+/* Mês em que vence a fatura de uma compra feita em `date` */
+function invoiceMonth(card,date){const close=+card.close||1,due=+card.due||10;let k=mkey(date);
+ if(parseDate(date).getDate()>=close)k=shiftMonth(k,1);
+ if(due<=close)k=shiftMonth(k,1);
+ return k}
+const ccKey=k=>k.replace("-","");
+function cardItems(cardId){const out=[];for(const k of allMonths())for(const e of monthData(k).expenses)if(e.card===cardId)out.push({...e,k});return out}
+function invPaid(cardId,k){return!!(((meta().cardPaid||{})[cardId]||{})[ccKey(k)])}
+function cardInvoices(card){const by={};cardItems(card.id).forEach(e=>{(by[e.k]=by[e.k]||[]).push(e)});
+ return Object.keys(by).sort().map(k=>({k,items:by[k].sort((a,b)=>(a.bought||a.date).localeCompare(b.bought||b.date)),total:sum(by[k]),paid:invPaid(card.id,k),due:dayIn(k,card.due)}))}
+function cardUsed(card){return cardInvoices(card).filter(i=>!i.paid).reduce((s,i)=>s+i.total,0)}
+function invStatus(card,inv){const open=invoiceMonth(card,today());
+ if(inv.paid)return{k:"good",t:"Paga"};
+ if(inv.k>open)return{k:"info",t:"Futura"};
+ if(inv.k===open)return{k:"info",t:"Aberta"};
+ if(inv.due<today())return{k:"bad",t:"Vencida"};
+ return{k:"warn",t:"Fechada"}}
+const ddmm=s=>parseDate(s).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"});
+const mShort=k=>MONTHS[+k.slice(5)-1].slice(0,3)+"/"+k.slice(2,4);
+function parcLabel(e){return +e.n>1?`${e.i}/${e.n}`:""}
+
+/* ---------- Lançar compras no cartão ---------- */
+function ccPurchaseEntries(card,{total,n,desc,cat,bought,grp,by,t,added,startI,firstK}){n=Math.max(1,+n||1);startI=startI||1;
+ const each=Math.round(total/n*100)/100;const k0=firstK||invoiceMonth(card,bought);const out={};
+ for(let i=startI;i<=n;i++){const k=shiftMonth(k0,i-startI);const v=i===n?Math.round((total-each*(n-1))*100)/100:each;
+  (out[k]=out[k]||{})[`cc_${grp}_${i}`]={v,desc,cat,date:dayIn(k,card.due),card:card.id,bought,grp,i,n,total:Math.round(total*100)/100,by,t,added}}
+ return out}
+function ccRemoveGroup(grp){const by={};for(const k of allMonths())for(const e of monthData(k).expenses)if(e.grp===grp)(by[k]=by[k]||{})[e.id]=null;Object.keys(by).forEach(k=>finPatch(mid(k),{expenses:by[k]}))}
+function ccApply(entries){Object.keys(entries).forEach(k=>finPatch(mid(k),{expenses:entries[k]}))}
+
+/* campo "Como pagou?" dentro do formulário de gasto */
+function payField(e){const cs=cardsList();const cur=e.card&&cardById(e.card)?e.card:"";const n=+e.n||1;
+ return `<div class="field"><span>Como pagou?</span><div class="chips" style="flex-wrap:wrap"><button type="button" class="chip ${cur?"":"on"}" data-act="pickPay" data-v="">Pix, débito ou dinheiro</button>${cs.map(c=>`<button type="button" class="chip ${cur===c.id?"on":""}" data-act="pickPay" data-v="${c.id}"><i class="dot" style="background:${c.color||"var(--muted)"};margin-right:4px"></i>${esc(c.name)}</button>`).join("")}<button type="button" class="chip" data-act="addCardFromExp">+ Cartão</button></div><input type="hidden" id="f_card" value="${cur}"></div>
+ <div id="f_ccbox" class="${cur?"":"hide"} stack-s"><div class="grid2"><label class="field"><span>Parcelas</span><select id="f_n">${Array.from({length:24},(_,i)=>i+1).map(i=>`<option value="${i}" ${i===n?"selected":""}>${i===1?"À vista (1x)":i+"x"}</option>`).join("")}</select></label><div class="field"><span>&nbsp;</span><p class="tiny muted" id="f_ccprev" style="margin:0"></p></div></div></div>`}
+function ccPreview(){const box=$("#f_ccprev");if(!box)return;const c=cardById(v("f_card"));const lab=$("#f_vlab"),dl=$("#f_dlab"),fx=$("#f_fixedwrap");
+ if(lab)lab.textContent=c?"Valor total da compra":"Valor";if(dl)dl.textContent=c?"Data da compra":"Data";if(fx)fx.classList.toggle("hide",!!c);
+ if(!c){box.textContent="";return}const tot=parseMoney(v("f_v"));const n=+v("f_n")||1;const k=invoiceMonth(c,v("f_date")||today());
+ box.innerHTML=`${tot?`${n>1?`${n}x de <b>${brl(tot/n)}</b>`:`<b>${brl(tot)}</b>`}<br>`:""}${n>1?"1ª parcela":"Entra"} na fatura que vence em <b>${ddmm(dayIn(k,c.due))}</b>.`;
+ const av=Math.max(0,(+c.limit||0)-cardUsed(c));if(+c.limit&&tot>av)box.innerHTML+=`<br><span style="color:var(--bad)">Passa do limite disponível (${brl0(av)}).</span>`}
+
+/* ---------- Tela de cartões ---------- */
+function ccControlCard(){return `<div class="card stack" style="background:var(--surface2);border-color:transparent;box-shadow:none"><div class="row" style="gap:10px;align-items:flex-start"><span style="color:var(--pig-deep);flex:none">${I.heart.replace('<svg','<svg width="22" height="22"')}</span><div class="stack-s" style="gap:4px"><b>Controle total: chato no começo, libertador depois</b><span class="small">Anotar cada compra pode parecer chato. Mas o cartão esconde o gasto: você compra hoje e só sente no mês que vem. Quem tem tudo anotado vê as parcelas se acumulando <i>antes</i> de virar dívida, e passa a gastar sem medo.</span><span class="small">Não precisa ser perfeito, só constante: lance na hora ou importe a fatura uma vez por mês.</span></div></div><button class="btn ghost sm" data-act="lesson" data-v="cc1" style="align-self:flex-start">Por que vale a pena</button></div>`}
+function ccBar(used,limit){const p=limit?used/limit:0;const col=p>0.8?"var(--bad)":p>0.5?"var(--warn)":"var(--good)";return `<div class="meter"><i style="width:${clamp(p,0,1)*100}%;background:${col}"></i></div>`}
+function ccNextMonths(cards){const open=today().slice(0,7);const ks=[];for(let i=0;i<6;i++)ks.push(shiftMonth(open,i));
+ const tot=ks.map(k=>cards.reduce((s,c)=>s+cardInvoices(c).filter(x=>x.k===k&&!x.paid).reduce((a,x)=>a+x.total,0),0));const max=Math.max(1,...tot);if(!tot.some(Boolean))return"";const inc=refIncome(mkey());
+ return `<div class="card stack"><div class="label">Faturas dos próximos meses</div><p class="tiny muted">Inclui as parcelas que já estão marcadas para os meses seguintes. É o seu salário futuro que já tem dono.</p>
+ <div class="stack-s">${ks.map((k,i)=>`<div class="row" style="gap:10px"><span class="tiny muted" style="width:52px;text-transform:capitalize">${mShort(k)}</span><div class="grow meter" style="height:10px"><i style="width:${tot[i]/max*100}%;background:${inc&&tot[i]>inc*0.3?"var(--warn)":"var(--pig-deep)"}"></i></div><b class="num small" style="min-width:76px;text-align:right">${brl0(tot[i])}</b></div>`).join("")}</div>
+ ${inc&&tot[0]>inc*0.3?`<p class="tiny" style="color:var(--warn)">As faturas passam de 30% da sua renda. Segure novas compras parceladas até elas baixarem.</p>`:""}</div>`}
+function finCards(){const cs=cardsList();
+ const limit=cs.reduce((s,c)=>s+(+c.limit||0),0),used=cs.reduce((s,c)=>s+cardUsed(c),0);
+ return `${scopeBanner()}
+ ${ccControlCard()}
+ ${cs.length?`<div class="card stack"><div class="grid3"><div class="stack-s"><span class="tiny muted">Limite total</span><b class="num">${brl0(limit)}</b></div><div class="stack-s"><span class="tiny muted">Usado</span><b class="num">${brl0(used)}</b></div><div class="stack-s"><span class="tiny muted">Disponível</span><b class="num" style="color:${limit-used<0?"var(--bad)":"var(--good)"}">${brl0(limit-used)}</b></div></div>${ccBar(used,limit)}
+  <div class="grid2"><button class="btn" data-act="ccBuy">Lançar compra</button><button class="btn line" data-act="ccImport">Importar fatura</button></div></div>
+  ${ccNextMonths(cs)}
+  ${cs.map(ccCardBlock).join("")}`
+ :`<div class="card empty stack" style="align-items:center;text-align:center"><b>Nenhum cartão cadastrado</b><span class="small muted">Cadastre cada cartão com limite, dia de fechamento e dia de vencimento. Depois, lance as compras ou importe a fatura do banco: as parcelas aparecem sozinhas nos meses seguintes.</span></div>`}
+ <button class="btn ${cs.length?"ghost":""} block" data-act="addCard">${I.plus.replace('<svg','<svg width="16" height="16"')} Cadastrar cartão</button>
+ <div class="card flat stack"><div class="label">Regras de ouro do cartão</div>
+  <p class="small">· Pague sempre a fatura inteira. Pagar só o mínimo joga o resto no rotativo, um dos juros mais altos do país.</p>
+  <p class="small">· Conte cada parcela futura como gasto já feito. Ela já tem dono no seu salário.</p>
+  <p class="small">· O limite não é renda. Um limite maior que a sua renda é convite para se endividar: você pode pedir ao banco para baixar.</p>
+  <p class="small">· Compre logo depois do fechamento: você ganha até 40 dias para pagar sem juros.</p>
+  <button class="btn ghost sm" data-act="lesson" data-v="cc2" style="align-self:flex-start">Como funciona a fatura</button></div>`}
+function ccCardBlock(c){const invs=cardInvoices(c);const used=cardUsed(c);const open=invoiceMonth(c,today());const openInv=invs.find(i=>i.k===open);
+ const toPay=invs.filter(i=>!i.paid&&i.k<open);const isOpen=UI.ccOpen===c.id;
+ return `<div class="card stack" style="border-top:5px solid ${c.color||"var(--pig-deep)"}">
+ <div class="row between"><div class="stack-s" style="gap:1px"><b style="font-size:17px">${esc(c.name)}</b><span class="tiny muted">Fecha dia ${c.close} · vence dia ${c.due}${personName(c.by)?" · "+esc(personName(c.by)):""}</span></div><button class="btn ghost sm" data-act="editCard" data-v="${c.id}">Editar</button></div>
+ ${+c.limit?`<div class="stack-s"><div class="row between small"><span>Usado ${brl0(used)} de ${brl0(c.limit)}</span><b class="num" style="color:${c.limit-used<0?"var(--bad)":"var(--good)"}">${brl0(c.limit-used)} livres</b></div>${ccBar(used,+c.limit)}</div>`:`<p class="tiny muted">Informe o limite em Editar para acompanhar quanto ainda pode usar.</p>`}
+ ${toPay.map(i=>{const st=invStatus(c,i);return `<div class="banner ${st.k==="bad"?"bad":"warn"} stack" style="flex-direction:column;align-items:stretch"><div class="row between"><span><b>Fatura de ${MONTHS[+i.k.slice(5)-1]}</b> · vence ${ddmm(i.due)}</span><b class="num">${brl(i.total)}</b></div><div class="row wrap" style="gap:6px"><button class="btn money sm" data-act="ccPaid" data-v="${c.id}" data-k="${i.k}">Paguei a fatura inteira</button><button class="btn ghost sm" data-act="ccPartial" data-v="${c.id}" data-k="${i.k}">Não consegui pagar tudo</button></div></div>`}).join("")}
+ <div class="row between"><div class="stack-s" style="gap:1px"><span class="tiny muted">Fatura aberta (vence ${ddmm(dayIn(open,c.due))})</span><b class="num" style="font-size:20px">${brl(openInv?openInv.total:0)}</b></div><span class="pill info">Melhor dia de compra: ${c.close}</span></div>
+ <div class="row wrap" style="gap:6px"><button class="btn line sm" data-act="ccBuy" data-v="${c.id}">Lançar compra</button><button class="btn line sm" data-act="ccImport" data-v="${c.id}">Importar fatura</button><button class="btn ghost sm" data-act="ccToggle" data-v="${c.id}">${isOpen?"Esconder faturas":"Ver faturas"}</button></div>
+ ${isOpen?ccInvoiceList(c,invs):""}</div>`}
+function ccInvoiceList(c,invs){if(!invs.length)return `<p class="small muted">Nenhuma compra lançada neste cartão.</p>`;const show=invs.filter(i=>!i.paid||i.k>=shiftMonth(mkey(),-2));
+ return `<div class="stack-s">${show.map(i=>{const st=invStatus(c,i);return `<div class="card flat" style="padding:8px 12px"><div class="row between" style="padding:4px 0"><b style="text-transform:capitalize">${monthLabel(i.k)}</b><span class="row" style="gap:6px"><span class="pill ${st.k}">${st.t}</span><b class="num">${brl(i.total)}</b></span></div>
+  <div class="list">${i.items.map(e=>`<button class="item" style="width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;padding:6px 0" data-act="editExpense" data-v="${e.id}" data-m="${i.k}"><div class="grow stack-s" style="gap:0"><p class="small"><b>${esc(e.desc||(CAT[e.cat]||CAT.outros).n)}</b>${parcLabel(e)?` <span class="tiny muted">${parcLabel(e)}</span>`:""}</p><p class="tiny muted">${(CAT[e.cat]||CAT.outros).n}${e.bought?" · compra em "+ddmm(e.bought):""}</p></div><span class="amount small">${brl(e.v)}</span></button>`).join("")}</div>
+  ${i.paid&&i.k<=mkey()?`<button class="btn ghost sm" data-act="ccUnpaid" data-v="${c.id}" data-k="${i.k}">Desmarcar como paga</button>`:""}</div>`}).join("")}</div>`}
+
+/* ---------- Cadastro de cartão ---------- */
+function cardForm(c){c=c||{};const isEdit=!!c.id;UI.ccColor=c.color||CARD_COLORS[cardsList().length%CARD_COLORS.length];
+ openModal(isEdit?"Editar cartão":"Novo cartão",`<div class="stack">
+ ${isEdit?"":`<div class="chips" style="flex-wrap:wrap">${CARD_QUICK.map(n=>`<button type="button" class="chip" data-act="ccQuick" data-v="${esc(n)}">${esc(n)}</button>`).join("")}</div>`}
+ <label class="field"><span>Nome do cartão</span><input id="cc_name" value="${esc(c.name||"")}" placeholder="Ex.: Nubank, Itaú Platinum"></label>
+ <label class="field"><span>Limite total</span><input id="cc_limit" inputmode="decimal" value="${c.limit?String(c.limit).replace(".",","):""}" placeholder="0,00"></label>
+ <div class="grid2"><label class="field"><span>Dia do fechamento</span><input id="cc_close" type="number" inputmode="numeric" min="1" max="31" value="${c.close||""}" placeholder="Ex.: 3"></label><label class="field"><span>Dia do vencimento</span><input id="cc_due" type="number" inputmode="numeric" min="1" max="31" value="${c.due||""}" placeholder="Ex.: 10"></label></div>
+ <p class="tiny muted" style="margin-top:-4px">Os dois dias estão na fatura ou no app do banco. O fechamento costuma ser de 7 a 10 dias antes do vencimento.</p>
+ <div class="field"><span>Cor</span><div class="row wrap" style="gap:8px">${CARD_COLORS.map(col=>`<button type="button" data-act="ccColor" data-v="${col}" aria-label="Cor" style="width:32px;height:32px;border-radius:50%;background:${col};border:3px solid ${col===UI.ccColor?"var(--ink)":"transparent"}"></button>`).join("")}</div></div>
+ <label class="check"><input type="checkbox" id="cc_cal" ${isEdit?(c.cal?"checked":""):"checked"}><span class="small">Lembrar do vencimento na agenda, 1 dia antes</span></label>
+ <button class="btn block" data-act="saveCard" data-v="${c.id||""}">${isEdit?"Salvar":"Cadastrar cartão"}</button>
+ ${isEdit?`<button class="btn danger sm" data-act="askDel" style="align-self:flex-start">Apagar cartão</button>${confirmBox("delCard","Apagar este cartão? As compras já lançadas continuam nos seus gastos.")}`:""}</div>`)}
+
+/* ---------- Importar fatura ---------- */
+const CAT_RULES=[
+ [/ifood|i food|rappi|aiqfome|restaur|lanchon|pizz|burger|mc ?donald|mcdonalds|bk |subway|outback|padaria|panific|cafeteria|starbucks|sorvet|acai|açai|açaí|churrasc|sushi|bar e |boteco/i,"delivery"],
+ [/uber|99 ?(pop|app|taxi|food)?\b|cabify|posto|shell|ipiranga|petrobras|br mania|combust|auto posto|estacion|sem ?parar|conectcar|veloe|pedagio|pedágio|metro|metrô|onibus|ônibus|bilhete unico|zul\b/i,"transporte"],
+ [/supermerc|mercado(?! ?livre| ?pago)|carrefour|atacad|assai|assaí|p[aã]o de a[cç]ucar|extra hiper|big bompre|condor|muffato|sams club|hortifruti|a[cç]ougue|sacol[aã]o|quitanda|mercearia|dia brasil/i,"mercado"],
+ [/farm[aá]c|drog|raia|pague menos|panvel|nissei|hospital|cl[ií]nic|laborat|odonto|m[eé]dic|unimed|exame|[oó]tica/i,"saude"],
+ [/netflix|spotify|disney|hbo|max\.com|\bmax\b|prime video|amazon prime|primevideo|globoplay|youtube|deezer|apple\.com|icloud|google one|google storage|paramount|crunchyroll|chatgpt|openai|claude\.ai|anthropic|canva|microsoft|xbox game pass|playstation plus|smart ?fit|bluefit|academia|gympass|wellhub|totalpass/i,"assinaturas"],
+ [/amazon|mercado ?livre|mercadolivre|meli|shopee|shein|aliexpress|temu|magalu|magazine|americanas|casas bahia|ponto frio|renner|riachuelo|c&a|cea\b|zara|centauro|netshoes|kabum|havan|leroy|tok ?stok|decathlon/i,"compras"],
+ [/cinema|cinemark|ingresso|sympla|eventim|teatro|steam|playstation|nintendo|viagem|hotel|pousada|airbnb|booking|decolar|latam|\bgol\b|azul linhas|parque/i,"lazer"],
+ [/escola|col[eé]gio|faculd|universid|curso|udemy|alura|hotmart|coursera|livraria|saraiva|kindle|editora/i,"educacao"],
+ [/sal[aã]o|barbear|cabeleir|est[eé]tica|botic[aá]rio|natura|sephora|perfum|manicure|eudora|avon/i,"beleza"],
+ [/vivo|claro|\btim\b|\boi\b|internet|telecom|energia|copel|cemig|enel|light s|celesc|sabesp|sanepar|embasa|compesa|g[aá]s\b|condom[ií]nio/i,"contas"],
+ [/petz|cobasi|pet ?shop|veterin|petlove/i,"filhos"],
+ [/iof|anuidade|tarifa|juros|multa|encargo/i,"impostos"]];
+const IGNORE_RE=/pagamento (recebido|efetuado|de fatura|fatura)|pgto|pag fatura|pagto|estorno|cr[eé]dito de|credito em|devolu[cç][aã]o|cashback|desconto antecip|saldo anterior|total da fatura|limite dispon/i;
+const normDesc=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/parc(ela)?\.?\s*\d{1,2}\s*(\/|de)\s*\d{1,2}/g,"").replace(/\b\d{1,2}\/\d{1,2}\b/g,"").replace(/[^a-z]+/g," ").trim().slice(0,22);
+function guessCat(desc){const nd=normDesc(desc);if(nd){const ms=allMonths();for(let j=ms.length-1;j>=Math.max(0,ms.length-6);j--)for(const e of monthData(ms[j]).expenses)if(e.cat&&normDesc(e.desc)===nd)return e.cat}
+ for(const [re,c] of CAT_RULES)if(re.test(desc))return c;return"outros"}
+function splitParc(desc){let m=/parc(?:ela)?\.?\s*(\d{1,2})\s*(?:\/|de)\s*(\d{1,2})/i.exec(desc)||/(?:^|\s)(\d{1,2})\s*\/\s*(\d{1,2})\s*$/.exec(desc);
+ if(m){const i=+m[1],n=+m[2];if(i>=1&&n>=2&&i<=n&&n<=48)return{i,n,desc:(desc.slice(0,m.index)+desc.slice(m.index+m[0].length)).replace(/\s*[-–]\s*$/,"").replace(/\s{2,}/g," ").trim()}}
+ return{i:1,n:1,desc:desc.trim()}}
+const MON3={jan:1,fev:2,mar:3,abr:4,mai:5,jun:6,jul:7,ago:8,set:9,out:10,nov:11,dez:12,feb:2,apr:4,may:5,aug:8,sep:9,oct:10,dec:12};
+function mkDate(d,m,y){d=+d;m=isNaN(+m)?MON3[String(m).slice(0,3).toLowerCase()]:+m;if(!d||!m||d>31||m>12)return null;
+ if(!y){const t=new Date();y=t.getFullYear();if(new Date(y,m-1,d)>new Date(t.getTime()+10*86400000))y--}else{y=+y;if(y<100)y+=2000}return y+"-"+pad(m)+"-"+pad(d)}
+function moneyNum(s){s=String(s||"").replace(/R\$|\s/g,"");const neg=/^-|-$|\(.*\)/.test(s);s=s.replace(/[-()]/g,"");if(/,\d{1,2}$/.test(s))s=s.replace(/\./g,"").replace(",",".");else s=s.replace(/,/g,"");const n=parseFloat(s);return isNaN(n)?null:(neg?-n:n)}
+function parseOFX(t){const out=[];const blocks=t.split(/<STMTTRN>/i).slice(1);
+ for(const b0 of blocks){const b=b0.split(/<\/STMTTRN>/i)[0];const g=tag=>{const r=new RegExp("<"+tag+">\\s*([^<\\r\\n]*)","i").exec(b);return r?r[1].trim():""};
+  const dt=g("DTPOSTED");const amt=moneyNum(g("TRNAMT").replace(",","."));const desc=g("MEMO")||g("NAME");if(dt.length<8||amt===null)continue;
+  out.push({date:dt.slice(0,4)+"-"+dt.slice(4,6)+"-"+dt.slice(6,8),v:amt,desc})}
+ return out}
+function csvSplit(line,sep){const out=[];let cur="",q=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(q&&line[i+1]==='"'){cur+='"';i++}else q=!q}else if(ch===sep&&!q){out.push(cur);cur=""}else cur+=ch}out.push(cur);return out.map(s=>s.trim())}
+function parseDateAny(s){s=String(s||"").trim();let m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s);if(m)return m[1]+"-"+m[2]+"-"+m[3];m=/^(\d{1,2})[\/.\-](\d{1,2}|[a-zç]{3})[a-z]*[\/.\-]?(\d{2,4})?/i.exec(s);return m?mkDate(m[1],m[2],m[3]):null}
+function parseCSV(t){const lines=t.split(/\r?\n/).filter(l=>l.trim());if(lines.length<2)return[];const sep=(lines[0].split(";").length>lines[0].split(",").length)?";":",";
+ const head=csvSplit(lines[0],sep).map(h=>h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""));
+ const find=re=>head.findIndex(h=>re.test(h));let di=find(/^data|date|dt/),xi=find(/title|descri|estabelec|lancamento|historico|hist|nome|loja|memo/),vi=find(/amount|valor|value|quantia|preco/);
+ const start=di<0||vi<0?0:1;if(di<0)di=0;if(xi<0)xi=1;if(vi<0)vi=head.length-1;const out=[];
+ for(const l of lines.slice(start)){const c=csvSplit(l,sep);const date=parseDateAny(c[di]);const val=moneyNum(c[vi]);if(!date||val===null)continue;out.push({date,v:val,desc:c[xi]||""})}
+ return out}
+function parseText(t){const out=[];const lines=t.split(/\r?\n/).map(l=>l.replace(/ /g," ").trim()).filter(Boolean);
+ const dre=/^(\d{1,2})\s*(?:[\/\-.]\s*(\d{1,2})|\s+de\s+([a-zç]{3})[a-z]*\.?|\s*([a-zç]{3})[a-z]*\.?)(?:\s*[\/\-.]\s*(\d{2,4}))?\s+(.*)$/i;
+ const vre=/(-?\s*(?:R\$)?\s*-?\s*\d{1,3}(?:\.\d{3})*,\d{2}|-?\s*(?:R\$)?\s*\d+,\d{2})\s*(?:[CD]\b)?\s*$/i;
+ for(let j=0;j<lines.length;j++){const m=dre.exec(lines[j]);if(!m)continue;const date=mkDate(m[1],m[2]||m[3]||m[4],m[5]);if(!date)continue;let rest=m[6];let vm=vre.exec(rest);
+  if(!vm&&lines[j+1]&&vre.test(lines[j+1])&&!dre.test(lines[j+1])){vm=vre.exec(lines[j+1]);rest=rest+" "+lines[j+1];j++;vm=vre.exec(rest)}
+  if(!vm)continue;let val=moneyNum(vm[1]);if(val===null)continue;if(/\bC\s*$/.test(rest))val=-Math.abs(val);const desc=rest.slice(0,vm.index).replace(/\s*R\$\s*$/,"").trim();if(!desc)continue;out.push({date,v:val,desc})}
+ return out}
+function normalizeRows(raw,card,k){if(!raw.length)return[];
+ const negs=raw.filter(r=>r.v<0).length;const flip=negs>raw.length/2; // OFX costuma trazer compras negativas
+ const existing={};for(const kk of [k,shiftMonth(k,-1),shiftMonth(k,1)])for(const e of monthData(kk).expenses)if(e.card===card.id){existing[kk+"|"+normDesc(e.desc)+"|"+Math.round(e.v*100)]=1;if(+e.n>1)existing[kk+"|"+normDesc(e.desc)+"|p"+e.i+"/"+e.n]=1}
+ const seen={};
+ return raw.map(r=>{let v=flip?-r.v:r.v;if(v<=0||IGNORE_RE.test(r.desc))return null;const p=splitParc(r.desc);const nd=normDesc(p.desc);
+  const dup=!!(existing[k+"|"+nd+"|"+Math.round(v*100)]||(p.n>1&&existing[k+"|"+nd+"|p"+p.i+"/"+p.n]));const sk=r.date+nd+v;const rep=seen[sk];seen[sk]=1;
+  return{date:r.date,desc:p.desc||r.desc,v:Math.round(v*100)/100,i:p.i,n:p.n,cat:guessCat(p.desc||r.desc),on:!dup,dup,rep:!!rep}}).filter(Boolean)}
+function ccImportForm(cardId){const cs=cardsList();if(!cs.length){toast("Cadastre um cartão primeiro.");cardForm();return}
+ const c=cardById(cardId)||cs[0];const open=invoiceMonth(c,today());
+ UI.imp={card:c.id,k:ccDefK(c),rows:null,future:true,src:"",paid:true};
+ openModal("Importar fatura",`<div class="stack" id="imp_root">${ccImpBody()}</div>`)}
+function ccDefK(c){const open=invoiceMonth(c,today());const prev=shiftMonth(open,-1);return dayIn(prev,c.due)>=today()?prev:open}
+function ccImpMonths(c){const open=invoiceMonth(c,today());return [-2,-1,0,1].map(d=>shiftMonth(open,d))}
+function ccImpBody(){const im=UI.imp;const c=cardById(im.card);const cs=cardsList();
+ if(!im.rows)return `<p class="small muted">Em vez de digitar compra por compra, traga a fatura do banco. Leva menos de 2 minutos por mês.</p>
+ <div class="grid2"><label class="field"><span>Cartão</span><select id="imp_card">${cs.map(x=>`<option value="${x.id}" ${x.id===c.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select></label>
+ <label class="field"><span>Fatura que vence em</span><select id="imp_k">${ccImpMonths(c).map(k=>`<option value="${k}" ${k===im.k?"selected":""}>${ddmm(dayIn(k,c.due))}/${k.slice(0,4)}</option>`).join("")}</select></label></div>
+ <div class="card flat stack"><b>Jeito 1: arquivo do banco</b><span class="small muted">No app ou site do banco, abra a fatura e procure <b>Exportar</b>, <b>Baixar</b> ou <b>Enviar por e-mail</b>, no formato <b>OFX</b> ou <b>CSV</b>. A maioria dos bancos oferece (Nubank, Itaú, Inter, Bradesco, Santander, BB, C6 e outros).</span>
+  <label class="btn line" style="cursor:pointer;text-align:center">Escolher arquivo da fatura<input type="file" id="ccFile" accept=".ofx,.qfx,.csv,.txt,text/csv,text/plain" style="display:none"></label></div>
+ <div class="card flat stack"><b>Jeito 2: copiar e colar</b><span class="small muted">Abra a fatura no app do banco ou o PDF, selecione as compras, copie e cole aqui. Cada linha precisa ter data, descrição e valor, por exemplo: <i>12/10 Mercado Bom Preço 154,90</i>.</span>
+  <textarea id="imp_text" rows="5" placeholder="Cole aqui as linhas da fatura" style="width:100%;font:inherit;padding:10px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)"></textarea>
+  <button class="btn" data-act="impParse">Ler compras</button></div>`;
+ const on=im.rows.filter(r=>r.on);const tot=sum(on);const fut=on.filter(r=>r.n>r.i).reduce((s,r)=>s+(r.n-r.i),0);
+ return `<div class="row between"><span class="small"><b>${esc(c.name)}</b> · fatura que vence ${ddmm(dayIn(im.k,c.due))}</span><button class="btn ghost sm" data-act="impBack">Voltar</button></div>
+ ${im.rows.length?`<p class="small muted">Encontrei ${im.rows.length} compra(s). Confira as categorias: o Prumo sugere sozinho e aprende com as suas correções.${im.rows.some(r=>r.dup)?" As que já estavam lançadas vieram desmarcadas.":""}</p>
+ <div class="stack-s" style="max-height:46vh;overflow:auto;margin-inline:-4px;padding-inline:4px">${im.rows.map((r,j)=>`<div class="card flat" style="padding:8px 10px;${r.on?"":"opacity:.55"}"><div class="row" style="gap:8px;align-items:flex-start"><input type="checkbox" data-imp-on="${j}" ${r.on?"checked":""} style="margin-top:4px;width:20px;height:20px;flex:none"><div class="grow stack-s" style="gap:4px;min-width:0"><div class="row between" style="gap:8px"><b class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.desc)}</b><b class="num small" style="flex:none">${brl(r.v)}</b></div><span class="tiny muted">${ddmm(r.date)}${r.n>1?` · parcela ${r.i}/${r.n}`:""}${r.dup?' · <span style="color:var(--warn)">já lançada</span>':r.rep?' · <span style="color:var(--warn)">repetida?</span>':""}</span><select data-imp-cat="${j}" style="min-height:34px;padding:4px 8px;font-size:13px">${CATS.map(x=>`<option value="${x.id}" ${x.id===r.cat?"selected":""}>${x.n}</option>`).join("")}</select></div></div></div>`).join("")}</div>
+ ${im.rows.some(r=>r.n>r.i)?`<label class="check"><input type="checkbox" id="imp_future" ${im.future?"checked":""}><span class="small">Lançar também as próximas parcelas nos meses seguintes (${fut} parcela(s)). Assim você já vê as faturas futuras.</span></label>`:""}
+ ${dayIn(im.k,c.due)<today()?`<label class="check"><input type="checkbox" id="imp_paid" ${im.paid?"checked":""}><span class="small">Esta fatura já venceu. Marcar como paga</span></label>`:""}
+ <button class="btn block" data-act="impSave" ${on.length?"":"disabled"}>Importar ${on.length} compra(s) · ${brl(tot)}</button>`
+ :`<div class="banner warn">Não consegui encontrar compras. Confira se o arquivo é a fatura do cartão (OFX ou CSV) ou se cada linha colada tem data, descrição e valor.</div>`}`}
+function impRefresh(){const r=$("#imp_root");if(r)r.innerHTML=ccImpBody()}
+function impLoad(raw,src){const im=UI.imp;const c=cardById(im.card);im.rows=normalizeRows(raw,c,im.k);im.src=src;impRefresh()}
+function readFileText(file){return new Promise(res=>{const fr=new FileReader();fr.onload=()=>{const t=String(fr.result||"");if(t.includes("�")){const f2=new FileReader();f2.onload=()=>res(String(f2.result||""));f2.readAsText(file,"ISO-8859-1")}else res(t)};fr.readAsText(file,"UTF-8")})}
+async function impFile(file){const t=await readFileText(file);let raw=/<OFX>|<STMTTRN>/i.test(t)?parseOFX(t):parseCSV(t);if(!raw.length)raw=parseText(t);impLoad(raw,"file")}
+document.addEventListener("change",ev=>{const el=ev.target;if(!UI.imp)return;
+ if(el.id==="ccFile"&&el.files&&el.files[0])impFile(el.files[0]);
+ if(el.id==="imp_card"){UI.imp.card=el.value;const c=cardById(el.value);UI.imp.k=ccDefK(c);impRefresh()}
+ if(el.id==="imp_k")UI.imp.k=el.value;
+ if(el.id==="imp_future")UI.imp.future=el.checked;if(el.id==="imp_paid")UI.imp.paid=el.checked;
+ if(el.dataset&&el.dataset.impOn!=null){UI.imp.rows[+el.dataset.impOn].on=el.checked;impRefresh()}
+ if(el.dataset&&el.dataset.impCat!=null)UI.imp.rows[+el.dataset.impCat].cat=el.value});
+document.addEventListener("input",ev=>{const id=ev.target&&ev.target.id;if(id==="f_v"||id==="f_date")ccPreview()});
+document.addEventListener("change",ev=>{const id=ev.target&&ev.target.id;if(id==="f_n"||id==="f_date")ccPreview()});
+
+Object.assign(A,{
+ ccBuy:el=>expenseForm({card:el.dataset.v||(cardsList()[0]||{}).id,date:today()},null),
+ ccImport:el=>ccImportForm(el.dataset.v),
+ ccToggle:el=>{UI.ccOpen=UI.ccOpen===el.dataset.v?null:el.dataset.v;render()},
+ addCard:()=>cardForm(),
+ addCardFromExp:()=>{UI.ccBack=true;cardForm()},
+ editCard:el=>{const c=cardById(el.dataset.v);if(c)cardForm(c)},
+ ccQuick:el=>{$("#cc_name").value=el.dataset.v;$("#cc_limit").focus()},
+ ccColor:el=>{UI.ccColor=el.dataset.v;document.querySelectorAll('[data-act="ccColor"]').forEach(b=>b.style.borderColor=b===el?"var(--ink)":"transparent")},
+ saveCard:el=>{const name=v("cc_name").trim();const close=parseInt(v("cc_close")),due=parseInt(v("cc_due"));
+  if(!name){toast("Dê um nome ao cartão.");return}if(!(close>=1&&close<=31)||!(due>=1&&due<=31)){toast("Informe os dias de fechamento e de vencimento (1 a 31).");return}
+  const id=el.dataset.v||rid();const old=(meta().cards||{})[id]||{};const cal=$("#cc_cal").checked;
+  finPatch("meta",{cards:{[id]:{name,limit:parseMoney(v("cc_limit")),close,due,color:UI.ccColor,cal,by:old.by||ME.uid,created:old.created||today()}}});
+  const evId="cc_due_"+id;if(cal){let k=mkey();if(dayIn(k,due)<today())k=shiftMonth(k,1);S.agenda.events[evId]={id:evId,title:`Vence a fatura do ${name}`,date:dayIn(k,due),time:"09:00",remind:1440,repeat:"monthly",place:"",notes:"Pague a fatura inteira para não cair no rotativo. Depois marque como paga em Finanças > Cartões."}}else delete S.agenda.events[evId];
+  saveApp();closeModal();toast(old.name?"Cartão atualizado.":"Cartão cadastrado.");if(UI.ccBack){UI.ccBack=false;setTimeout(()=>expenseForm({card:id,date:today()},null),150)}},
+ delCardYes:()=>{const id=document.querySelector('[data-act="saveCard"]').dataset.v;finPatch("meta",{cards:{[id]:null}});delete S.agenda.events["cc_due_"+id];saveApp();closeModal();toast("Cartão apagado.")},
+ pickPay:el=>{document.querySelectorAll('[data-act="pickPay"]').forEach(b=>b.classList.toggle("on",b===el));$("#f_card").value=el.dataset.v;$("#f_ccbox").classList.toggle("hide",!el.dataset.v);ccPreview()},
+ ccPaid:el=>{const c=cardById(el.dataset.v);finPatch("meta",{cardPaid:{[el.dataset.v]:{[ccKey(el.dataset.k)]:1}}});markActive();saveApp();toast(S.profile.pet?"Fatura paga! O porquinho comemora: nada de rotativo.":"Fatura marcada como paga. O limite foi liberado.",4000)},
+ ccUnpaid:el=>{finPatch("meta",{cardPaid:{[el.dataset.v]:{[ccKey(el.dataset.k)]:null}}})},
+ ccPartial:el=>{const c=cardById(el.dataset.v);const inv=cardInvoices(c).find(i=>i.k===el.dataset.k);if(!inv)return;
+  openModal("Não consegui pagar tudo",`<div class="stack"><p class="small">Tudo bem, acontece. O importante é não deixar o resto no rotativo por muito tempo, porque os juros são muito altos.</p>
+  <label class="field"><span>Quanto você conseguiu pagar da fatura de ${brl(inv.total)}?</span><input id="pp_v" inputmode="decimal" placeholder="0,00"></label>
+  <p class="tiny muted">O que faltar vira uma dívida em Finanças > Dívidas, com um plano para quitar. Ligue para o banco e peça para parcelar a fatura: costuma sair mais barato que o rotativo. Por lei, os juros do rotativo e do parcelamento da fatura não podem passar de 100% do valor da dívida.</p>
+  <button class="btn block" data-act="ccPartialSave" data-v="${c.id}" data-k="${inv.k}">Registrar</button></div>`)},
+ ccPartialSave:el=>{const c=cardById(el.dataset.v);const inv=cardInvoices(c).find(i=>i.k===el.dataset.k);const paid=parseMoney(v("pp_v"));const left=Math.round((inv.total-paid)*100)/100;
+  if(left<=0){A.ccPaid(el);closeModal();return}
+  const id=rid();finPatch("meta",{debts:{[id]:{name:`Fatura ${c.name} (${MONTHS[+inv.k.slice(5)-1]})`,kind:"cartao",balance:left,rate:14,min:Math.ceil(left/6),inst:6,late:false,created:today()}},cardPaid:{[c.id]:{[ccKey(inv.k)]:1}}});
+  saveApp();closeModal();UI.fin="dividas";render();toast(`Faltaram ${brl(left)}. Cadastrei como dívida para você montar o plano. Ajuste os juros com o valor que o banco informar.`,6000)},
+ impParse:()=>{const t=v("imp_text");if(!t.trim()){toast("Cole as linhas da fatura.");return}let raw=parseText(t);if(!raw.length&&/[;,]/.test(t))raw=parseCSV(t);impLoad(raw,"text")},
+ impBack:()=>{UI.imp.rows=null;impRefresh()},
+ impSave:()=>{const im=UI.imp;const c=cardById(im.card);const rows=im.rows.filter(r=>r.on);if(!rows.length)return;const all={};const td=today();
+  rows.forEach(r=>{const grp=rid();const n=im.future?r.n:r.i;const total=r.v*r.n;
+   const ent=ccPurchaseEntries(c,{total,n:r.n,desc:r.desc,cat:r.cat,bought:r.date,grp,by:ME.uid,t:Date.now(),added:td,startI:r.i,firstK:im.k});
+   Object.keys(ent).forEach(k=>{Object.entries(ent[k]).forEach(([id,e])=>{if(e.i>n)return;e.v=r.v;e.imp=1;(all[k]=all[k]||{})[id]=e})})});
+  ccApply(all);if(im.paid&&dayIn(im.k,c.due)<today())finPatch("meta",{cardPaid:{[c.id]:{[ccKey(im.k)]:1}}});markActive();saveApp();closeModal();UI.imp=null;UI.ccOpen=c.id;
+  toast(`${rows.length} compra(s) importada(s) na fatura de ${MONTHS[+im.k.slice(5)-1]}.`,4000)}
+});
 
 
 /* ============================================================

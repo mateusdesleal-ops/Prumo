@@ -3080,6 +3080,21 @@ function demoBar(){if(!Store.demo)return;let b=document.getElementById("demobar"
 A.demoExit=()=>{location.href=location.pathname};
 A.openDemo=()=>{location.href=location.pathname+"?demo"};
 
+/* Simulador da evolução do porquinho (só na demonstração) */
+const SIM={v:null};
+function simParams(x){const mood=x<20?"triste":x<40?"preocupado":x<70?"ok":"feliz";
+ const accs=[["head","laco",30],["face","oculos",45],["neck","gravata",55],["head","bone",65],["neck","cachecol",75],["face","escuros",85],["head","coroa",95]];const equip={head:null,face:null,neck:null};accs.forEach(([sl,id,t])=>{if(x>=t)equip[sl]=id});
+ return{score:Math.max(5,x),mood,equip,env:Math.min(6,Math.floor(x/15)),dry:x<15,peace:Math.min(7,Math.floor(x/13))}}
+function simLabel(x){return x<20?"Gastando mais do que ganha, sem exercícios nem estudos: o porquinho fica magrinho, triste e o ambiente seca.":x<40?"Ainda no aperto: o porquinho fica preocupado e o ambiente é simples.":x<70?"Contas em dia e alguns hábitos: o porquinho está bem e ganha as primeiras roupinhas.":x<90?"Guardando dinheiro, estudando e se exercitando: porquinho feliz, gordinho e com jardim florido.":"Vida em ordem: reserva cheia, hábitos firmes e sequência longa. Até coroa ele ganha!"}
+function simCard(){const x=SIM.v??70;return `<div class="card stack" id="simcard"><div class="row between"><b>Simular a evolução</b><span class="pill info">demonstração</span></div><p class="tiny muted">Arraste para ver como o porquinho muda conforme a vida da pessoa melhora ou piora.</p>
+ <div class="pigstage" id="simstage">${pigSVG(simParams(x))}</div>
+ <input type="range" id="simrange" min="0" max="100" value="${x}" style="width:100%;min-height:36px;padding:0;border:0;background:none;accent-color:var(--pig-deep)" aria-label="Simular evolução">
+ <div class="row between tiny muted"><span>Vida bagunçada</span><span>Vida em ordem</span></div>
+ <p class="small" id="simtxt">${simLabel(x)}</p></div>`}
+function simInject(){if(!Store.demo||!["home","pig"].includes(UI.tab)||document.getElementById("simcard"))return;const st=document.querySelector("#app .pigstage");if(!st)return;const host=st.closest(".card")||st;host.insertAdjacentHTML("afterend",simCard())}
+{const _r2=render;render=function(){_r2();simInject()}}
+document.addEventListener("input",ev=>{if(ev.target&&ev.target.id==="simrange"){const x=+ev.target.value;SIM.v=x;const s=document.getElementById("simstage");if(s)s.innerHTML=pigSVG(simParams(x));const t=document.getElementById("simtxt");if(t)t.textContent=simLabel(x)}});
+
 /* início */
 (function boot(){
  const l=lsGet();if(l&&l.S){S=hydrate(l.S);Object.assign(PFIN,l.PFIN||{})}

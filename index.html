@@ -345,6 +345,7 @@ const I={
  heart:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"/></svg>',
  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>',
  spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z"/><path d="M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/></svg>',
+ candle:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="10" width="7" height="11" rx="1.5"/><path d="M12 10V8.5"/><path d="M12 2.5c1.6 1.8 2 2.9 2 3.7a2 2 0 0 1-4 0c0-.8.4-1.9 2-3.7z"/><path d="M6 21h12"/></svg>',
  people:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.8"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M15 14.5a5 5 0 0 1 6.5 5"/></svg>',
 };
 
@@ -1744,7 +1745,7 @@ function render(){
  $("#tabs").hidden=false;
  renderTabs();
  syncSubs();
- const views={home:viewHome,fin:viewFin,study:viewStudy,ex:viewEx,agenda:viewAgenda,prayer:viewPrayer,learn:viewLearn,pig:viewPig,profile:viewProfile};
+ const views={home:viewHome,fin:viewFin,study:viewStudy,ex:viewEx,agenda:viewAgenda,prayer:viewPrayer,learn:viewLearn,pig:viewPig,profile:viewProfile,admin:viewAdmin};
  const sy=window.scrollY;
  wardrobePrepare();
  app.innerHTML=header()+(views[UI.tab]||viewHome)();
@@ -1755,7 +1756,7 @@ function render(){
  f.setAttribute("aria-label",{fin:"Adicionar gasto",study:"Registrar estudo",ex:UI.ex==="comida"?"Adicionar alimento":"Registrar exercício",agenda:UI.agendaSub==="tasks"?"Nova tarefa":"Novo compromisso"}[UI.tab]||"Adicionar");
  renderTFull();tickTimer();
 }
-function renderTabs(){const t=[["home","Início",I.home],["fin","Finanças",I.money],["study","Estudos",I.book],["ex","Saúde",I.heart.replace('fill="currentColor"','fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"')],["agenda","Agenda",I.cal]];if(S.profile.prayer)t.push(["prayer","Oração",I.spark]);
+function renderTabs(){const t=[["home","Início",I.home],["fin","Finanças",I.money],["study","Estudos",I.book],["ex","Saúde",I.heart.replace('fill="currentColor"','fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"')],["agenda","Agenda",I.cal]];if(S.profile.prayer)t.push(["prayer","Oração",I.candle]);
  $("#tabs").innerHTML=`<div class="tabs-in" style="grid-template-columns:repeat(${t.length},1fr)">${t.map(([id,n,ic])=>`<button class="tab ${UI.tab===id||((UI.tab==="pig"||UI.tab==="learn")&&id==="home")?"on":""}" data-act="tab" data-v="${id}" aria-label="${n}">${ic}<span>${n}</span></button>`).join("")}</div>`}
 function logoHTML(px){return `<span role="img" aria-label="Prumo" style="display:inline-block;white-space:nowrap;font-family:var(--f-display);font-weight:600;font-size:${px}px;line-height:1;letter-spacing:-.02em;color:var(--ink)"><span aria-hidden="true">Prum</span><svg aria-hidden="true" viewBox="0 0 100 100" style="display:inline-block;width:.54em;height:.54em;margin-left:.03em;vertical-align:-.01em"><circle cx="50" cy="50" r="50" fill="#F28AA8"/><ellipse cx="35" cy="50" rx="8.5" ry="15" fill="#2B1E24"/><ellipse cx="65" cy="50" rx="8.5" ry="15" fill="#2B1E24"/></svg></span>`}
 function header(){const st=streak();const first=(S.profile.name||"").split(" ")[0];
@@ -2031,6 +2032,7 @@ function viewProfile(){const p=S.profile;
  ${canDonate()?`<button class="btn money" data-act="donate">${I.heart.replace('<svg','<svg width="18" height="18"')} Apoie o Prumo com uma doação</button>`:""}
  <button class="btn ghost" data-act="about">Sobre o Prumo</button>
  ${SB_ON?(Store.cloud?`<button class="btn line" data-act="signOut">Sair da conta</button><button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:`<button class="btn line" data-act="goLogin">Entrar ou criar conta</button>`):""}
+ ${(checkAdmin(),UI.isAdmin)?`<button class="btn line" data-act="goAdmin">Painel do administrador</button>`:""}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão de testes</p>
  </div>`}
@@ -2838,6 +2840,44 @@ bookForm=function(b){_bookForm(b);const t=$("#b_title");if(!t)return;
 A.pickBook=el=>{const r=(UI.bookRes||[])[+el.dataset.v];if(!r)return;$("#b_title").value=r.title;$("#b_author").value=r.author||"";if(r.pages)$("#b_pages").value=r.pages;$("#b_cover").value=r.cover||"";$("#bsug").innerHTML="";toast("Dados do livro preenchidos.")};
 
 if(SB_ON&&!localModeChosen())UI.needAuth="pending";
+
+/* ---------- Painel do administrador (só números gerais e lista de contas) ---------- */
+UI.isAdmin=undefined;
+async function checkAdmin(){if(!sb||!Store.cloud||UI.isAdmin!==undefined)return;UI.isAdmin=null;try{const {data,error}=await sb.rpc("is_admin");UI.isAdmin=!error&&data===true}catch(e){UI.isAdmin=false}if(UI.isAdmin&&UI.tab==="profile")render()}
+const ADM={stats:null,users:null,err:null,loading:false,all:false,q:""};
+async function admLoad(){ADM.loading=true;ADM.err=null;render();try{const [a,b]=await Promise.all([sb.rpc("admin_stats"),sb.rpc("admin_users")]);if(a.error||b.error)throw(a.error||b.error);ADM.stats=a.data;ADM.users=b.data||[]}catch(e){ADM.err=(e&&e.message)||"erro"}ADM.loading=false;render()}
+function admDate(s,withTime){if(!s)return"—";const d=new Date(s);return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit"})+(withTime?" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"")}
+function viewAdmin(){if(!UI.isAdmin)return `<div class="card empty">Acesso restrito.</div>`;const s=ADM.stats;
+ if(!s&&!ADM.loading&&!ADM.err)setTimeout(admLoad,0);
+ const kpi=(n,v,sub)=>`<div class="card stack-s" style="padding:12px"><span class="tiny muted">${n}</span><span class="big num" style="font-size:26px">${v}</span>${sub?`<span class="tiny muted">${sub}</span>`:""}</div>`;
+ const pct=(n,t)=>t?Math.round(n/t*100):0;
+ const bar=(n,v,t)=>`<div class="stack-s" style="gap:3px"><div class="row between small"><span>${n}</span><b class="num">${v} · ${pct(v,t)}%</b></div><div class="meter"><i style="width:${pct(v,t)}%"></i></div></div>`;
+ let body="";
+ if(ADM.err)body=`<div class="banner bad"><span>Não consegui carregar: ${esc(ADM.err)}. Confira se o arquivo supabase/admin.sql foi rodado no Supabase.</span></div>`;
+ else if(!s)body=`<div class="card empty">Carregando…</div>`;
+ else{const days=[];for(let i=29;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push(ymd(d))}const map={};(s.signups||[]).forEach(x=>map[x.d]=x.n);const mx=Math.max(1,...days.map(d=>map[d]||0));
+  const base=Math.max(1,s.onboarded);const FN={fin:"Dinheiro",saude:"Saúde",estudo:"Estudos",rotina:"Rotina",fe:"Fé e mente"};
+  const q=ADM.q.trim().toLowerCase();const us=(ADM.users||[]).filter(u=>!q||String(u.email).toLowerCase().includes(q));const list=ADM.all?us:us.slice(0,30);
+  body=`<div class="grid2">${kpi("Contas",s.users,`${s.confirmed} confirmadas`)}${kpi("Terminaram o cadastro",s.onboarded,`${pct(s.onboarded,s.users)}% das contas`)}${kpi("Novas em 7 dias",s.new7,`${s.new30} em 30 dias`)}${kpi("Usaram hoje",s.active1,`${s.active7} na semana · ${s.active30} no mês`)}</div>
+  <div class="card stack"><div class="label">Novas contas nos últimos 30 dias</div><svg viewBox="0 0 300 90" style="width:100%;height:auto" role="img" aria-label="Novas contas por dia">${days.map((d,i)=>{const h=(map[d]||0)/mx*70;return `<rect x="${i*10+1}" y="${78-h}" width="8" height="${Math.max(h,1)}" rx="2" fill="${map[d]?"var(--pig-deep)":"var(--line)"}"><title>${admDate(d)}: ${map[d]||0}</title></rect>`}).join("")}<text x="0" y="89" font-size="8" fill="var(--muted)">${admDate(days[0])}</text><text x="300" y="89" font-size="8" text-anchor="end" fill="var(--muted)">hoje</text></svg></div>
+  <div class="card stack"><div class="label">O que as pessoas usam</div><p class="tiny muted">Entre as ${s.onboarded} pessoas que terminaram o cadastro.</p>
+   ${bar("Lançaram finanças",s.finance,base)}${bar("Cadastraram cartão",s.cards,base)}${bar("Cadastraram dívida",s.debts,base)}${bar("Registraram estudo",s.study,base)}${bar("Registraram exercício",s.exercise,base)}${bar("Registraram alimentação",s.food,base)}${bar("Criaram tarefas",s.tasks,base)}${bar("Porquinho ligado",s.pet,base)}${bar("Aba de Oração ligada",s.prayer,base)}
+   <span class="tiny muted">Finanças compartilhadas: ${s.households} casal(is).</span></div>
+  ${Object.keys(s.focus||{}).length?`<div class="card stack"><div class="label">Por onde quiseram começar</div>${Object.entries(s.focus).sort((a,b)=>b[1]-a[1]).map(([k,v])=>bar(FN[k]||k,v,base)).join("")}</div>`:""}
+  <div class="card stack"><div class="row between"><div class="label">Contas</div><button class="btn ghost sm" data-act="admCsv">Baixar lista</button></div>
+   <input id="admQ" placeholder="Buscar por e-mail" value="${esc(ADM.q)}">
+   <div class="list">${list.map(u=>`<div class="item" style="align-items:flex-start"><div class="grow stack-s" style="gap:1px"><p class="small"><b>${esc(u.email)}</b></p><p class="tiny muted">Criada ${admDate(u.created_at)} · último acesso ${admDate(u.last_sign_in_at)}${u.last_activity?" · usou "+admDate(u.last_activity,true):""}</p></div>${!u.confirmed?`<span class="pill warn">sem confirmar</span>`:!u.onboarded?`<span class="pill info">cadastro incompleto</span>`:""}</div>`).join("")||`<p class="small muted">Nenhuma conta encontrada.</p>`}</div>
+   ${!ADM.all&&us.length>30?`<button class="btn ghost sm" data-act="admAll">Ver todas (${us.length})</button>`:""}</div>`}
+ return `<div class="stack"><div class="row between" style="margin-top:4px"><h1>Painel do administrador</h1><button class="iconbtn" data-act="tab" data-v="profile" aria-label="Voltar">${I.left}</button></div>
+ <div class="banner info"><span class="small">Você vê números gerais e a lista de contas. Finanças, saúde, orações e os demais registros de cada pessoa continuam privados, como diz a política de privacidade.</span></div>
+ <button class="btn line sm" data-act="admReload" style="align-self:flex-start" ${ADM.loading?"disabled":""}>${ADM.loading?"Atualizando…":"Atualizar números"}</button>
+ ${body}</div>`}
+A.goAdmin=()=>{UI.tab="admin";window.scrollTo(0,0);ADM.stats=null;render()};
+A.admReload=()=>admLoad();
+A.admAll=()=>{ADM.all=true;render()};
+A.admCsv=()=>{const rows=[["email","criada_em","ultimo_acesso","confirmada","ultima_atividade","cadastro_completo"],...(ADM.users||[]).map(u=>[u.email,u.created_at||"",u.last_sign_in_at||"",u.confirmed?"sim":"nao",u.last_activity||"",u.onboarded?"sim":"nao"])];
+ const csv="\uFEFF"+rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(";")).join("\n");const blob=new Blob([csv],{type:"text/csv"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="prumo-contas-"+today()+".csv";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove()},1000)};
+document.addEventListener("input",ev=>{if(ev.target&&ev.target.id==="admQ"){ADM.q=ev.target.value;clearTimeout(ADM._t);ADM._t=setTimeout(()=>{const pos=ev.target.selectionStart;render();const el=$("#admQ");if(el){el.focus();try{el.setSelectionRange(pos,pos)}catch(e){}}},300)}});
 
 /* início */
 (function boot(){

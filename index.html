@@ -2835,10 +2835,17 @@ function qCfgFor(){return QS().cfg}
 function qPreviewModal(q,title){openModal(title||"Prévia do orçamento",`<div class="stack"><div style="margin-inline:-6px">${qDocHTML(q,qCfgFor())}</div><p class="tiny muted" style="text-align:center">É assim que o cliente vai ver.</p></div>`)}
 function qSendModal(id){const q=QS().items[id];if(!q)return;const t=qTotals(q);const link=qCanLink();
  openModal(`Enviar orçamento nº ${qNum(q)}`,`<div class="stack"><p class="small">${esc(q.client.name)} · <b>${brl(t.total)}</b></p>
- ${link?`<button class="btn block" data-act="qLink" data-v="${id}" style="background:#25D366">Enviar link pelo WhatsApp</button><p class="tiny muted" style="margin-top:-6px">O cliente abre uma página com o orçamento e pode aprovar com um toque. O status muda sozinho aqui.</p><button class="btn line block" data-act="qCopyLink" data-v="${id}">Copiar link</button>`
+ ${link?`<div id="qLinkBox" class="stack-s"><button class="btn block" disabled style="background:#25D366">Preparando o link…</button></div><p class="tiny muted" style="margin-top:-6px">O cliente abre uma página com o orçamento e pode aprovar com um toque. O status muda sozinho aqui.</p>`
   :`<div class="banner info"><span class="small">${Store.demo?"Na demonstração o link não é enviado. O PDF funciona normalmente.":"Para enviar por link, entre com sua conta do Prumo."}</span></div>`}
  <button class="btn line block" data-act="qPdf" data-v="${id}">Enviar PDF</button><p class="tiny muted" style="margin-top:-6px">No celular, abre a tela de compartilhar para você escolher o WhatsApp. No computador, o PDF é baixado.</p>
- <button class="btn ghost block" data-act="qView" data-v="${id}">Ver o orçamento</button></div>`)}
+ <button class="btn ghost block" data-act="qView" data-v="${id}">Ver o orçamento</button></div>`);if(link)qPrepareLink(id)}
+async function qPrepareLink(id){const box=$("#qLinkBox");const q=QS().items[id];if(!box||!q)return;
+ try{const url=await qPublish(q);UI.qUrl=url;const first=String(q.client.name||"").split(" ")[0];const msg=`Olá${first?", "+first:""}! Segue o orçamento nº ${qNum(q)}${QS().cfg.name?" de "+QS().cfg.name:""}:\n${url}\n\nPelo link você vê os detalhes e pode aprovar.`;UI.qMsg=msg;
+  const b=$("#qLinkBox");if(!b)return;
+  b.innerHTML=`<a class="btn block" href="${esc(qWaLink(q.client.phone,msg))}" target="_blank" rel="noopener" data-qsent="${id}" style="background:#25D366;text-decoration:none">Enviar pelo WhatsApp${q.client.phone?"":" (escolher contato)"}</a>
+  ${navigator.share?`<button class="btn line block" data-act="qShareLink" data-v="${id}">Compartilhar link (outros apps)</button>`:""}
+  <button class="btn ghost block" data-act="qCopyLink" data-v="${id}">Copiar link</button>`}
+ catch(e){const b=$("#qLinkBox");if(b)b.innerHTML=`<div class="banner bad"><span class="small">Não consegui criar o link agora: ${esc((e&&e.message)||"sem conexão")}.</span></div><button class="btn line block" data-act="qRetryLink" data-v="${id}">Tentar de novo</button>`}}
 function loadScriptOnce(src){return new Promise((res,rej)=>{if(document.querySelector(`script[src="${src}"]`)){const t=setInterval(()=>{if(window.PDFLib||window.qrcode){clearInterval(t);res()}},50);setTimeout(()=>{clearInterval(t);res()},4000);return}const s=document.createElement("script");s.src=src;s.onload=()=>res();s.onerror=()=>rej(new Error("Sem internet para gerar o arquivo."));document.head.appendChild(s)})}
 async function qQR(text){try{if(!window.qrcode)await loadScriptOnce("https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js");const qr=window.qrcode(0,"M");qr.addData(text);qr.make();return qr}catch(e){return null}}
 function qPixFor(q){const c=qCfgFor();const sh=Object.assign({pix:true},c.show||{});if(!sh.pix||q.showPix===false||!c.pixKey)return null;return qPixPayload(qNormKey(c.pixType,c.pixKey),c.pixName||c.name,c.city,qTotals(q).total,"ORC"+qNum(q))}
@@ -2904,6 +2911,8 @@ Object.assign(A,{
  qIncome:el=>{const q=QS().items[el.dataset.v];if(!q)return;const t=qTotals(q);const iid=rid();finPatch(mid(mkey()),{incomes:{[iid]:{v:Math.round(t.total*100)/100,desc:`Orçamento nº ${qNum(q)} · ${q.client.name}`,date:today(),by:ME.uid,t:Date.now()}}});q.incomeId=iid;markActive();commit();toast(`${brl(t.total)} lançado como renda neste mês.`)},
  qPdf:async el=>{const q=QS().items[el.dataset.v];if(!q)return;el.disabled=true;el.textContent="Gerando PDF…";try{const r=await qPdfShare(q);if(r!=="cancel"){qMarkSent(q.id);closeModal();toast(r==="download"?"PDF baixado. Anexe na conversa do WhatsApp.":"PDF compartilhado.")}else{el.disabled=false;el.textContent="Enviar PDF"}}catch(e){el.disabled=false;el.textContent="Enviar PDF";toast((e&&e.message)||"Não foi possível gerar o PDF.")}},
  qLink:async el=>{const q=QS().items[el.dataset.v];if(!q)return;const w=window.open("about:blank","_blank");el.disabled=true;try{const url=await qPublish(q);const first=String(q.client.name||"").split(" ")[0];const msg=`Olá${first?", "+first:""}! Segue o orçamento nº ${qNum(q)} de ${QS().cfg.name||""}:\n${url}\n\nPelo link você vê os detalhes e pode aprovar.`;const wa=qWaLink(q.client.phone,msg);if(w)w.location.href=wa;else location.href=wa;qMarkSent(q.id);closeModal()}catch(e){if(w)w.close();el.disabled=false;toast("Não foi possível criar o link: "+((e&&e.message)||"erro"))}},
+ qRetryLink:el=>{const b=$("#qLinkBox");if(b)b.innerHTML=`<button class="btn block" disabled style="background:#25D366">Preparando o link…</button>`;qPrepareLink(el.dataset.v)},
+ qShareLink:async el=>{try{await navigator.share({title:"Orçamento",text:UI.qMsg?UI.qMsg.split("\n")[0]:"Orçamento",url:UI.qUrl});qMarkSent(el.dataset.v);closeModal()}catch(e){}},
  qCopyLink:async el=>{const q=QS().items[el.dataset.v];if(!q)return;try{const url=await qPublish(q);await navigator.clipboard.writeText(url);qMarkSent(q.id);toast("Link copiado. Cole na conversa com o cliente.")}catch(e){toast("Não foi possível copiar: "+((e&&e.message)||"erro"))}},
  qColor:el=>{$("#qc_color").value=el.dataset.v;qColorPrev(el.dataset.v)},
  qLogoDel:()=>{QS().cfg.logo=null;commit()},
@@ -3114,6 +3123,7 @@ function qCfgAutosave(el){const c=QS().cfg;const id=el.id||"";
 document.addEventListener("input",ev=>{if(UI.tab==="fin"&&UI.fin==="orc"&&UI.qtab==="cfg")qCfgAutosave(ev.target)});
 document.addEventListener("change",ev=>{if(UI.tab==="fin"&&UI.fin==="orc"&&UI.qtab==="cfg")qCfgAutosave(ev.target)});
 
+document.addEventListener("click",ev=>{const a=ev.target&&ev.target.closest&&ev.target.closest("[data-qsent]");if(a){const id=a.dataset.qsent;setTimeout(()=>{qMarkSent(id);closeModal()},400)}});
 
 /* ============================================================
    Versão web: contas e dados no Supabase

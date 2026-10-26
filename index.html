@@ -1782,7 +1782,7 @@ function viewHome(){
  return `<div class="stack">
  <div class="stack-s" style="margin-top:4px"><h1>${hi}${first?", "+esc(first):""}</h1><p class="muted">${dayLabel(today())==="Hoje"?new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"}):""}</p></div>
  ${whyCard()}
- ${msgCard()}${missionsCard()}${shareCard()}
+ ${letterHomeCard()}${msgCard()}${missionsCard()}${shareCard()}
  ${pigCard}
  ${envWarning()}${studyWarning()}${taskWarning()}
  <div class="card"><div class="label" style="margin-bottom:12px">Metas de hoje</div>
@@ -2007,6 +2007,7 @@ function viewProfile(){const p=S.profile;
  const hh=p.household;const members=HH&&HH.members?Object.entries(HH.members).filter(([,v])=>v):[];
  return `<div class="stack">
  <div class="row"><button class="iconbtn" data-act="tab" data-v="home" aria-label="Voltar">${I.left}</button><h2>Perfil</h2></div>
+ ${letterProfileCard()}
  <div class="card stack"><div class="row"><label for="photoFile" style="position:relative;cursor:pointer;flex:none" aria-label="Trocar foto">${p.photo?`<img src="${p.photo}" alt="" style="width:56px;height:56px;border-radius:50%;object-fit:cover;display:block">`:`<span class="ico" style="width:56px;height:56px;border-radius:50%;background:var(--pig-soft);color:var(--pig-deep);font-size:20px">${esc((p.name||"?").slice(0,1).toUpperCase())}</span>`}<span style="position:absolute;right:-4px;bottom:-4px;width:22px;height:22px;border-radius:50%;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;font-size:12px">✎</span></label><input type="file" id="photoFile" accept="image/*" hidden><div class="grow stack-s" style="gap:1px"><b>${esc(p.name)}${p.supporter?` <span class="pill good" style="vertical-align:2px">${I.heart.replace('<svg','<svg width="11" height="11"')} Apoiador</span>`:""}</b><span class="tiny muted">Conta criada em ${p.created?parseDate(p.created).toLocaleDateString("pt-BR"):"—"} · ${Store.cloud?"salvo na sua conta"+(SESSION&&SESSION.user?" ("+esc(SESSION.user.email)+")":""):"salvo só neste aparelho"}</span></div></div>
  <button class="btn ghost" data-act="editProfile">Editar nome, renda e metas</button></div>
  <div class="section"><div class="label">Finanças compartilhadas</div>
@@ -2074,12 +2075,7 @@ function aboutHTML(intro){
  const pill=(ic,t,c)=>`<div class="row" style="gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px"><span class="ico" style="width:34px;height:34px;background:color-mix(in srgb,${c} 15%,transparent);color:${c}">${ic.replace('<svg','<svg width="18" height="18"')}</span><b class="small">${t}</b></div>`;
  return `<div class="stack" style="gap:18px">
  ${intro?`<div style="text-align:center" class="stack-s">${logoHTML(56)}<p class="label" style="color:var(--money);font-size:13px">Vida em ordem</p></div>`:""}
- <h1 style="font-size:24px">Por que o Prumo existe</h1>
- <div class="stack prose" style="gap:12px">
-  <p>A maioria de nós nunca aprendeu a cuidar do dinheiro, do corpo e da mente. Não foi falta de vontade: isso não foi ensinado na escola e, muitas vezes, nem em casa. O resultado aparece no endividamento, no cansaço e na ansiedade de muitos brasileiros.</p>
-  <p>O Prumo nasceu dessa preocupação. Quem criou o app é formado em Psicologia e acredita que a saúde financeira, a física e a mental andam juntas. Dívida tira o sono, a falta de movimento pesa no humor, e pequenos hábitos repetidos todo dia mudam a vida aos poucos.</p>
-  <p>Por isso o app reúne, num lugar só, organizar o dinheiro, aprender um pouco todo dia, se movimentar e lembrar dos compromissos. Sem julgamento: cada passo pequeno conta.</p>
- </div>
+ ${letterBlock()}
  <div class="grid2">${pill(I.money,"Dinheiro","var(--money)")}${pill(I.book,"Aprendizado","var(--pig-deep)")}${pill(I.run,"Corpo","var(--need)")}${pill(I.cal,"Rotina","var(--warn)")}</div>
  <div class="card stack" style="border-color:color-mix(in srgb,var(--money) 45%,var(--line));background:color-mix(in srgb,var(--money) 7%,var(--surface))">
   <div class="label" style="color:var(--money)">Nosso compromisso</div>
@@ -2920,6 +2916,43 @@ document.addEventListener("change",ev=>{const el=ev.target;if(!el)return;if(el.i
 
 
 /* ============================================================
+   Recado do mascote: por que o Prumo existe (com a voz do mascote)
+   ============================================================ */
+function pigFace(equip){return pigSVG({score:80,mood:"feliz",equip:equip||{},env:1,dry:false,peace:0}).replace(/viewBox="[^"]*"/,'viewBox="62 48 196 196"')}
+function letterPig(){return S.profile.pet!==false}
+function letterWho(){return S.pet&&S.pet.name?esc(S.pet.name):"seu mascote"}
+function letterParas(short){const pig=letterPig();const who=letterWho();
+ const P=[pig?`Oinc! Eu sou o ${who}. Meu criador é psicólogo e me colocou aqui porque vê todos os dias como a bagunça com dinheiro, saúde e rotina pesa na cabeça das pessoas. Não por falta de vontade, mas porque ninguém ensina como fazer.`
+   :`Oi! Eu sou o Prumo. Meu criador é psicólogo e me fez porque vê todos os dias como a bagunça com dinheiro, saúde e rotina pesa na cabeça das pessoas. Não por falta de vontade, mas porque ninguém ensina como fazer.`,
+  `Vou ser sincero: anotar gastos e registrar hábitos pode parecer chato no começo. É normal! Mas é esse pequeno esforço que traz clareza, e clareza traz tranquilidade. Quem sabe para onde vai o próprio dinheiro dorme melhor.`,
+  `Você não precisa ser perfeito. Dois minutos por dia já fazem diferença. Esqueceu um dia? Tudo bem, o importante é voltar.${pig?" Eu vou estar aqui te esperando.":""}`,
+  pig?`Meu criador fez o Prumo gratuito, e ele sempre vai ser. Ele não existe para dar lucro: existe para te ajudar.`:`Meu criador me fez gratuito, e eu sempre vou ser. Não existo para dar lucro: existo para te ajudar.`];
+ return short?[P[0],P[1]]:P}
+function letterAvatar(px){return letterPig()?`<div class="pigstage" style="width:${px}px;flex:none;border-radius:50%;aspect-ratio:1;overflow:hidden" aria-hidden="true">${pigFace(S.profile.created?effectiveEquip():{head:null,face:null,neck:null})}</div>`:`<div style="flex:none">${logoHTML(Math.round(px*.32))}</div>`}
+function letterTitle(){return letterPig()?(S.pet&&S.pet.name?`Um recado do ${esc(S.pet.name)}`:"Um recado do seu mascote"):"Um recado do Prumo"}
+function letterBubble(paras){return `<div style="position:relative;background:var(--pig-soft);border-radius:18px;padding:14px 16px;font-size:15px;line-height:1.5"><span style="position:absolute;top:-8px;left:34px;width:16px;height:16px;background:var(--pig-soft);transform:rotate(45deg)"></span><div class="stack-s" style="position:relative;gap:10px">${paras.map(p=>`<p>${p}</p>`).join("")}</div></div>`}
+function letterBlock(){return `<div class="stack" style="gap:10px"><div class="row" style="gap:12px;align-items:flex-end">${letterAvatar(88)}${letterPig()?`<b style="color:var(--pig-deep);font-family:var(--f-display);font-size:20px">${letterTitle()}</b>`:""}</div>${letterBubble(letterParas(false))}</div>`}
+function letterModal(){openModal(letterTitle().replace(/<[^>]+>/g,""),`<div class="stack">${letterBlock()}<button class="btn block" data-act="letterOk">${letterPig()?"Oinc! Combinado":"Combinado"}</button></div>`)}
+/* cartões no Início */
+function daysSinceLastActive(){const td=today();const ks=Object.keys(S.activity||{}).filter(d=>d<td).sort();if(!ks.length)return 0;return Math.round((parseDate(td)-parseDate(ks[ks.length-1]))/864e5)}
+function letterHomeCard(){const p=S.profile;if(!p.created)return"";const td=today();
+ const gap=daysSinceLastActive();
+ if(gap>=5&&p.backSeen!==td){const pig=letterPig();return `<div class="card stack" style="border:2px solid var(--pig)"><div class="row" style="gap:12px;align-items:flex-end">${letterAvatar(72)}<b style="color:var(--pig-deep)">${pig?(S.pet&&S.pet.name?esc(S.pet.name)+" sentiu sua falta":"Seu mascote sentiu sua falta"):"Que bom te ver de volta"}</b></div>
+  ${letterBubble([`${pig?"Oinc! ":""}Que bom te ver de volta! Ficar uns dias sem registrar acontece com todo mundo, meu criador sabe bem disso.`,`Não precisa colocar tudo em dia. Começa só pelo hoje: um gasto, um copo de água, uma tarefa. Já vale.`])}
+  <button class="btn sm" data-act="backOk" style="align-self:flex-end">${pig?"Oinc! Bora":"Vamos lá"}</button></div>`}
+ const days=Math.round((parseDate(td)-parseDate(p.created))/864e5);
+ if(!p.letterSeen&&(days<=7||Store.demo))return `<div class="card stack" style="border:2px solid var(--pig)"><div class="row" style="gap:12px;align-items:flex-end">${letterAvatar(72)}<b style="color:var(--pig-deep)">${letterTitle()}</b></div>${letterBubble(letterParas(true))}
+  <div class="row" style="gap:8px;justify-content:flex-end"><button class="btn ghost sm" data-act="letterOpen">Ler o recado inteiro</button><button class="btn sm" data-act="letterOk">Entendi</button></div></div>`;
+ return ""}
+function letterProfileCard(){return `<button class="card row" style="text-align:left;gap:12px;width:100%;border:2px solid var(--pig)" data-act="letterOpen">${letterAvatar(56)}<span class="grow stack-s" style="gap:2px"><b style="color:var(--pig-deep)">${letterTitle()}</b><span class="small muted">Por que o Prumo existe e por que vale a pena, mesmo quando parece chato.</span></span>${I.right.replace('<svg','<svg width="18" height="18" style="flex:none;color:var(--muted)"')}</button>`}
+Object.assign(A,{
+ letterOpen:()=>letterModal(),
+ letterOk:()=>{S.profile.letterSeen=today();closeModal();commit()},
+ backOk:()=>{S.profile.backSeen=today();commit()}
+});
+
+
+/* ============================================================
    Versão web: contas e dados no Supabase
    ============================================================ */
 const CFG=window.PRUMO_CONFIG||{};
@@ -3170,7 +3203,7 @@ const MSG={list:[]};
 async function loadMessages(){if(!sb||!Store.cloud||Store.demo)return;try{const {data,error}=await sb.from("messages").select("id,body,created_at").is("read_at",null).order("created_at",{ascending:true}).limit(10);if(!error){MSG.list=data||[];render()}}catch(e){}}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)loadMessages()});
 function msgCard(){const m=MSG.list[0];if(!m)return"";const body=esc(m.body).replace(/\n/g,"<br>");const more=MSG.list.length>1?`<span class="tiny muted">1 de ${MSG.list.length}</span>`:"";
- if(S.profile.pet){return `<div class="card stack" style="border:2px solid var(--pig)"><div class="row" style="gap:12px;align-items:flex-end"><div class="pigstage" style="width:84px;flex:none;border-radius:50%;aspect-ratio:1;overflow:hidden" data-act="pigPoke">${pigSVG({score:80,mood:"feliz",equip:effectiveEquip(),env:envLevel(),dry:false,peace:0})}</div>
+ if(S.profile.pet){return `<div class="card stack" style="border:2px solid var(--pig)"><div class="row" style="gap:12px;align-items:flex-end"><div class="pigstage" style="width:84px;flex:none;border-radius:50%;aspect-ratio:1;overflow:hidden" data-act="pigPoke">${pigFace(effectiveEquip())}</div>
   <div class="grow stack-s" style="gap:2px"><b style="color:var(--pig-deep)">${esc(petCap())} tem um recado para você</b>${more}</div></div>
   <div style="position:relative;background:var(--pig-soft);border-radius:16px;padding:12px 14px;font-size:15px"><span style="position:absolute;top:-8px;left:34px;width:16px;height:16px;background:var(--pig-soft);transform:rotate(45deg)"></span><span style="position:relative">${body}</span></div>
   <button class="btn sm" data-act="msgRead" data-v="${m.id}" style="align-self:flex-end">Oinc! Li</button></div>`}

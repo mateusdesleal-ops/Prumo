@@ -2824,6 +2824,7 @@ function qViewCfg(){const c=QS().cfg;const sh=Object.assign({logo:true,phone:fal
   <label class="field"><span>Nome de quem recebe (como no banco)</span><input id="qc_pixName" value="${esc(c.pixName||"")}" placeholder="Ex.: Mateus Leal"></label><p class="tiny muted">Com isso, o cliente recebe também um PIX copia e cola e um QR Code já com o valor do orçamento.</p></div>
  <div class="card stack"><h3>Mostrar no orçamento</h3>${[["logo","Logo"],["phone","Telefone"],["address","Endereço"],["wa","Botão de WhatsApp"],["validity","Validade"],["pix","PIX"]].map(([k,n])=>`<label class="check" style="justify-content:space-between"><span>${n}</span><input type="checkbox" class="qShow" data-k="${k}" ${sh[k]?"checked":""}></label>`).join("")}
   <label class="field"><span>Validade padrão (dias)</span><input id="qc_validity" type="number" inputmode="numeric" min="0" value="${c.validity||7}"></label></div>
+ <p class="tiny muted" id="qcSaved" style="text-align:center;opacity:.55;transition:opacity .3s">As alterações são salvas automaticamente.</p>
  <button class="btn block" data-act="qSaveCfg">Salvar configurações</button>`}
 /* ---------- Modelos ---------- */
 function qViewTpl(){const ts=Object.values(QS().tpl).filter(Boolean);
@@ -3088,17 +3089,30 @@ document.head.insertAdjacentHTML("beforeend",`<style>.tab-k{display:none}@media 
    ============================================================ */
 const KEEP={view:"",vals:{}};
 function keepView(){return [UI.tab,UI.fin,UI.qtab,UI.study,UI.ex,UI.agendaSub,UI.learnTrack].join("|")}
-function keepKey(el){if(el.id)return "#"+el.id;if(el.dataset&&el.dataset.k&&el.className)return "."+el.className.split(" ")[0]+"|"+el.dataset.k;return null}
+const keepFields=()=>[...document.querySelectorAll("#app input, #app textarea, #app select")].filter(e=>e.type!=="file"&&e.type!=="range");
+function keepKey(el){if(el.id)return "#"+el.id;if(el.dataset&&el.dataset.k&&el.className)return "."+el.className.split(" ")[0]+"|"+el.dataset.k;const i=keepFields().indexOf(el);return i>=0?"@"+i+"|"+(el.name||el.placeholder||el.type||""):null}
+function keepFind(k){if(k[0]==="#")return document.getElementById(k.slice(1));if(k[0]==="@"){const [i,sig]=k.slice(1).split("|");const el=keepFields()[+i];return el&&(el.name||el.placeholder||el.type||"")===sig?el:null}const [c,dk]=k.slice(1).split("|");return document.querySelector(`#app .${c}[data-k="${dk}"]`)}
 function keepMark(ev){const el=ev.target;if(!el||!el.closest||!el.closest("#app"))return;if(!/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)||el.type==="file"||el.type==="range")return;
  if(el.dataset&&(el.dataset.qi!=null||el.dataset.qf))return; // o orçamento já guarda sozinho
  const k=keepKey(el);if(!k)return;const v=keepView();if(KEEP.view!==v){KEEP.view=v;KEEP.vals={}}KEEP.vals[k]=el.type==="checkbox"||el.type==="radio"?{c:el.checked}:{v:el.value}}
 document.addEventListener("input",keepMark,true);document.addEventListener("change",keepMark,true);
 {const _rk=render;render=function(){const app=document.getElementById("app");const ae=document.activeElement;const fk=ae&&app&&app.contains(ae)?keepKey(ae):null;let sel=null;try{if(fk&&ae.selectionStart!=null)sel=[ae.selectionStart,ae.selectionEnd]}catch(e){}
  _rk();if(KEEP.view!==keepView()){KEEP.view=keepView();KEEP.vals={};return}
- for(const k in KEEP.vals){const el=k[0]==="#"?document.getElementById(k.slice(1)):(()=>{const [c,dk]=k.slice(1).split("|");return document.querySelector(`#app .${c}[data-k="${dk}"]`)})();if(!el||!app.contains(el))continue;const s=KEEP.vals[k];if("c" in s)el.checked=s.c;else if(el.value!==s.v)el.value=s.v}
- if(fk){const el=fk[0]==="#"?document.getElementById(fk.slice(1)):null;if(el&&document.activeElement!==el){el.focus({preventScroll:true});try{if(sel)el.setSelectionRange(sel[0],sel[1])}catch(e){}}}}}
+ for(const k in KEEP.vals){const el=keepFind(k);if(!el||!app.contains(el))continue;const s=KEEP.vals[k];if("c" in s)el.checked=s.c;else if(el.value!==s.v)el.value=s.v}
+ if(fk){const el=keepFind(fk);if(el&&document.activeElement!==el){el.focus({preventScroll:true});try{if(sel)el.setSelectionRange(sel[0],sel[1])}catch(e){}}}}}
 /* depois de salvar, o que estava digitado vira o valor salvo */
 document.addEventListener("click",ev=>{const b=ev.target&&ev.target.closest&&ev.target.closest("[data-act]");if(b&&/^(save|qSave)/.test(b.dataset.act))setTimeout(()=>{KEEP.vals={}},0)},true);
+
+
+/* Config do orçamento: salva sozinho enquanto a pessoa digita */
+function qCfgAutosave(el){const c=QS().cfg;const id=el.id||"";
+ if(id.startsWith("qc_")){const k=id.slice(3);if(k==="validity")c.validity=parseInt(el.value)||0;else if(k==="color")c.color=el.value||"#2F5D57";else c[k]=el.value.trim()}
+ else if(el.classList&&el.classList.contains("qShow")){c.show=Object.assign({logo:true,phone:false,address:false,wa:true,validity:true,pix:true},c.show||{});c.show[el.dataset.k]=el.checked}
+ else return;
+ if(UI.qd){UI.qd.showPix=(c.show||{}).pix!==false&&!!c.pixKey;UI.qd.showWa=(c.show||{}).wa!==false&&!!c.wa}
+ clearTimeout(UI._qcT);UI._qcT=setTimeout(()=>{saveApp();const m=document.getElementById("qcSaved");if(m){m.textContent="Salvo automaticamente ✓";m.style.opacity="1";clearTimeout(UI._qcM);UI._qcM=setTimeout(()=>{m.style.opacity=".55"},1500)}},400)}
+document.addEventListener("input",ev=>{if(UI.tab==="fin"&&UI.fin==="orc"&&UI.qtab==="cfg")qCfgAutosave(ev.target)});
+document.addEventListener("change",ev=>{if(UI.tab==="fin"&&UI.fin==="orc"&&UI.qtab==="cfg")qCfgAutosave(ev.target)});
 
 
 /* ============================================================

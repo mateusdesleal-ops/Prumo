@@ -2664,7 +2664,7 @@ function ccImpBody(){const im=UI.imp;const c=cardById(im.card);const cs=cardsLis
  :`<div class="banner warn">Não consegui encontrar compras. Confira se o arquivo é a fatura do cartão (OFX ou CSV) ou se cada linha colada tem data, descrição e valor.</div>`}`}
 function impRefresh(){const r=$("#imp_root");if(r)r.innerHTML=ccImpBody()}
 function impLoad(raw,src){const im=UI.imp;const c=cardById(im.card);im.rows=normalizeRows(raw,c,im.k);im.src=src;impRefresh()}
-function readFileText(file){return new Promise(res=>{const fr=new FileReader();fr.onload=()=>{const t=String(fr.result||"");if(t.includes("�")){const f2=new FileReader();f2.onload=()=>res(String(f2.result||""));f2.readAsText(file,"ISO-8859-1")}else res(t)};fr.readAsText(file,"UTF-8")})}
+function readFileText(file){return new Promise(res=>{const fr=new FileReader();fr.onload=()=>{const t=String(fr.result||"");if(t.includes("\uFFFD")){const f2=new FileReader();f2.onload=()=>res(String(f2.result||""));f2.readAsText(file,"ISO-8859-1")}else res(t)};fr.readAsText(file,"UTF-8")})}
 async function impFile(file){const t=await readFileText(file);let raw=/<OFX>|<STMTTRN>/i.test(t)?parseOFX(t):parseCSV(t);if(!raw.length)raw=parseText(t);impLoad(raw,"file")}
 document.addEventListener("change",ev=>{const el=ev.target;if(!UI.imp)return;
  if(el.id==="ccFile"&&el.files&&el.files[0])impFile(el.files[0]);

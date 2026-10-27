@@ -1320,6 +1320,7 @@ function taskDue(t){if(!t.date)return"";const td=today();let l=t.date===td?"Hoje
  const late=t.status!=="done"&&(t.date<td||(t.date===td&&t.time&&toMin(t.time)<new Date().getHours()*60+new Date().getMinutes()));
  return `<span class="${late?"pill bad":"tiny muted"}">${late&&t.date<td?"Atrasada · ":""}${l}${t.time?" · "+esc(t.time):""}</span>`}
 function taskSort(a,b){if(a.status==="done")return(b.doneAt||0)-(a.doneAt||0);const pr={alta:0,media:1,baixa:2};return (a.date||"9999").localeCompare(b.date||"9999")||(a.time||"99").localeCompare(b.time||"99")||(pr[a.prio]??1)-(pr[b.prio]??1)||(a.created||0)-(b.created||0)}
+function taskAreaFn(t){if(UI.taskArea===undefined){try{UI.taskArea=localStorage.getItem("prumo.taskArea")||"tudo"}catch(e){UI.taskArea="tudo"}}const a=UI.taskArea;if(a==="trabalho")return t.kind==="trabalho";if(a==="fora")return t.kind!=="trabalho";return true}
 function taskFilterFn(t){const f=UI.taskFilter||"all",td=today();if(f==="hoje")return t.date&&t.date<=td||t.status==="doing";if(f==="semana")return t.date&&t.date<=addDays(td,6);if(f==="atrasadas")return t.status!=="done"&&t.date&&t.date<td;if(f==="semdata")return!t.date;return true}
 function taskCard(t){const k=TASK_KINDS[t.kind]||TASK_KINDS.outro;const subs=t.subs||[];const sd=subs.filter(x=>x.done).length;
  const mv=t.status==="todo"?`<button class="btn ghost sm" data-act="taskMove" data-v="${t.id}" data-to="doing">Começar</button><button class="btn line sm" data-act="taskMove" data-v="${t.id}" data-to="done">${I.check.replace('<svg','<svg width="14" height="14"')} Feito</button>`
@@ -1331,12 +1332,13 @@ function taskCard(t){const k=TASK_KINDS[t.kind]||TASK_KINDS.outro;const subs=t.s
  ${t.resched?`<span class="tiny muted">Remarcada ${t.resched}x</span>`:""}
  <div class="row" style="gap:6px;flex-wrap:wrap">${mv}${daysLate(t)>=1?`<button class="btn ghost sm" data-act="reschedTask" data-v="${t.id}">Remarcar</button>`:""}</div></div>`}
 function agendaHead(){return `<h1 style="margin-top:4px">Agenda</h1><div class="subtabs">${[["cal","Calendário"],["tasks","Tarefas"]].map(([id,n])=>`<button class="${(UI.agendaSub||"cal")===id?"on":""}" data-act="agendaSub" data-v="${id}">${n}</button>`).join("")}</div>`}
-function tasksView(){const all=taskList();const open=all.filter(t=>t.status!=="done");const late=open.filter(t=>t.date&&t.date<today()).length;const tot=+S.tasks.doneTotal||0;
+function tasksView(){const all=taskList().filter(taskAreaFn);const open=all.filter(t=>t.status!=="done");const late=open.filter(t=>t.date&&t.date<today()).length;const tot=+S.tasks.doneTotal||0;
  const nextR=TASK_REWARDS.find(r=>tot<r.tasks);
  return `<div class="stack">${agendaHead()}
  <div class="card stack" style="gap:8px"><div class="grid3"><div class="stack-s"><span class="tiny muted">Em aberto</span><b class="num" style="font-size:20px">${open.length}</b></div><div class="stack-s"><span class="tiny muted">Atrasadas</span><b class="num" style="font-size:20px;color:${late?"var(--bad)":"inherit"}">${late}</b></div><div class="stack-s"><span class="tiny muted">Concluídas</span><b class="num" style="font-size:20px">${tot}</b></div></div>
   ${S.profile.pet&&nextR?`<p class="tiny muted">Faltam ${nextR.tasks-tot} tarefas concluídas para o porquinho ganhar: ${nextR.n.toLowerCase()}.</p>`:""}</div>
  ${taskWarning()}<div class="chips">${[["all","Todas"],["hoje","Hoje"],["semana","Próximos 7 dias"],["atrasadas","Atrasadas"],["semdata","Sem data"]].map(([id,n])=>`<button class="chip ${(UI.taskFilter||"all")===id?"on":""}" data-act="taskFilter" data-v="${id}">${n}</button>`).join("")}</div>
+ <div class="chips" style="margin-top:-4px">${[["tudo","Todas as áreas"],["trabalho","Trabalho"],["fora","Fora do trabalho"]].map(([id,n])=>`<button class="chip ${(UI.taskArea||"tudo")===id?"on":""}" data-act="taskArea" data-v="${id}" style="${id==="trabalho"?"border-color:"+TASK_KINDS.trabalho.c:""}">${id==="trabalho"?`<i class="dot" style="background:${TASK_KINDS.trabalho.c};margin-right:5px;display:inline-block;vertical-align:middle"></i>`:""}${n}</button>`).join("")}</div>
  <div class="kanban" role="list">${TCOLS.map(([st,n])=>{let list=all.filter(t=>t.status===st&&taskFilterFn(t)).sort(taskSort);const more=st==="done"&&list.length>15;if(more)list=list.slice(0,15);
   return `<section class="kcol" data-col="${st}" aria-label="${n}"><div class="row between"><b>${n}</b><span class="pill info num">${all.filter(t=>t.status===st&&taskFilterFn(t)).length}</span></div>
   ${list.length?list.map(taskCard).join(""):`<p class="tiny muted" style="text-align:center;padding:14px 4px">${st==="todo"?"Nada por fazer. Toque em Nova tarefa.":st==="doing"?"Arraste ou toque em Começar numa tarefa.":"As tarefas concluídas aparecem aqui."}</p>`}
@@ -1350,7 +1352,7 @@ function homeTasksCard(){const list=taskList().filter(t=>t.status!=="done"&&((t.
  :`<div class="empty" style="padding:12px">${any?"Nenhuma tarefa para hoje.":"Anote o que precisa fazer: pagar uma conta, ligar para alguém, editar um vídeo."}</div>`}
  <button class="btn line sm" data-act="addTask" style="margin-top:6px">${I.plus.replace('<svg','<svg width="16" height="16"')} Nova tarefa</button></div>`}
 function taskEvents(day){return taskList().filter(t=>t.status!=="done"&&t.date===day&&t.cal!==false).map(t=>({id:"task_"+t.id,taskId:t.id,task:true,title:t.title,date:t.date,time:t.time||"",remind:+t.remind||0,repeat:"none",place:t.place||""}))}
-function taskForm(t,preset){t=t||Object.assign({kind:"pessoal",prio:"media",status:"todo",cal:true,remind:30},preset||{});const isEdit=!!t.id;UI.taskSubs=clone(t.subs||[]);UI.taskKind=t.kind;
+function taskForm(t,preset){t=t||Object.assign({kind:UI.taskArea==="trabalho"?"trabalho":"pessoal",prio:"media",status:"todo",cal:true,remind:30},preset||{});const isEdit=!!t.id;UI.taskSubs=clone(t.subs||[]);UI.taskKind=t.kind;
  openModal(isEdit?"Editar tarefa":"Nova tarefa",`<div class="stack">
  <label class="field"><span>O que precisa fazer?</span><input id="tk_title" value="${esc(t.title||"")}" placeholder="Ex.: editar o vídeo do casamento"></label>
  <div class="field"><span>Tipo</span><div class="chips" style="flex-wrap:wrap">${Object.entries(TASK_KINDS).map(([id,k])=>`<button type="button" class="chip ${t.kind===id?"on":""}" data-act="tkKind" data-v="${id}">${k.n}</button>`).join("")}</div></div>
@@ -2318,6 +2320,7 @@ const A={
  goTasksLate:()=>{UI.tab="agenda";UI.agendaSub="tasks";UI.taskFilter="atrasadas";window.scrollTo(0,0);render()},
  goTasks:()=>{UI.tab="agenda";UI.agendaSub="tasks";window.scrollTo(0,0);render()},
  taskFilter:el=>{UI.taskFilter=el.dataset.v;render()},
+ taskArea:el=>{UI.taskArea=el.dataset.v;try{localStorage.setItem("prumo.taskArea",el.dataset.v)}catch(e){}render()},
  addTask:el=>taskForm(null,UI.tab==="agenda"&&UI.agendaSub!=="tasks"?{date:UI.calDay}:null),
  editTask:el=>{const t=S.tasks.items[el.dataset.v];if(t)taskForm(t)},
  tkKind:el=>{UI.taskKind=el.dataset.v;document.querySelectorAll('[data-act="tkKind"]').forEach(c=>c.classList.toggle("on",c===el));$("#tk_valf").classList.toggle("hide",el.dataset.v!=="pagar");$("#tk_placef").classList.toggle("hide",!(el.dataset.v==="ir"||el.dataset.v==="falar"||v("tk_place")))},

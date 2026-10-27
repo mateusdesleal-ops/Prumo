@@ -258,6 +258,7 @@ body.team-env #app::before{content:"";position:fixed;left:0;right:0;top:0;height
 .envbtn{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px 6px 8px;font-weight:700;font-size:13px;color:var(--ink);min-height:36px}
 body.team-env .envbtn.cur{border-color:var(--money);background:color-mix(in srgb,var(--money) 12%,var(--surface))}
 .envbtn .badge{background:var(--pig-deep);color:#fff;border-radius:99px;font-size:10px;padding:1px 6px}
+.desk-only{display:none}@media (min-width:1000px) and (hover:hover){.desk-only{display:flex}}
 .calleg{width:14px;height:14px;border-radius:5px;display:inline-block}.calleg.has{background:color-mix(in srgb,var(--pig) 30%,transparent)}.calleg.today{box-shadow:inset 0 0 0 2px var(--pig-deep)}
 
 /* timer */
@@ -1826,13 +1827,14 @@ function render(){
  if(TEAM){if(!["home","profile","admin"].includes(UI.tab)&&!(UI.tab==="fin"&&(teamHas("fin")||teamHas("quotes")))&&!(UI.tab==="agenda"&&teamAg())&&!(UI.tab==="vaq"&&teamHas("vaq")))UI.tab="home";
   if(UI.tab==="fin"&&!teamHas("fin"))UI.fin="orc";if(UI.tab==="agenda"&&!teamHas("tasks"))UI.agendaSub="cal";if(UI.tab==="agenda"&&!teamHas("agenda"))UI.agendaSub="tasks"}
  document.body.classList.toggle("team-env",!!TEAM);
- const views={home:()=>TEAM&&typeof viewTeamHome==="function"?viewTeamHome():viewHome(),vaq:()=>typeof viewVaq==="function"?viewVaq():viewHome(),fin:viewFin,study:viewStudy,ex:viewEx,agenda:viewAgenda,prayer:viewPrayer,learn:viewLearn,pig:viewPig,profile:viewProfile,admin:viewAdmin};
+ if(UI.tab!=="fin")UI.finOpen=false;
+ const views={home:()=>TEAM&&typeof viewTeamHome==="function"?viewTeamHome():viewHome(),vaq:()=>typeof viewVaq==="function"?viewVaq():viewHome(),fin:()=>finLocked()?finLockView():viewFin(),study:viewStudy,ex:viewEx,agenda:viewAgenda,prayer:viewPrayer,learn:viewLearn,pig:viewPig,profile:viewProfile,admin:viewAdmin};
  const sy=window.scrollY;
  wardrobePrepare();
  app.innerHTML=header()+envBar()+(views[UI.tab]||views.home)();
  window.scrollTo(0,sy);
  if(UI.wdPending)setTimeout(wardrobePlay,250);
- const fab={home:null,vaq:"addVaq",fin:TEAM&&!teamHas("fin")?null:"addExpense",study:"addStudy",ex:UI.ex==="comida"?"addFood":"addEx",agenda:UI.agendaSub==="tasks"?"addTask":"addEvent"}[UI.tab];
+ const fab={home:null,vaq:"addVaq",fin:(TEAM&&!teamHas("fin"))||finLocked()?null:"addExpense",study:"addStudy",ex:UI.ex==="comida"?"addFood":"addEx",agenda:UI.agendaSub==="tasks"?"addTask":"addEvent"}[UI.tab];
  const f=$("#fab");f.hidden=!fab;f.dataset.act=fab||"";f.innerHTML=I.plus;
  f.setAttribute("aria-label",{fin:"Adicionar gasto",study:"Registrar estudo",ex:UI.ex==="comida"?"Adicionar alimento":"Registrar exercício",agenda:UI.agendaSub==="tasks"?"Nova tarefa":"Novo compromisso"}[UI.tab]||"Adicionar");
  renderTFull();tickTimer();
@@ -1924,7 +1926,7 @@ function viewPig(){
 function viewFin(){
  let sub=[["mes","Mês"],["cartoes","Cartões"],["plano","Plano"],["fixos","Fixos"],["dividas","Dívidas"],["comprar","Posso comprar?"],["orc","Orçamentos"],["aprender","Aprender"]];
  if(TEAM)sub=sub.filter(([id])=>id==="orc"?teamHas("quotes"):teamHas("fin")&&id!=="comprar"&&id!=="plano");if(!sub.some(x=>x[0]===UI.fin))UI.fin=sub[0][0];
- return `<div class="stack"><h1 style="margin-top:4px">${TEAM&&!teamHas("fin")?"Orçamentos":"Finanças"}</h1>${sub.length>1?"":"<!--"}
+ return `<div class="stack"><div class="row between" style="margin-top:4px"><h1>${TEAM&&!teamHas("fin")?"Orçamentos":"Finanças"}</h1>${finLockOn()?`<button class="btn ghost sm" data-act="finLockNow" title="Trancar as finanças">${LOCK_ICO} Trancar</button>`:""}</div>${sub.length>1?"":"<!--"}
  <div class="subtabs" role="tablist">${sub.map(([id,n])=>`<button class="${UI.fin===id?"on":""}" data-act="fin" data-v="${id}">${n}</button>`).join("")}</div>${sub.length>1?"":"-->"}
  ${{mes:finMonth,cartoes:finCards,plano:finPlan,fixos:finFixos,dividas:finDebts,comprar:finBuy,orc:finQuotes,aprender:finLearn}[UI.fin]()}</div>`}
 function scopeBanner(){if(finScope()==="t")return `<div class="banner info">${I.people.replace('<svg','<svg width="20" height="20" style="flex:none"')}<span>Finanças da equipe <b>${esc(TEAM.name)}</b>. Todos os membros veem e lançam aqui. Suas finanças pessoais continuam separadas.</span></div>
@@ -2118,6 +2120,7 @@ function viewProfile(){const p=S.profile;
   ${p.prayer?`<label class="field"><span>Tradição</span><select id="prayerTradSel">${Object.entries(PRAYER_TRADS).map(([id,t])=>`<option value="${id}" ${S.prayer.trad===id?"selected":""}>${t.n}</option>`).join("")}</select></label>`:""}
   ${p.pet?`<label class="field"><span>Nome do porquinho</span><input id="petNameInp" maxlength="20" value="${esc(S.pet.name||"")}" placeholder="Ex.: Toicinho"></label>`:""}
   <label class="check"><input type="checkbox" id="petToggle" ${p.pet?"checked":""} data-act="petToggle"><span><b>Mostrar o porquinho</b><br><span class="small muted">O mascote que cresce com a sua saúde financeira.</span></span></label>
+  <label class="check desk-only"><input type="checkbox" id="finLockToggle" ${p.finLock!==false?"checked":""}><span><b>Cadeado nas finanças (computador)</b><br><span class="small muted">No computador, a aba Finanças abre trancada para ninguém ver seus valores sem querer.${p.finPin?" Você usa uma senha de números.":""}</span></span></label>
   ${p.pet?`<label class="check"><input type="checkbox" id="buddyToggle" ${p.buddy!==false?"checked":""}><span><b>Mascote nas abas</b><br><span class="small muted">Um porquinho pequeno no canto de cada aba: comendo, lendo, se exercitando. Toque nele para uma dica.</span></span></label>`:""}
   <label class="field"><span>Tema</span><select id="themeSel" data-act="themeSel"><option value="system" ${p.theme==="system"?"selected":""}>Igual ao aparelho</option><option value="light" ${p.theme==="light"?"selected":""}>Claro</option><option value="dark" ${p.theme==="dark"?"selected":""}>Escuro</option></select></label>
  </div></div>
@@ -3306,6 +3309,55 @@ document.addEventListener("change",ev=>{if(ev.target&&ev.target.id==="buddyToggl
 
 /* o lembrete diário agora é opcional: remove os que foram criados sozinhos */
 {const _rm=render;render=function(){if(S.profile.created&&!S.profile.dailyMig){S.profile.dailyMig=1;if(!S.profile.remindOn&&S.agenda.events.prumo_daily){delete S.agenda.events.prumo_daily;saveApp()}}_rm()}}
+/* ---------- Cadeado das finanças no computador ----------
+   No computador o app costuma ficar aberto o dia todo. A aba Finanças abre trancada
+   sempre que a pessoa entra nela, e tranca de novo ao sair, ao esconder a janela ou após 5 min parada. */
+const LOCK_ICO='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+const isDesk=()=>{try{return matchMedia("(min-width:1000px) and (hover:hover) and (pointer:fine)").matches}catch(e){return false}};
+const finLockOn=()=>isDesk()&&S.profile.created&&S.profile.finLock!==false&&!Store.demo;
+const finLocked=()=>finLockOn()&&!UI.finOpen;
+async function pinHash(pin){const txt="prumo:"+(ME.uid||"")+":"+pin;try{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(txt));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}catch(e){let h=5381;for(const c of txt)h=((h<<5)+h+c.charCodeAt(0))>>>0;return "d"+h.toString(16)}}
+function finLockView(){const pin=!!S.profile.finPin;
+ return `<div class="finlock card stack" style="max-width:440px;margin:40px auto;text-align:center;align-items:center;padding:28px 24px;gap:14px">
+ <div style="position:relative;width:170px;height:150px">${pigSVG({score:70,mood:"ok",equip:{},env:0,mini:true}).replace('<svg ','<svg style="width:170px;height:150px" ')}
+  <svg viewBox="0 0 60 70" style="position:absolute;right:-4px;bottom:0;width:62px;height:72px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.18))"><path d="M15 32V22a15 15 0 0 1 30 0v10" fill="none" stroke="#9AA3AE" stroke-width="7" stroke-linecap="round"/><rect x="5" y="30" width="50" height="38" rx="9" fill="#F2C230" stroke="#C99A12" stroke-width="3"/><circle cx="30" cy="46" r="5" fill="#7A5A08"/><rect x="28" y="48" width="4" height="10" rx="2" fill="#7A5A08"/></svg></div>
+ <h2>Finanças trancadas</h2>
+ <p class="small muted">Para ninguém ver seu salário e seus gastos sem querer, eu tranco esta aba no computador sempre que você sai dela.</p>
+ ${pin?`<input id="fl_pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="Sua senha de números" style="max-width:220px;text-align:center;letter-spacing:.3em;font-size:20px" aria-label="Senha das finanças">
+  <button class="btn block" data-act="finUnlock" style="max-width:220px">Desbloquear</button>
+  <button class="btn ghost sm" data-act="finPinForgot">Esqueci a senha</button>`
+ :`<button class="btn block" data-act="finUnlock" style="max-width:240px">${LOCK_ICO.replace('stroke-width="2.2"','stroke-width="2.2" style="vertical-align:-3px"')} Desbloquear</button>
+  <button class="btn ghost sm" data-act="finPinNew">Quer mais segurança? Crie uma senha de números</button>`}
+ </div>`}
+function finPinForm(){openModal("Senha das finanças",`<div class="stack"><p class="small muted">Crie uma senha de 4 a 8 números. Ela vai ser pedida para abrir as finanças no computador. No celular a aba continua livre.</p>
+ <label class="field"><span>Senha</span><input id="fp1" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8"></label>
+ <label class="field"><span>Repita a senha</span><input id="fp2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8"></label>
+ <button class="btn block" data-act="finPinSave">Salvar senha</button>
+ ${S.profile.finPin?`<button class="btn ghost" data-act="finPinRemove">Tirar a senha (fica só o botão de desbloquear)</button>`:""}</div>`)}
+async function finTryUnlock(){const i=document.getElementById("fl_pin");if(S.profile.finPin){const val=(i&&i.value||"").trim();if(!val){toast("Digite sua senha.");if(i)i.focus();return}
+  if(await pinHash(val)!==S.profile.finPin){toast("Senha errada.");if(i){i.value="";i.focus()}return}}
+ UI.finOpen=true;UI.finAct=Date.now();render()}
+Object.assign(A,{
+ finUnlock:()=>finTryUnlock(),
+ finLockNow:()=>{UI.finOpen=false;render();window.scrollTo(0,0)},
+ finPinNew:()=>finPinForm(),
+ finPinSave:async()=>{const a=v("fp1").trim(),b=v("fp2").trim();if(!/^\d{4,8}$/.test(a)){toast("Use de 4 a 8 números.");return}if(a!==b){toast("As senhas não são iguais.");return}
+  S.profile.finPin=await pinHash(a);S.profile.finLock=true;commit();closeModal();toast("Senha criada. Ela vai ser pedida no computador.")},
+ finPinRemove:()=>{if(!UI.finOpen&&finLockOn()){toast("Desbloqueie as finanças antes de tirar a senha.");return}delete S.profile.finPin;commit();closeModal();toast("Senha removida.")},
+ finPinForgot:()=>{const acct=typeof sb!=="undefined"&&sb&&typeof SESSION!=="undefined"&&SESSION&&SESSION.user;
+  openModal("Esqueci a senha",`<div class="stack">${acct?`<p class="small muted">Para tirar a senha das finanças, confirme a senha da sua conta do Prumo (${esc(SESSION.user.email)}).</p><label class="field"><span>Senha da conta</span><input id="fg_pass" type="password" autocomplete="current-password"></label><button class="btn block" data-act="finPinForgotGo">Confirmar e tirar a senha</button>`
+   :`<p class="small muted">A senha das finanças vai ser removida. Depois você pode criar outra.</p><button class="btn block" data-act="finPinForgotGo">Tirar a senha</button>`}</div>`)},
+ finPinForgotGo:async()=>{const acct=typeof sb!=="undefined"&&sb&&typeof SESSION!=="undefined"&&SESSION&&SESSION.user;
+  if(acct){const pw=v("fg_pass");if(!pw){toast("Digite a senha da conta.");return}try{const {error}=await sb.auth.signInWithPassword({email:SESSION.user.email,password:pw});if(error){toast("Senha da conta errada.");return}}catch(e){toast("Sem conexão. Tente de novo.");return}}
+  delete S.profile.finPin;commit();closeModal();toast("Senha removida. Toque em Desbloquear.")},
+});
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target&&e.target.id==="fl_pin")finTryUnlock()});
+document.addEventListener("input",e=>{if(e.target&&e.target.id==="fl_pin"&&e.target.value.length>=4&&S.profile.finPin){const val=e.target.value;pinHash(val).then(h=>{if(h===S.profile.finPin&&document.getElementById("fl_pin")){UI.finOpen=true;UI.finAct=Date.now();render()}})}});
+document.addEventListener("change",ev=>{if(ev.target&&ev.target.id==="finLockToggle"){if(!ev.target.checked&&S.profile.finPin&&finLockOn()&&!UI.finOpen){ev.target.checked=true;toast("Abra as finanças com a senha antes de desligar o cadeado.");return}S.profile.finLock=ev.target.checked;commit();toast(ev.target.checked?"Cadeado ligado no computador.":"Cadeado desligado.")}});
+["pointerdown","keydown","wheel"].forEach(t=>document.addEventListener(t,()=>{if(UI.finOpen)UI.finAct=Date.now()},{passive:true}));
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&UI.finOpen&&finLockOn()){UI.finOpen=false;if(UI.tab==="fin")render()}});
+setInterval(()=>{if(UI.finOpen&&finLockOn()&&Date.now()-(UI.finAct||0)>5*60000){UI.finOpen=false;if(UI.tab==="fin"&&!$("#modal").innerHTML){render();toast("Finanças trancadas depois de 5 minutos paradas.")}}},20000);
+{const _rf=render;render=function(){_rf();if(finLocked()&&UI.tab==="fin"){const i=document.getElementById("fl_pin");if(i&&document.activeElement!==i)setTimeout(()=>i.focus(),30)}}}
 
 /* ============================================================
    Versão web: contas e dados no Supabase

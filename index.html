@@ -250,6 +250,13 @@ textarea{min-height:80px;resize:vertical}
 .cal button.today{box-shadow:inset 0 0 0 2px var(--pig-deep)}
 .cal button.sel{background:var(--ink);color:var(--bg)}
 .cal button em{position:absolute;top:3px;right:4px;font-style:normal;font-size:9px;font-weight:800;background:var(--pig-deep);color:#fff;border-radius:99px;min-width:14px;height:14px;line-height:14px;padding:0 3px}
+.avatar{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--bg);font-size:10px;font-weight:800;flex:none;margin-right:4px;vertical-align:middle}
+.chip .avatar{width:20px;height:20px;font-size:9px}
+body.team-env #app::before{content:"";position:fixed;left:0;right:0;top:0;height:4px;background:var(--money);z-index:30}
+.envbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:-4px 0 12px}
+.envbtn{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px 6px 8px;font-weight:700;font-size:13px;color:var(--ink);min-height:36px}
+body.team-env .envbtn.cur{border-color:var(--money);background:color-mix(in srgb,var(--money) 12%,var(--surface))}
+.envbtn .badge{background:var(--pig-deep);color:#fff;border-radius:99px;font-size:10px;padding:1px 6px}
 .calleg{width:14px;height:14px;border-radius:5px;display:inline-block}.calleg.has{background:color-mix(in srgb,var(--pig) 30%,transparent)}.calleg.today{box-shadow:inset 0 0 0 2px var(--pig-deep)}
 
 /* timer */
@@ -495,15 +502,34 @@ const UI={tab:"home",fin:"mes",month:mkey(),filter:"all",study:"hoje",ex:"comida
 const LSK="porquinho.v1";
 const Store={cloud:false,db:null,queues:{},unsubs:[]};
 function lsGet(){try{return JSON.parse(localStorage.getItem(LSK)||"null")}catch(e){return null}}
-function lsPut(){try{localStorage.setItem(LSK,JSON.stringify({S,PFIN}))}catch(e){}}
+function lsPut(){try{localStorage.setItem(LSK,JSON.stringify({S:typeof personalS==="function"?personalS():S,PFIN}))}catch(e){}}
 function enqueue(path,fn){const q=(Store.queues[path]||Promise.resolve()).then(fn).catch(e=>{console.warn(path,e);if(e&&e.code==="quota_exceeded")toast("O espaço do app está cheio. Exporte um backup em Perfil.");
   if(e&&(e.code==="invalid_argument"||e.code==="revoked")&&path.startsWith("data/users/")&&Store.cloud)goLocal()});Store.queues[path]=q;return q}
 function goLocal(){Store.cloud=false;Store.localOnly=true;Store.unsubs.forEach(u=>{try{u()}catch(e){}});Store.unsubs=[];hhUnsubs.forEach(u=>{try{u()}catch(e){}});hhUnsubs=[];
  if(S.profile.household){S.profile.household=null}lsPut();toast("Seus dados passam a ser salvos neste aparelho.",5000);render()}
 const appPath=()=>`data/users/${ME.uid}/app`;
-const finScope=()=>S.profile.household&&Store.cloud?"h":"p";
-const finDocs=()=>finScope()==="h"?HFIN:PFIN;
-const finPath=id=>finScope()==="h"?`households/${S.profile.household}/fin/${id}`:`data/users/${ME.uid}/fin-${id}`;
+/* ---------- Equipes: ambiente compartilhado (agenda, tarefas, finanças) ----------
+   O Prumo pessoal continua igual. Quando a pessoa entra numa equipe, as partes compartilhadas
+   (agenda/tarefas e finanças/orçamentos) passam a mostrar os dados da equipe. */
+let TEAM=null,PERS=null;const TFIN={},TD={},TOBJ=new WeakSet();
+const TFEATS=[["agenda","Calendário","Compromissos da equipe, com lembretes"],["tasks","Tarefas","Quadro de tarefas com responsável"],["fin","Finanças","Entradas, gastos, cartões, contas fixas e dívidas (com vaquinha)"],["quotes","Orçamentos","Orçamentos da equipe enviados por link ou PDF"],["vaq","Vaquinha","Dividir despesas e ver quem já pagou a sua parte"]];
+const teamHas=f=>!!(TEAM&&TEAM.features&&TEAM.features[f]);
+const TPARTS=[{keys:["agenda","tasks"],path:"agenda",on:()=>teamHas("agenda")||teamHas("tasks"),def:()=>({agenda:{events:{}},tasks:{items:{},doneTotal:0}})},
+ {keys:["quotes"],path:"fin/quotes",on:()=>teamHas("quotes"),def:()=>({quotes:{items:{},cfg:{},tpl:{},seq:0}})}];
+const teamPart=p=>!!(TEAM&&p.on()&&TD[p.path]);
+const teamAg=()=>!!((teamHas("agenda")||teamHas("tasks"))&&TD.agenda);
+function teamSwap(){
+ if(!PERS||PERS.S!==S){const o=PERS;PERS={S};TPARTS.forEach(p=>p.keys.forEach(k=>{PERS[k]=TOBJ.has(S[k])?(o&&o[k]):S[k]}))}
+ TPARTS.forEach(p=>{const on=teamPart(p);p.keys.forEach(k=>{if(on){const o=TD[p.path][k];TOBJ.add(o);S[k]=o}else if(TOBJ.has(S[k])){if(PERS[k])S[k]=PERS[k];else delete S[k]}})})}
+function personalS(){if(!PERS||PERS.S!==S)return S;let o=S;TPARTS.forEach(p=>p.keys.forEach(k=>{if(TOBJ.has(S[k])){if(o===S)o=Object.assign({},S);if(PERS[k])o[k]=PERS[k];else delete o[k]}}));return o}
+function withPersonal(fn){const o=personalS();if(o===S)return fn();const keep={};TPARTS.forEach(p=>p.keys.forEach(k=>{keep[k]=S[k];S[k]=o[k]}));try{return fn()}finally{Object.assign(S,keep)}}
+const teamMembers=()=>TEAM&&TEAM.members||[];
+const teamNick=uid=>{if(uid===ME.uid)return"Você";const m=teamMembers().find(x=>x.uid===uid);return m?(m.nick||(m.email||"").split("@")[0]||"Membro"):"Ex-membro"};
+const teamInitials=uid=>{const n=uid===ME.uid?(S.profile.name||"Eu"):teamNick(uid);return n.split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase()};
+function envBar(){return typeof teamEnvBar==="function"?teamEnvBar():""}
+const finScope=()=>teamHas("fin")?"t":S.profile.household&&Store.cloud?"h":"p";
+const finDocs=()=>{const sc=finScope();return sc==="t"?TFIN:sc==="h"?HFIN:PFIN};
+const finPath=id=>{const sc=finScope();return sc==="t"?`teams/${TEAM.id}/fin/${id}`:sc==="h"?`households/${S.profile.household}/fin/${id}`:`data/users/${ME.uid}/fin-${id}`};
 function finPatch(id,patch){
  const docs=finDocs();docs[id]=deepMerge(docs[id]||{},clone(patch));
  if(Store.cloud){const p=finPath(id);enqueue(p,async()=>{const ref=Store.db.doc(p);try{await ref.update(patch)}catch(e){if(e&&e.code==="invalid_argument"){await ref.set(stripNulls(clone(patch)))}else throw e}})}
@@ -511,7 +537,7 @@ function finPatch(id,patch){
  render();
 }
 let appTimer=null,appPending=false;
-function saveApp(){appPending=true;lsPut();clearTimeout(appTimer);appTimer=setTimeout(()=>{if(!Store.cloud){appPending=false;return}const p=appPath();const body=clone(S);enqueue(p,async()=>{await Store.db.doc(p).set(body)}).finally(()=>{appPending=false})},700)}
+function saveApp(){appPending=true;lsPut();if(TEAM&&typeof teamSaveParts==="function")teamSaveParts();clearTimeout(appTimer);appTimer=setTimeout(()=>{if(!Store.cloud){appPending=false;return}const p=appPath();const body=clone(personalS());enqueue(p,async()=>{await Store.db.doc(p).set(body)}).finally(()=>{appPending=false})},700)}
 function commit(){saveApp();render();scheduleNative()}
 function hydrate(data){const d=defaultState();const s=deepMerge(d,data||{});return s}
 
@@ -550,11 +576,14 @@ function monthData(k){const m=finDocs()["m"+k.replace("-","")]||{};return{income
 const mid=k=>"m"+k.replace("-","");
 function meta(){return finDocs().meta||{}}
 function allMonths(){return Object.keys(finDocs()).filter(k=>/^m\d{6}$/.test(k)).map(k=>k.slice(1,5)+"-"+k.slice(5)).sort()}
-function filterBy(arr){if(finScope()!=="h"||UI.filter==="all")return arr;return arr.filter(x=>UI.filter==="me"?x.by===ME.uid:x.by!==ME.uid)}
+function filterBy(arr){if(finScope()==="p"||UI.filter==="all")return arr;return arr.filter(x=>UI.filter==="me"?x.by===ME.uid:x.by!==ME.uid)}
 function sum(a){return a.reduce((s,x)=>s+(+x.v||0),0)}
 function totals(k,useFilter){const {incomes,expenses}=monthData(k);const inc=useFilter?filterBy(incomes):incomes;const exp=useFilter?filterBy(expenses):expenses;
  const b={N:0,D:0,F:0};for(const e of exp){const c=CAT[e.cat]||CAT.outros;b[c.b]+=+e.v||0}
  return{income:sum(inc),spent:sum(exp),b,incomes:inc,expenses:exp}}
+function debtPaidBy(id){const o={};for(const k of allMonths())for(const e of monthData(k).expenses)if(e.cat==="divida"&&e.debtId===id){const u=e.by||"";o[u]=(o[u]||0)+(+e.v||0)}return o}
+function vqRows(d){const sp=d.split||{};const pb=debtPaidBy(d.id);return Object.entries(sp).filter(([,v])=>v!=null).map(([u,v])=>({u,share:+v||0,paid:pb[u]||0}))}
+function cowPig(px){return `<span style="display:inline-block;width:${px}px;height:${px}px;flex:none" aria-hidden="true">${pigSVG({score:75,mood:"feliz",equip:{},env:0,mini:true,cow:true}).replace(/viewBox="[^"]*"/,'viewBox="62 48 196 196"')}</span>`}
 function debts(){const m=meta();const ds=Object.entries(m.debts||{}).filter(([,v])=>v).map(([id,v])=>({id,...v}));
  const paid={};for(const k of allMonths())for(const e of monthData(k).expenses)if(e.cat==="divida"&&e.debtId)paid[e.debtId]=(paid[e.debtId]||0)+(+e.v||0);
  return ds.map(d=>({...d,paid:paid[d.id]||0,left:Math.max(0,(+d.balance||0)-(paid[d.id]||0))}))}
@@ -563,6 +592,7 @@ function reserveNow(){return (+meta().reserveStart||0)+catTotal("reserva")}
 function investNow(){return (+meta().investStart||0)+catTotal("investimento")}
 function hasExpensiveDebt(){return debts().some(d=>d.left>0&&(+d.rate||0)>2)}
 function refIncome(k){const t=totals(k,false);if(t.income>0)return t.income;
+ if(finScope()==="t")return 0;
  if(finScope()==="h"&&HH&&HH.members){return vals(HH.members).reduce((s,m)=>s+(+m.income||0),0)||(+S.profile.income||0)}
  return +S.profile.income||0}
 function planFor(income){let p,label;
@@ -663,9 +693,9 @@ function studyDecay(){const byDay={};vals(S.study.logs).forEach(l=>{byDay[l.date
 const TASK_LATE_DAYS=2;
 const daysLate=t=>t.status!=="done"&&t.date?Math.round((parseDate(today())-parseDate(t.date))/86400000):0;
 const petCap=()=>S.pet.name||"O porquinho",petLow=()=>S.pet.name||"o porquinho";
-function taskDecay(){const owned=TASK_REWARDS.filter(r=>S.pet.owned[r.id]).sort((a,b)=>b.tasks-a.tasks);const late=taskList().filter(t=>daysLate(t)>=TASK_LATE_DAYS).sort((a,b)=>daysLate(b)-daysLate(a));
- const soon=taskList().filter(t=>daysLate(t)===TASK_LATE_DAYS-1);const lost=Math.min(late.length,owned.length);return{owned,late,soon,lost,lostIds:new Set(owned.slice(0,lost).map(r=>r.id)),next:owned[lost]||null}}
-function taskWarning(){if(!S.profile.pet)return"";const td=taskDecay();const parts=[];
+function taskDecay(){const tl=withPersonal(taskList);const owned=TASK_REWARDS.filter(r=>S.pet.owned[r.id]).sort((a,b)=>b.tasks-a.tasks);const late=tl.filter(t=>daysLate(t)>=TASK_LATE_DAYS).sort((a,b)=>daysLate(b)-daysLate(a));
+ const soon=tl.filter(t=>daysLate(t)===TASK_LATE_DAYS-1);const lost=Math.min(late.length,owned.length);return{owned,late,soon,lost,lostIds:new Set(owned.slice(0,lost).map(r=>r.id)),next:owned[lost]||null}}
+function taskWarning(){if(!S.profile.pet||teamAg())return"";const td=taskDecay();const parts=[];
  if(td.lost)parts.push(`<div class="banner bad">${I.cal.replace('<svg','<svg width="20" height="20" style="flex:none"')}<div class="stack-s"><span>${petCap()} guardou ${td.owned.slice(0,td.lost).map(r=>r.n.toLowerCase()).join(" e ")} por causa de ${td.late.length===1?`uma tarefa atrasada (${esc(td.late[0].title)})`:`${td.late.length} tarefas atrasadas`}. Conclua, remarque ou apague para recuperar.</span>${UI.tab!=="agenda"?`<button class="btn ghost sm" data-act="goTasksLate" style="align-self:flex-start">Ver tarefas atrasadas</button>`:""}</div></div>`);
  if(td.soon.length&&td.next)parts.push(`<div class="banner warn">${I.cal.replace('<svg','<svg width="20" height="20" style="flex:none"')}<div class="stack-s"><span>${esc(td.soon[0].title)} está atrasada há 1 dia. Amanhã ${petLow()} guarda: ${td.next.n.toLowerCase()}. Conclua ou, se a data mudou, remarque.</span><div class="row" style="gap:6px"><button class="btn line sm" data-act="taskMove" data-v="${td.soon[0].id}" data-to="done">Concluir</button><button class="btn ghost sm" data-act="reschedTask" data-v="${td.soon[0].id}">Remarcar</button></div></div></div>`);
  return parts.join("")}
@@ -768,7 +798,7 @@ const eventsOn=day=>[...vals(S.agenda.events).filter(e=>occursOn(e,day)),...task
 function upcoming(n){const out=[];for(let i=0;i<14&&out.length<n;i++){const d=addDays(today(),i);for(const e of eventsOn(d)){if(i===0&&e.time){const now=new Date();const [h,m]=e.time.split(":").map(Number);if(h*60+m<now.getHours()*60+now.getMinutes()-30)continue}out.push({...e,day:d})}}return out.slice(0,n)}
 const notified=new Set();
 function checkReminders(){checkWater();const now=new Date();
- for(const d of [today(),addDays(today(),1)])for(const e of eventsOn(d)){if(!e.time)continue;const [h,m]=e.time.split(":").map(Number);const at=parseDate(d);at.setHours(h,m,0,0);const rem=new Date(at.getTime()-(+e.remind||0)*60000);const key=e.id+d;
+ for(const d of [today(),addDays(today(),1)])for(const e of [...eventsOn(d),...(TEAM&&PERS&&PERS.S===S?withPersonal(()=>eventsOn(d)):[])]){if(!e.time)continue;const [h,m]=e.time.split(":").map(Number);const at=parseDate(d);at.setHours(h,m,0,0);const rem=new Date(at.getTime()-(+e.remind||0)*60000);const key=e.id+d;
   if(now>=rem&&now<=new Date(at.getTime()+5*60000)&&!notified.has(key)){notified.add(key);beep();toast(`${e.title} ${e.remind>0?"em "+e.remind+" min":"agora"} (${e.time})`,8000);notify(e.title,(e.remind>0?"Em "+e.remind+" min · ":"Agora · ")+e.time)}}
 }
 function icsFor(list){const lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Prumo//PT-BR","CALSCALE:GREGORIAN"];
@@ -844,6 +874,8 @@ function pigSVG(o){
  // corpo
  p+=`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${body}"/>`;
  p+=`<ellipse cx="${cx-rx*.35}" cy="${cy-ry*.45}" rx="${rx*.28}" ry="${ry*.16}" fill="#fff" opacity=".28"/>`;
+ if(o.cow){const cid="cw"+Math.random().toString(36).slice(2,7);p+=`<clipPath id="${cid}"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/></clipPath><g clip-path="url(#${cid})" fill="#2B1E24" opacity=".85"><path d="M${cx-rx-4} ${cy-14} q18 -16 30 2 q8 16 -8 26 q-16 6 -24 -6z"/><path d="M${cx+rx*.42} ${cy-ry+2} q22 -4 30 14 q4 18 -16 18 q-20 -2 -20 -16z"/><path d="M${cx+rx*.55} ${cy+ry*.35} q16 -8 26 6 q2 14 -14 16 q-16 0 -12 -22z"/><ellipse cx="${cx-rx*.4}" cy="${cy+ry*.62}" rx="12" ry="8"/></g>
+ <g fill="#F4E6C8" stroke="#C9A96E" stroke-width="2"><path d="M${cx-rx*.32} ${cy-ry+6} q-6 -22 -18 -24 q8 12 6 26z"/><path d="M${cx+rx*.32} ${cy-ry+6} q6 -22 18 -24 q-8 12 -6 26z"/></g>`}
  // fenda de cofrinho
  p+=`<rect x="${cx-16}" y="${cy-ry+9}" width="32" height="6" rx="3" fill="#C9627F"/>`;
  // bochechas
@@ -868,6 +900,7 @@ function pigSVG(o){
  p+=`</g>`;
  // acessórios
  if(equip.neck)p+=accSVG(equip.neck,cx,cy+ry-10,.9);
+ if(o.cow)p+=`<g><path d="M${cx-26} ${cy+ry-16} Q${cx} ${cy+ry-2} ${cx+26} ${cy+ry-16}" stroke="#7A4B2A" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M${cx-11} ${cy+ry-8} h22 l-3 18 h-16z" fill="#F2C230" stroke="#C99A12" stroke-width="2"/><circle cx="${cx}" cy="${cy+ry+12}" r="3.5" fill="#8A6A10"/></g>`;
  if(equip.face)p+=accSVG(equip.face,cx,ey,Math.min(1.05,ex/26));
  if(equip.head)p+=accSVG(equip.head,cx,cy-ry+(equip.head==="fone"?40:equip.head==="laco"?2:4),equip.head==="fone"?Math.max(.9,rx/62):1);
  // moedinhas felizes
@@ -1122,7 +1155,8 @@ function finDebts(){
   :`<p class="small" style="color:var(--bad)">${budget<sim.sumMin?`O valor de ${brl0(budget)} por mês não cobre as parcelas mínimas, que somam ${brl0(sim.sumMin)}.`:"Com esse valor as dívidas não terminam: os juros crescem mais rápido que os pagamentos."} Ajuste o plano ou renegocie.</p>`}</div>`:""}
  ${ordered.map((d,i)=>{const k=DEBT_KINDS[d.kind]||DEBT_KINDS.outro;return `<button class="card stack" style="text-align:left" data-act="debtDetail" data-v="${d.id}"><div class="row between"><div class="row"><span class="ico" style="background:${i===0?"var(--debt)":"var(--surface2)"};color:${i===0?"#fff":"var(--muted)"}">${i+1}</span><div class="stack-s" style="gap:1px"><b>${esc(d.name)}</b><span class="tiny muted">${k.n} · ${(+d.rate||0).toLocaleString("pt-BR")}% ao mês${d.late?" · atrasada":""}</span></div></div><b class="num">${brl0(d.left)}</b></div>
   <div class="meter"><i style="width:${(+d.balance?d.paid/(+d.balance):0)*100}%;background:var(--money)"></i></div>
-  <p class="tiny muted">Pago ${brl0(d.paid)} de ${brl0(d.balance)}${doneAt[d.id]?` · quitada em ${endDate(doneAt[d.id])} pelo plano`:""}${i===0&&sim.ok?" · foco agora":""}</p></button>`}).join("")}
+  <p class="tiny muted">Pago ${brl0(d.paid)} de ${brl0(d.balance)}${doneAt[d.id]?` · quitada em ${endDate(doneAt[d.id])} pelo plano`:""}${i===0&&sim.ok?" · foco agora":""}</p>
+  ${finScope()==="t"&&vqRows(d).length?`<div class="row" style="gap:8px;align-items:center">${cowPig(34)}<span class="tiny">${vqRows(d).map(r=>`<b>${esc(r.u===ME.uid?"Você":teamNick(r.u))}</b> ${brl0(r.paid)}/${brl0(r.share)}${r.paid>=r.share-0.01?" ✓":""}`).join(" · ")}</span></div>`:""}</button>`}).join("")}
  ${open.length?`<div class="card stack"><div class="label">Como sair das dívidas</div>${DEBT_GENERAL.slice(0,high?7:4).map(t=>`<p class="small">· ${t}</p>`).join("")}<button class="btn ghost sm" data-act="lesson" data-v="l4" style="align-self:flex-start">Avalanche ou bola de neve?</button></div>`:""}
  ${done.length?`<div class="section"><div class="label">Quitadas</div><div class="card list">${done.map(d=>`<div class="item"><span class="ico" style="background:var(--good);color:#fff">${I.check.replace('<svg','<svg width="18" height="18"')}</span><b class="grow">${esc(d.name)}</b><span class="num muted">${brl0(d.balance)}</span></div>`).join("")}</div></div>`:""}`}
 function debtPlanView(){const ds=debts();const m=meta();const sug=debtBudgetSuggestion(ds);const cur=+m.debtBudget||sug;const st=m.debtStrategy||"avalanche";
@@ -1145,10 +1179,15 @@ function debtDetail(d){const k=DEBT_KINDS[d.kind]||DEBT_KINDS.outro;const inc=re
   <label class="field"><span>Quanto consegue pagar por mês nesta dívida?</span><input id="ds_p" inputmode="decimal" value="${String(sug).replace(".",",")}"></label>
   <div id="ds_res" class="stack-s"></div></div>
  <div class="stack-s"><div class="label">Dicas para ${k.n.toLowerCase()}</div>${k.tips.map(t=>`<p class="small">· ${t}</p>`).join("")}</div>
+ ${finScope()==="t"&&vqRows(d).length?`<div class="card flat stack" style="gap:8px"><div class="row" style="gap:10px">${cowPig(56)}<div class="stack-s" style="gap:2px"><b>Vaquinha da equipe</b><span class="tiny muted">${vqRows(d).every(r=>r.paid>=r.share-0.01)?"Todo mundo já pagou a sua parte. Muuuito bem!":"Cada um paga a sua parte. O porquinho de vaquinha agradece."}</span></div></div>
+  ${vqRows(d).map(r=>`<div class="stack-s" style="gap:3px"><div class="row between small"><span class="row" style="gap:6px"><span class="avatar">${teamInitials(r.u)}</span>${esc(r.u===ME.uid?"Você":teamNick(r.u))}</span><b class="num">${brl0(r.paid)} de ${brl0(r.share)}</b></div><div class="meter"><i style="width:${r.share?clamp(r.paid/r.share,0,1)*100:0}%;background:${r.paid>=r.share-0.01?"var(--good)":"var(--money)"}"></i></div>${r.paid<r.share-0.01?`<button class="btn ghost sm" data-act="vqPay" data-v="${d.id}" data-u="${r.u}" style="align-self:flex-start">${r.u===ME.uid?"Registrar meu pagamento":"Registrar pagamento de "+esc(teamNick(r.u))}</button>`:""}</div>`).join("")}</div>`:""}
  <button class="btn money block" data-act="payDebt" data-v="${d.id}">Registrar um pagamento</button>
  <button class="btn ghost" data-act="editDebt" data-v="${d.id}">Editar dívida</button></div>`,()=>{const upd=()=>{const P=parseMoney(v("ds_p"));const x=payoff(d.left,r,P);const base=minP&&!minP.never?minP:null;
   $("#ds_res").innerHTML=!P?`<span class="small muted">Digite um valor.</span>`:x.never?`<span class="small" style="color:var(--bad)">Com ${brl0(P)} por mês a dívida não acaba: os juros são maiores que o pagamento.</span>`
   :`<div class="row between small"><span>Quitação</span><b>${monthsLabel(x.months)} · ${endDate(x.months)}</b></div><div class="row between small"><span>Juros no caminho</span><b class="num">${brl0(x.interest)}</b></div><div class="row between small"><span>Total pago</span><b class="num">${brl0(d.left+x.interest)}</b></div>${base&&P>(+d.min||0)?`<span class="small" style="color:var(--good)">Comparado com pagar só ${brl0(d.min)}, você economiza ${brl0(base.interest-x.interest)} e termina ${monthsLabel(Math.max(0,base.months-x.months))} antes.</span>`:""}${inc&&P>inc*.3?`<span class="small" style="color:var(--warn)">Atenção: ${brl0(P)} é mais de 30% da sua renda.</span>`:""}`};$("#ds_p").addEventListener("input",upd);upd()})}
+function confirm2(el){if(el.dataset.ok==="1")return true;el.dataset.ok="1";const t=[...document.querySelectorAll(".vq_on")].filter(c=>c.checked).reduce((s,c)=>s+(parseMoney((document.querySelector(`.vq_v[data-u="${c.dataset.u}"]`)||{}).value||"")||0),0);toast(`As partes somam ${brl(t)}, diferente do valor da dívida. Toque em salvar de novo para manter assim.`,5000);return false}
+function vqSum(){const o=$("#vq_sum");if(!o)return;const t=[...document.querySelectorAll(".vq_on")].filter(c=>c.checked).reduce((s,c)=>s+(parseMoney((document.querySelector(`.vq_v[data-u="${c.dataset.u}"]`)||{}).value||"")||0),0);const bal=parseMoney(v($("#vq_total")?"vq_total":"d_bal"));o.textContent=t?`Soma: ${brl(t)}${bal&&Math.abs(t-bal)>0.05?` (faltam ${brl(bal-t)})`:""}`:""}
+document.addEventListener("input",e=>{if(e.target.closest&&e.target.closest(".vq_v,#d_bal,#vq_total"))vqSum()});document.addEventListener("change",e=>{if(e.target.classList&&e.target.classList.contains("vq_on"))vqSum()});
 function debtForm(d){d=d||{};const isEdit=!!d.id;
  openModal(isEdit?"Editar dívida":"Nova dívida",`<div class="stack">
  <label class="field"><span>Nome</span><input id="d_name" value="${esc(d.name||"")}" placeholder="Ex.: cartão Nubank, empréstimo do banco"></label>
@@ -1157,6 +1196,9 @@ function debtForm(d){d=d||{};const isEdit=!!d.id;
  <div class="grid2"><label class="field"><span>Juros ao mês (%)</span><input id="d_rate" inputmode="decimal" value="${d.rate!=null?String(d.rate).replace(".",","):""}" placeholder="Ex.: 12"></label><label class="field"><span>Parcela mensal</span><input id="d_min" inputmode="decimal" value="${d.min?String(d.min).replace(".",","):""}" placeholder="0,00"></label></div>
  <label class="field"><span>Parcelas que faltam (se souber)</span><input id="d_inst" type="number" inputmode="numeric" min="0" value="${d.inst||""}"></label>
  <label class="check"><input type="checkbox" id="d_late" ${d.late?"checked":""}><span class="small">Está atrasada</span></label>
+ ${finScope()==="t"?`<div class="card flat stack" style="gap:8px"><div class="row" style="gap:10px">${cowPig(52)}<div class="stack-s" style="gap:2px"><b>Vaquinha</b><span class="tiny muted">Marque quem vai ajudar a pagar e quanto cada um assume. Deixe tudo desmarcado se a dívida não for dividida.</span></div></div>
+  ${teamMembers().map(m=>{const sv=(d.split||{})[m.uid];return `<div class="row" style="gap:8px"><label class="check grow" style="margin:0"><input type="checkbox" class="vq_on" data-u="${m.uid}" ${sv!=null?"checked":""}><span class="small">${esc(m.uid===ME.uid?"Eu":teamNick(m.uid))}</span></label><input class="vq_v" data-u="${m.uid}" inputmode="decimal" style="max-width:130px" placeholder="0,00" value="${sv!=null?String(sv).replace(".",","):""}"></div>`}).join("")}
+  <div class="row between"><button type="button" class="btn ghost sm" data-act="vqEqual">Dividir igualmente</button><span class="tiny muted" id="vq_sum"></span></div></div>`:""}
  <p class="tiny muted">Não sabe os juros? Veja na fatura ou no contrato, ou pergunte ao banco o CET mensal. Rotativo do cartão e cheque especial costumam passar de 8% ao mês. Compra parcelada sem juros: deixe 0.</p>
  <button class="btn block" data-act="saveDebt" data-v="${d.id||""}">${isEdit?"Salvar":"Cadastrar dívida"}</button>
  ${isEdit?`<button class="btn danger" data-act="askDel">Apagar dívida</button>${confirmBox("delDebt","Apagar esta dívida? Os pagamentos lançados continuam no histórico.")}`:""}</div>`)}
@@ -1327,26 +1369,27 @@ function taskDue(t){if(!t.date)return"";const td=today();let l=t.date===td?"Hoje
  const late=t.status!=="done"&&(t.date<td||(t.date===td&&t.time&&toMin(t.time)<new Date().getHours()*60+new Date().getMinutes()));
  return `<span class="${late?"pill bad":"tiny muted"}">${late&&t.date<td?"Atrasada · ":""}${l}${t.time?" · "+esc(t.time):""}</span>`}
 function taskSort(a,b){if(a.status==="done")return(b.doneAt||0)-(a.doneAt||0);const pr={alta:0,media:1,baixa:2};return (a.date||"9999").localeCompare(b.date||"9999")||(a.time||"99").localeCompare(b.time||"99")||(pr[a.prio]??1)-(pr[b.prio]??1)||(a.created||0)-(b.created||0)}
-function taskAreaFn(t){if(UI.taskArea===undefined){try{UI.taskArea=localStorage.getItem("prumo.taskArea")||"tudo"}catch(e){UI.taskArea="tudo"}}const a=UI.taskArea;if(a==="trabalho")return t.kind==="trabalho";if(a==="fora")return t.kind!=="trabalho";return true}
+function taskAreaFn(t){if(teamAg()){const w=UI.teamWho||"tudo";return w==="tudo"?true:w==="eu"?t.who===ME.uid:w==="livre"?!t.who:t.who===w}if(UI.taskArea===undefined){try{UI.taskArea=localStorage.getItem("prumo.taskArea")||"tudo"}catch(e){UI.taskArea="tudo"}}const a=UI.taskArea;if(a==="trabalho")return t.kind==="trabalho";if(a==="fora")return t.kind!=="trabalho";return true}
 function taskFilterFn(t){const f=UI.taskFilter||"all",td=today();if(f==="hoje")return t.date&&t.date<=td||t.status==="doing";if(f==="semana")return t.date&&t.date<=addDays(td,6);if(f==="atrasadas")return t.status!=="done"&&t.date&&t.date<td;if(f==="semdata")return!t.date;return true}
 function taskCard(t){const k=TASK_KINDS[t.kind]||TASK_KINDS.outro;const subs=t.subs||[];const sd=subs.filter(x=>x.done).length;
  const mv=t.status==="todo"?`<button class="btn ghost sm" data-act="taskMove" data-v="${t.id}" data-to="doing">Começar</button><button class="btn line sm" data-act="taskMove" data-v="${t.id}" data-to="done">${I.check.replace('<svg','<svg width="14" height="14"')} Feito</button>`
   :t.status==="doing"?`<button class="btn ghost sm" data-act="taskMove" data-v="${t.id}" data-to="todo" aria-label="Voltar para A fazer">${I.left.replace('<svg','<svg width="14" height="14"')}</button><button class="btn money sm" data-act="taskMove" data-v="${t.id}" data-to="done">${I.check.replace('<svg','<svg width="14" height="14"')} Concluir</button>`
   :`<button class="btn ghost sm" data-act="taskMove" data-v="${t.id}" data-to="todo">Reabrir</button>`;
  return `<div class="kcard ${t.status==="done"?"kdone":""}" draggable="true" data-task="${t.id}">
- <button class="ktitle" data-act="editTask" data-v="${t.id}"><span class="row" style="gap:6px;flex-wrap:wrap"><i class="dot" style="background:${k.c}"></i><span class="tiny muted">${k.n}</span>${t.prio&&t.prio!=="media"?`<span class="pill ${PRIO[t.prio].k}" style="padding:1px 8px">${PRIO[t.prio].n}</span>`:""}${t.repeat?`<span class="pill info" style="padding:1px 8px">&#8635; ${(TREP.find(x=>x[0]===t.repeat)||["",""])[1].replace(" (seg. a sex.)","")}</span>`:""}</span><b>${esc(t.title)}</b></button>
+ <button class="ktitle" data-act="editTask" data-v="${t.id}"><span class="row" style="gap:6px;flex-wrap:wrap"><i class="dot" style="background:${k.c}"></i><span class="tiny muted">${k.n}</span>${t.prio&&t.prio!=="media"?`<span class="pill ${PRIO[t.prio].k}" style="padding:1px 8px">${PRIO[t.prio].n}</span>`:""}${t.repeat?`<span class="pill info" style="padding:1px 8px">&#8635; ${(TREP.find(x=>x[0]===t.repeat)||["",""])[1].replace(" (seg. a sex.)","")}</span>`:""}</span><b>${esc(t.title)}</b>${teamAg()&&t.who?`<span class="tiny row" style="gap:6px;color:var(--muted)"><span class="avatar">${teamInitials(t.who)}</span>${t.who===ME.uid?"Com você":"Com "+esc(teamNick(t.who))}</span>`:""}</button>
  ${t.date||subs.length||t.value||t.place?`<div class="row wrap" style="gap:8px">${taskDue(t)}${subs.length?`<span class="tiny muted">${I.check.replace('<svg','<svg width="12" height="12"')} ${sd}/${subs.length}</span>`:""}${t.value?`<span class="tiny muted num">${brl(t.value)}</span>`:""}${t.place?`<span class="tiny muted">${esc(t.place)}</span>`:""}</div>`:""}
  ${subs.length&&t.status!=="done"?`<div class="stack-s" style="gap:2px">${subs.map((x,i)=>`<button class="row" style="gap:8px;border:0;background:none;padding:4px 0;text-align:left;min-height:30px" data-act="cardSub" data-v="${t.id}" data-i="${i}" aria-label="${x.done?"Desmarcar":"Marcar"} ${esc(x.t)}"><span style="width:20px;height:20px;border-radius:6px;flex:none;display:grid;place-items:center;${x.done?"background:var(--good);color:#fff":"border:2px solid var(--line)"}">${x.done?I.check.replace('<svg','<svg width="12" height="12"'):""}</span><span class="small" style="${x.done?"text-decoration:line-through;color:var(--muted)":""}">${esc(x.t)}</span></button>`).join("")}</div>`:""}
  ${t.resched?`<span class="tiny muted">Remarcada ${t.resched}x</span>`:""}
  <div class="row" style="gap:6px;flex-wrap:wrap">${mv}${daysLate(t)>=1?`<button class="btn ghost sm" data-act="reschedTask" data-v="${t.id}">Remarcar</button>`:""}</div></div>`}
-function agendaHead(){return `<h1 style="margin-top:4px">Agenda</h1><div class="subtabs">${[["cal","Calendário"],["tasks","Tarefas"]].map(([id,n])=>`<button class="${(UI.agendaSub||"cal")===id?"on":""}" data-act="agendaSub" data-v="${id}">${n}</button>`).join("")}</div>`}
+function agendaHead(){const tabs=[["cal","Calendário"],["tasks","Tarefas"]].filter(([id])=>!TEAM||teamHas(id==="cal"?"agenda":"tasks"));if(tabs.length<2)return `<h1 style="margin-top:4px">${tabs[0][1]}</h1>`;return `<h1 style="margin-top:4px">Agenda</h1><div class="subtabs">${tabs.map(([id,n])=>`<button class="${(UI.agendaSub||"cal")===id?"on":""}" data-act="agendaSub" data-v="${id}">${n}</button>`).join("")}</div>`}
 function tasksView(){const all=taskList().filter(taskAreaFn);const open=all.filter(t=>t.status!=="done");const late=open.filter(t=>t.date&&t.date<today()).length;const tot=+S.tasks.doneTotal||0;
  const nextR=TASK_REWARDS.find(r=>tot<r.tasks);
  return `<div class="stack">${agendaHead()}
  <div class="card stack" style="gap:8px"><div class="grid3"><div class="stack-s"><span class="tiny muted">Em aberto</span><b class="num" style="font-size:20px">${open.length}</b></div><div class="stack-s"><span class="tiny muted">Atrasadas</span><b class="num" style="font-size:20px;color:${late?"var(--bad)":"inherit"}">${late}</b></div><div class="stack-s"><span class="tiny muted">Concluídas</span><b class="num" style="font-size:20px">${tot}</b></div></div>
   ${S.profile.pet&&nextR?`<p class="tiny muted">Faltam ${nextR.tasks-tot} tarefas concluídas para o porquinho ganhar: ${nextR.n.toLowerCase()}.</p>`:""}</div>
  ${taskWarning()}<div class="chips">${[["all","Todas"],["hoje","Hoje"],["semana","Próximos 7 dias"],["atrasadas","Atrasadas"],["semdata","Sem data"]].map(([id,n])=>`<button class="chip ${(UI.taskFilter||"all")===id?"on":""}" data-act="taskFilter" data-v="${id}">${n}</button>`).join("")}</div>
- <div class="chips" style="margin-top:-4px">${[["tudo","Todas as áreas"],["trabalho","Trabalho"],["fora","Fora do trabalho"]].map(([id,n])=>`<button class="chip ${(UI.taskArea||"tudo")===id?"on":""}" data-act="taskArea" data-v="${id}" style="${id==="trabalho"?"border-color:"+TASK_KINDS.trabalho.c:""}">${id==="trabalho"?`<i class="dot" style="background:${TASK_KINDS.trabalho.c};margin-right:5px;display:inline-block;vertical-align:middle"></i>`:""}${n}</button>`).join("")}</div>
+ ${teamAg()?`<div class="chips" style="margin-top:-4px">${[["tudo","Todos"],["eu","Para mim"],["livre","Sem responsável"],...teamMembers().filter(m=>m.uid!==ME.uid).map(m=>[m.uid,teamNick(m.uid)])].map(([id,n])=>`<button class="chip ${(UI.teamWho||"tudo")===id?"on":""}" data-act="teamWho" data-v="${id}">${esc(n)}</button>`).join("")}</div>`:""}
+ <div class="chips ${teamAg()?"hide":""}" style="margin-top:-4px">${[["tudo","Todas as áreas"],["trabalho","Trabalho"],["fora","Fora do trabalho"]].map(([id,n])=>`<button class="chip ${(UI.taskArea||"tudo")===id?"on":""}" data-act="taskArea" data-v="${id}" style="${id==="trabalho"?"border-color:"+TASK_KINDS.trabalho.c:""}">${id==="trabalho"?`<i class="dot" style="background:${TASK_KINDS.trabalho.c};margin-right:5px;display:inline-block;vertical-align:middle"></i>`:""}${n}</button>`).join("")}</div>
  <div class="kanban" role="list">${TCOLS.map(([st,n])=>{let list=all.filter(t=>t.status===st&&taskFilterFn(t)).sort(taskSort);const more=st==="done"&&list.length>15;if(more)list=list.slice(0,15);
   return `<section class="kcol" data-col="${st}" aria-label="${n}"><div class="row between"><b>${n}</b><span class="pill info num">${all.filter(t=>t.status===st&&taskFilterFn(t)).length}</span></div>
   ${list.length?list.map(taskCard).join(""):`<p class="tiny muted" style="text-align:center;padding:14px 4px">${st==="todo"?"Nada por fazer. Toque em Nova tarefa.":st==="doing"?"Arraste ou toque em Começar numa tarefa.":"As tarefas concluídas aparecem aqui."}</p>`}
@@ -1366,10 +1409,11 @@ function trepMatch(t,day){if(!t.repeat||!t.date||day<t.date)return day===t.date;
 function trepNext(t){let d=t.date||today();const step=x=>{const o=parseDate(t.date||today());if(t.repeat==="monthly"){const c=parseDate(x);const y=c.getFullYear(),m=c.getMonth()+1;const last=new Date(y,m+1,0).getDate();return ymd(new Date(y,m,Math.min(o.getDate(),last)))}let n=addDays(x,1);while(!trepMatch(t,n))n=addDays(n,1);return n};
  d=step(d);while(d<=today()&&(t.date||today())<=today())d=step(d);return d}
 function taskEvents(day){return taskList().filter(t=>t.status!=="done"&&t.cal!==false&&(t.date===day||(t.repeat&&trepMatch(t,day)))).map(t=>({id:"task_"+t.id+(t.date===day?"":"_"+day),taskId:t.id,task:true,title:t.title,date:day,time:t.time||"",remind:t.date===day?+t.remind||0:0,repeat:t.repeat==="daily"||t.repeat==="weekdays"?"daily":"none",place:t.place||""}))}
-function taskForm(t,preset){t=t||Object.assign({kind:UI.taskArea==="trabalho"?"trabalho":"pessoal",prio:"media",status:"todo",cal:true,remind:30},preset||{});const isEdit=!!t.id;UI.taskSubs=clone(t.subs||[]);UI.taskKind=t.kind;
+function taskForm(t,preset){t=t||Object.assign({kind:UI.taskArea==="trabalho"?"trabalho":"pessoal",prio:"media",status:"todo",cal:true,remind:30},preset||{});const isEdit=!!t.id;UI.taskSubs=clone(t.subs||[]);UI.taskKind=t.kind;UI.tkWho=t.who||(t.id?"":(UI.teamWho&&!["tudo","livre"].includes(UI.teamWho)?(UI.teamWho==="eu"?ME.uid:UI.teamWho):""));
  openModal(isEdit?"Editar tarefa":"Nova tarefa",`<div class="stack">
  <label class="field"><span>O que precisa fazer?</span><input id="tk_title" value="${esc(t.title||"")}" placeholder="Ex.: editar o vídeo do casamento"></label>
  <div class="field"><span>Tipo</span><div class="chips" style="flex-wrap:wrap">${Object.entries(TASK_KINDS).map(([id,k])=>`<button type="button" class="chip ${t.kind===id?"on":""}" data-act="tkKind" data-v="${id}">${k.n}</button>`).join("")}</div></div>
+ ${teamAg()?`<div class="field"><span>Responsável</span><div class="chips" style="flex-wrap:wrap">${[["","Ninguém"],...teamMembers().map(m=>[m.uid,m.uid===ME.uid?"Eu":teamNick(m.uid)])].map(([id,n])=>`<button type="button" class="chip ${(UI.tkWho||"")===id?"on":""}" data-act="tkWho" data-v="${id}">${id?`<span class="avatar">${teamInitials(id)}</span>`:""}${esc(n)}</button>`).join("")}</div>${t.by&&t.by!==ME.uid?`<span class="tiny muted">Criada por ${esc(teamNick(t.by))}.</span>`:""}</div>`:""}
  <label class="field ${t.kind==="pagar"?"":"hide"}" id="tk_valf"><span>Valor (opcional)</span><input id="tk_val" inputmode="decimal" value="${t.value?String(t.value).replace(".",","):""}" placeholder="0,00"><span class="tiny muted">Ao concluir, o Prumo abre o lançamento do gasto já preenchido.</span></label>
  <label class="field ${t.kind==="ir"||t.kind==="falar"||t.place?"":"hide"}" id="tk_placef"><span>${t.kind==="falar"?"Com quem ou onde":"Onde"}</span><input id="tk_place" value="${esc(t.place||"")}"></label>
  ${t.id&&daysLate(t)>=1?`<div class="banner warn"><span>Esta tarefa está atrasada. Mude a data só se ela realmente mudou: isso conta como remarcação.</span></div>`:""}
@@ -1385,7 +1429,7 @@ function taskForm(t,preset){t=t||Object.assign({kind:UI.taskArea==="trabalho"?"t
  ${isEdit?`<button class="btn danger" data-act="askDel">Apagar tarefa</button>${confirmBox("delTask","Apagar esta tarefa?")}`:""}</div>`,()=>renderTaskSubs())}
 function renderTaskSubs(){const el=$("#tk_subs");if(!el)return;el.innerHTML=(UI.taskSubs||[]).map((s,i)=>`<div class="row" style="gap:8px"><button type="button" class="iconbtn" style="width:30px;height:30px;border-radius:8px;${s.done?"background:var(--good);color:#fff":""}" data-act="tkToggleSub" data-v="${i}" aria-label="${s.done?"Desmarcar":"Marcar"} ${esc(s.t)}">${s.done?I.check.replace('<svg','<svg width="14" height="14"'):""}</button><span class="small grow" style="${s.done?"text-decoration:line-through;color:var(--muted)":""}">${esc(s.t)}</span><button type="button" class="btn ghost sm" data-act="tkDelSub" data-v="${i}" aria-label="Remover">${I.trash.replace('<svg','<svg width="14" height="14"')}</button></div>`).join("")}
 function moveTask(id,to){const t=S.tasks.items[id];if(!t||t.status===to)return;const lb=taskDecay().lost;setTimeout(()=>taskLostToast(lb),0);const prev=t.status;t.status=to;
- if(to==="done"){t.doneAt=Date.now();S.tasks.doneTotal=(+S.tasks.doneTotal||0)+1;markActive();const tot=S.tasks.doneTotal;const r=TASK_REWARDS.find(x=>x.tasks===tot);
+ if(to==="done"){t.doneAt=Date.now();S.tasks.doneTotal=(+S.tasks.doneTotal||0)+1;markActive();let tot=S.tasks.doneTotal;if(teamAg()&&PERS&&PERS.tasks){PERS.tasks.doneTotal=(+PERS.tasks.doneTotal||0)+1;tot=PERS.tasks.doneTotal;t.doneBy=ME.uid}const r=TASK_REWARDS.find(x=>x.tasks===tot);
   let nx=null;if(t.repeat&&!(t.nextId&&S.tasks.items[t.nextId])){const nid=rid();nx={...clone(t),id:nid,date:trepNext(t),status:"todo",doneAt:null,created:Date.now(),resched:0,reschedLog:[],subs:(t.subs||[]).map(x=>({t:x.t,done:false}))};delete nx.nextId;S.tasks.items[nid]=nx;t.nextId=nid}
   commit();if(r&&S.profile.pet)toast(`Tarefa concluída! O porquinho ganhou: ${r.n.toLowerCase()}. Vista em Guarda-roupa.`,5000);else toast(nx?`Tarefa concluída! A próxima ficou para ${dayLabel(nx.date)}.`:"Tarefa concluída!");
   if(t.kind==="pagar"&&t.value)setTimeout(()=>expenseForm({v:t.value,desc:t.title,cat:"contas"},mkey()),350);return}
@@ -1762,22 +1806,29 @@ function render(){
  if(!UI.booted)return;
  const app=$("#app");
  if(UI.needAuth){$("#tabs").hidden=true;$("#fab").hidden=true;app.innerHTML=UI.needAuth==="pending"?'<div class="empty">Carregando…</div>':viewAuth();return}
+ teamSwap();
  if(!S.profile.created){$("#tabs").hidden=true;$("#fab").hidden=true;app.innerHTML=viewOnboarding();bindOnb();return}
  $("#tabs").hidden=false;
  renderTabs();
  syncSubs();
- const views={home:viewHome,fin:viewFin,study:viewStudy,ex:viewEx,agenda:viewAgenda,prayer:viewPrayer,learn:viewLearn,pig:viewPig,profile:viewProfile,admin:viewAdmin};
+ if(TEAM){if(!["home","profile","admin"].includes(UI.tab)&&!(UI.tab==="fin"&&(teamHas("fin")||teamHas("quotes")))&&!(UI.tab==="agenda"&&teamAg())&&!(UI.tab==="vaq"&&teamHas("vaq")))UI.tab="home";
+  if(UI.tab==="fin"&&!teamHas("fin"))UI.fin="orc";if(UI.tab==="agenda"&&!teamHas("tasks"))UI.agendaSub="cal";if(UI.tab==="agenda"&&!teamHas("agenda"))UI.agendaSub="tasks"}
+ document.body.classList.toggle("team-env",!!TEAM);
+ const views={home:()=>TEAM&&typeof viewTeamHome==="function"?viewTeamHome():viewHome(),vaq:()=>typeof viewVaq==="function"?viewVaq():viewHome(),fin:viewFin,study:viewStudy,ex:viewEx,agenda:viewAgenda,prayer:viewPrayer,learn:viewLearn,pig:viewPig,profile:viewProfile,admin:viewAdmin};
  const sy=window.scrollY;
  wardrobePrepare();
- app.innerHTML=header()+(views[UI.tab]||viewHome)();
+ app.innerHTML=header()+envBar()+(views[UI.tab]||views.home)();
  window.scrollTo(0,sy);
  if(UI.wdPending)setTimeout(wardrobePlay,250);
- const fab={home:null,fin:"addExpense",study:"addStudy",ex:UI.ex==="comida"?"addFood":"addEx",agenda:UI.agendaSub==="tasks"?"addTask":"addEvent"}[UI.tab];
+ const fab={home:null,vaq:"addVaq",fin:TEAM&&!teamHas("fin")?null:"addExpense",study:"addStudy",ex:UI.ex==="comida"?"addFood":"addEx",agenda:UI.agendaSub==="tasks"?"addTask":"addEvent"}[UI.tab];
  const f=$("#fab");f.hidden=!fab;f.dataset.act=fab||"";f.innerHTML=I.plus;
  f.setAttribute("aria-label",{fin:"Adicionar gasto",study:"Registrar estudo",ex:UI.ex==="comida"?"Adicionar alimento":"Registrar exercício",agenda:UI.agendaSub==="tasks"?"Nova tarefa":"Novo compromisso"}[UI.tab]||"Adicionar");
  renderTFull();tickTimer();
 }
 function renderTabs(){const t=[["home","Início",I.home],["fin","Finanças",I.money],["study","Estudos",I.book],["ex","Saúde",I.heart.replace('fill="currentColor"','fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"')],["agenda","Agenda",I.cal]];if(S.profile.prayer)t.push(["prayer","Oração",I.candle]);
+ if(TEAM){for(let i=t.length-1;i>=0;i--){const id=t[i][0];if(!(id==="home"||(id==="fin"&&(teamHas("fin")||teamHas("quotes")))||(id==="agenda"&&teamAg())))t.splice(i,1)}t[0]=["home",TEAM.name.length>10?"Equipe":esc(TEAM.name),I.people];
+  const fi=t.findIndex(x=>x[0]==="fin");if(fi>=0&&!teamHas("fin"))t[fi]=["fin","Orçamentos",I.money];if(teamHas("vaq"))t.splice(fi>=0?fi+1:1,0,["vaq","Vaquinha",I.split||I.people]);
+  const ai=t.findIndex(x=>x[0]==="agenda");if(ai>=0&&!teamHas("agenda"))t[ai]=["agenda","Tarefas",I.cal]}
  $("#tabs").innerHTML=`<div class="tabs-in" style="grid-template-columns:repeat(${t.length},1fr)">${t.map(([id,n,ic])=>`<button class="tab ${UI.tab===id||((UI.tab==="pig"||UI.tab==="learn")&&id==="home")?"on":""}" data-act="tab" data-v="${id}" aria-label="${n}">${ic}<span>${n}</span></button>`).join("")}</div>`}
 function logoHTML(px){return `<span role="img" aria-label="Prumo" style="display:inline-block;white-space:nowrap;font-family:var(--f-display);font-weight:600;font-size:${px}px;line-height:1;letter-spacing:-.02em;color:var(--ink)"><span aria-hidden="true">Prum</span><svg aria-hidden="true" viewBox="0 0 100 100" style="display:inline-block;width:.54em;height:.54em;margin-left:.03em;vertical-align:-.01em"><circle cx="50" cy="50" r="50" fill="#F28AA8"/><ellipse cx="35" cy="50" rx="8.5" ry="15" fill="#2B1E24"/><ellipse cx="65" cy="50" rx="8.5" ry="15" fill="#2B1E24"/></svg></span>`}
 function header(){const st=streak();const first=(S.profile.name||"").split(" ")[0];
@@ -1859,15 +1910,17 @@ function viewPig(){
 
 /* ---------- Finanças ---------- */
 function viewFin(){
- const sub=[["mes","Mês"],["cartoes","Cartões"],["plano","Plano"],["fixos","Fixos"],["dividas","Dívidas"],["comprar","Posso comprar?"],["orc","Orçamentos"],["aprender","Aprender"]];
- return `<div class="stack"><h1 style="margin-top:4px">Finanças</h1>
- <div class="subtabs" role="tablist">${sub.map(([id,n])=>`<button class="${UI.fin===id?"on":""}" data-act="fin" data-v="${id}">${n}</button>`).join("")}</div>
+ let sub=[["mes","Mês"],["cartoes","Cartões"],["plano","Plano"],["fixos","Fixos"],["dividas","Dívidas"],["comprar","Posso comprar?"],["orc","Orçamentos"],["aprender","Aprender"]];
+ if(TEAM)sub=sub.filter(([id])=>id==="orc"?teamHas("quotes"):teamHas("fin")&&id!=="comprar"&&id!=="plano");if(!sub.some(x=>x[0]===UI.fin))UI.fin=sub[0][0];
+ return `<div class="stack"><h1 style="margin-top:4px">${TEAM&&!teamHas("fin")?"Orçamentos":"Finanças"}</h1>${sub.length>1?"":"<!--"}
+ <div class="subtabs" role="tablist">${sub.map(([id,n])=>`<button class="${UI.fin===id?"on":""}" data-act="fin" data-v="${id}">${n}</button>`).join("")}</div>${sub.length>1?"":"-->"}
  ${{mes:finMonth,cartoes:finCards,plano:finPlan,fixos:finFixos,dividas:finDebts,comprar:finBuy,orc:finQuotes,aprender:finLearn}[UI.fin]()}</div>`}
-function scopeBanner(){if(finScope()!=="h")return"";const ms=HH&&HH.members?Object.entries(HH.members).filter(([,v])=>v):[];
+function scopeBanner(){if(finScope()==="t")return `<div class="banner info">${I.people.replace('<svg','<svg width="20" height="20" style="flex:none"')}<span>Finanças da equipe <b>${esc(TEAM.name)}</b>. Todos os membros veem e lançam aqui. Suas finanças pessoais continuam separadas.</span></div>
+ <div class="chips">${[["all","Todos"],["me","Só eu"],["other","Outros membros"]].map(([id,n])=>`<button class="chip ${UI.filter===id?"on":""}" data-act="filter" data-v="${id}">${n}</button>`).join("")}</div>`;if(finScope()!=="h")return"";const ms=HH&&HH.members?Object.entries(HH.members).filter(([,v])=>v):[];
  const nm=ms.map(([id,m])=>id===ME.uid?"você":esc(m.nick||"parceiro")).join(" e ");
  return `<div class="banner info">${I.people.replace('<svg','<svg width="20" height="20" style="flex:none"')}<span>Finanças compartilhadas entre ${nm||"vocês"}. Os dois veem e lançam tudo aqui.</span></div>
  <div class="chips">${[["all","Todos"],["me","Só eu"],["other","Parceiro(a)"]].map(([id,n])=>`<button class="chip ${UI.filter===id?"on":""}" data-act="filter" data-v="${id}">${n}</button>`).join("")}</div>`}
-function personName(by){if(finScope()!=="h"||!by)return"";if(by===ME.uid)return"Você";const m=HH&&HH.members&&HH.members[by];return m?(m.nick||"Parceiro(a)"):"Parceiro(a)"}
+function personName(by){if(finScope()==="t"&&by)return teamNick(by);if(finScope()!=="h"||!by)return"";if(by===ME.uid)return"Você";const m=HH&&HH.members&&HH.members[by];return m?(m.nick||"Parceiro(a)"):"Parceiro(a)"}
 function finMonth(){
  const k=UI.month;const t=totals(k,true);const inc=refIncome(k);const plan=planFor(inc);
  const prevFixed=monthData(shiftMonth(k,-1)).expenses.filter(e=>e.fixed);
@@ -2300,7 +2353,8 @@ const A={
    if(card){const n=+v("f_n")||1;const grp=old&&old.grp||rid();ccApply(ccPurchaseEntries(card,{total:val,n,desc:v("f_desc").trim(),cat:v("f_cat"),bought:date,grp,by:old?old.by:ME.uid,t:old?old.t:Date.now(),added:old?old.added:today()}));
     markActive();saveApp();closeModal();const k=invoiceMonth(card,date);toast(`${old?"Compra atualizada":"Compra lançada"} no ${card.name}. ${n>1?`${n} parcelas, a 1ª na fatura`:"Entra na fatura"} que vence em ${ddmm(dayIn(k,card.due))}.`,4500);return}
    const e={v:val,desc:v("f_desc").trim(),cat:v("f_cat"),date,fixed:$("#f_fixed").checked,by:old.by,t:old.t,added:old.added,debtId:null};finPatch(mid(mkey(date)),{expenses:{[rid()]:e}});markActive();saveApp();closeModal();toast("Gasto atualizado.");return}
-  const e={v:val,desc:v("f_desc").trim(),cat:v("f_cat"),date,fixed:$("#f_fixed").checked,by:old?old.by:ME.uid,t:old?old.t:Date.now(),added:old?old.added:today(),debtId:v("f_cat")==="divida"?(v("f_debt")||null):null};
+  const pb=UI.payBy;UI.payBy=null;const dId=v("f_cat")==="divida"?(v("f_debt")||null):null;
+  const e={v:val,desc:v("f_desc").trim(),cat:v("f_cat"),date,fixed:$("#f_fixed").checked,by:old?old.by:(pb&&pb.debt===dId?pb.u:ME.uid),t:old?old.t:Date.now(),added:old?old.added:today(),debtId:dId};
   if(old&&mkey(old.date)!==mkey(date))finPatch(mid(mkey(old.date)),{expenses:{[id]:null}});
   finPatch(mid(mkey(date)),{expenses:{[id]:e}});markActive();saveApp();closeModal();toast(old?"Gasto atualizado.":"Gasto lançado.")},
  editExpense:el=>{const e=findTx("expenses",el.dataset.v,el.dataset.m);if(e)expenseForm(e,el.dataset.m)},
@@ -2313,13 +2367,19 @@ const A={
  delIncYes:()=>{const id=document.querySelector('[data-act="saveIncome"]').dataset.v;const e=findTx("incomes",id);if(e)finPatch(mid(mkey(e.date)),{incomes:{[id]:null}});closeModal();toast("Renda apagada.")},
  addDebt:()=>debtForm(),
  editDebt:el=>{const d=debts().find(x=>x.id===el.dataset.v);if(d)debtForm(d)},
- saveDebt:el=>{const name=v("d_name").trim();const bal=parseMoney(v("d_bal"));if(!name||!bal){toast("Informe o nome e o valor da dívida.");return}const id=el.dataset.v||rid();const old=(meta().debts||{})[id]||{};
-  finPatch("meta",{debts:{[id]:{name,kind:v("d_kind"),balance:bal,rate:parseMoney(v("d_rate")),min:parseMoney(v("d_min")),inst:+v("d_inst")||null,late:$("#d_late").checked,created:old.created||today()}}});closeModal();toast("Dívida salva.")},
+ saveDebt:el=>{const name=v("d_name").trim();const bal=parseMoney(v($("#vq_total")?"vq_total":"d_bal"));if(!name||!bal){toast("Informe o nome e o valor da dívida.");return}const id=el.dataset.v||rid();const old=(meta().debts||{})[id]||{};
+  let split=null;if(finScope()==="t"){const on=[...document.querySelectorAll(".vq_on")].filter(c=>c.checked);if(on.length){split={};on.forEach(c=>{const u=c.dataset.u;split[u]=parseMoney((document.querySelector(`.vq_v[data-u="${u}"]`)||{}).value||"")||0});
+   const tot=Object.values(split).reduce((a,b)=>a+b,0);if(Math.abs(tot-bal)>0.05&&!confirm2(el))return}
+   const olds=old.split||{};const sp={};for(const u in olds)sp[u]=null;if(split)Object.assign(sp,split);split=Object.keys(sp).length?sp:null}
+  finPatch("meta",{debts:{[id]:{name,kind:v("d_kind"),balance:bal,rate:parseMoney(v("d_rate")),min:parseMoney(v("d_min")),inst:+v("d_inst")||null,late:$("#d_late").checked,created:old.created||today(),...(split?{split}:{})}}});closeModal();toast(split&&Object.values(split).some(x=>x!=null)?"Dívida salva com a vaquinha.":"Dívida salva.")},
+ vqEqual:()=>{const bal=parseMoney(v($("#vq_total")?"vq_total":"d_bal"));let on=[...document.querySelectorAll(".vq_on")].filter(c=>c.checked);if(!on.length){document.querySelectorAll(".vq_on").forEach(c=>c.checked=true);on=[...document.querySelectorAll(".vq_on")]}
+  if(!bal){toast("Informe primeiro o valor total.");return}const part=Math.floor(bal/on.length*100)/100;on.forEach((c,i)=>{const val=i===on.length-1?Math.round((bal-part*(on.length-1))*100)/100:part;document.querySelector(`.vq_v[data-u="${c.dataset.u}"]`).value=val.toFixed(2).replace(".",",")});vqSum()},
+ vqPay:el=>{const d=debts().find(x=>x.id===el.dataset.v);if(!d)return;const r=vqRows(d).find(x=>x.u===el.dataset.u);closeModal();UI.payBy={u:el.dataset.u,debt:d.id};expenseForm({v:r?Math.max(0,Math.round((r.share-r.paid)*100)/100)||"":"",desc:"Vaquinha "+d.name+" · "+teamNick(el.dataset.u),cat:"divida",debtId:d.id},mkey())},
  debtDetail:el=>{const d=debts().find(x=>x.id===el.dataset.v);if(d)debtDetail(d)},
  debtPlan:()=>debtPlanView(),
  dpStrat:el=>{UI.dpStrat=el.dataset.v;document.querySelectorAll('[data-act="dpStrat"]').forEach(b=>b.style.border=b===el?"2px solid var(--money)":"")},
  saveDebtPlan:()=>{finPatch("meta",{debtBudget:parseMoney(v("dp_b")),debtStrategy:UI.dpStrat||"avalanche"});closeModal();toast("Plano salvo.")},
- payDebt:el=>{const d=debts().find(x=>x.id===el.dataset.v);closeModal();expenseForm({v:+d.min||"",desc:"Pagamento "+d.name,cat:"divida",debtId:d.id},mkey())},
+ payDebt:el=>{const d=debts().find(x=>x.id===el.dataset.v);closeModal();UI.payBy=null;expenseForm({v:+d.min||"",desc:"Pagamento "+d.name,cat:"divida",debtId:d.id},mkey())},
  bucketInfo:el=>bucketInfoView(el.dataset.v),
  habitModal:()=>habitModal(),
  focusPick:el=>{UI.focusSel=UI.focusSel||[];const id=el.dataset.v;const i=UI.focusSel.indexOf(id);if(i>=0)UI.focusSel.splice(i,1);else{UI.focusSel.push(id)}document.querySelectorAll('[data-act="focusPick"]').forEach(c=>c.classList.toggle("on",UI.focusSel.includes(c.dataset.v)))},
@@ -2351,6 +2411,8 @@ const A={
  taskArea:el=>{UI.taskArea=el.dataset.v;try{localStorage.setItem("prumo.taskArea",el.dataset.v)}catch(e){}render()},
  addTask:el=>taskForm(null,UI.tab==="agenda"&&UI.agendaSub!=="tasks"?{date:UI.calDay}:null),
  editTask:el=>{const t=S.tasks.items[el.dataset.v];if(t)taskForm(t)},
+ tkWho:el=>{UI.tkWho=el.dataset.v;document.querySelectorAll('[data-act="tkWho"]').forEach(c=>c.classList.toggle("on",c===el))},
+ teamWho:el=>{UI.teamWho=el.dataset.v;render()},
  tkKind:el=>{UI.taskKind=el.dataset.v;document.querySelectorAll('[data-act="tkKind"]').forEach(c=>c.classList.toggle("on",c===el));$("#tk_valf").classList.toggle("hide",el.dataset.v!=="pagar");$("#tk_placef").classList.toggle("hide",!(el.dataset.v==="ir"||el.dataset.v==="falar"||v("tk_place")))},
  tkAddSub:()=>{const t=v("tk_newsub").trim();if(!t)return;UI.taskSubs.push({t,done:false});$("#tk_newsub").value="";renderTaskSubs();$("#tk_newsub").focus()},
  cardSub:el=>{const t=S.tasks.items[el.dataset.v];if(!t||!t.subs)return;const x=t.subs[+el.dataset.i];if(!x)return;x.done=!x.done;markActive();
@@ -2360,7 +2422,7 @@ const A={
  tkDelSub:el=>{UI.taskSubs.splice(+el.dataset.v,1);renderTaskSubs()},
  saveTask:el=>{const title=v("tk_title").trim();if(!title){toast("Escreva o que precisa fazer.");return}const lb=taskDecay().lost;setTimeout(()=>taskLostToast(lb),0);const id=el.dataset.v||rid();const old=S.tasks.items[id]||{};
   const pend=v("tk_newsub").trim();if(pend)UI.taskSubs.push({t:pend,done:false});
-  const t={id,title,kind:UI.taskKind||"pessoal",prio:v("tk_prio"),date:v("tk_date")||null,time:v("tk_time")||"",remind:+v("tk_rem")||0,cal:$("#tk_cal").checked,place:v("tk_place").trim(),value:UI.taskKind==="pagar"?parseMoney(v("tk_val"))||null:null,notes:v("tk_notes").trim(),subs:clone(UI.taskSubs||[]),repeat:v("tk_rep")||"",status:old.status||"todo",created:old.created||Date.now(),doneAt:old.doneAt||null,resched:old.resched||0,reschedLog:old.reschedLog||[]};
+  const t={id,title,kind:UI.taskKind||"pessoal",prio:v("tk_prio"),date:v("tk_date")||null,time:v("tk_time")||"",remind:+v("tk_rem")||0,cal:$("#tk_cal").checked,place:v("tk_place").trim(),value:UI.taskKind==="pagar"?parseMoney(v("tk_val"))||null:null,notes:v("tk_notes").trim(),subs:clone(UI.taskSubs||[]),repeat:v("tk_rep")||"",who:teamAg()?(UI.tkWho||""):(old.who||""),by:old.by||ME.uid,status:old.status||"todo",created:old.created||Date.now(),doneAt:old.doneAt||null,resched:old.resched||0,reschedLog:old.reschedLog||[]};
   if(old.id&&old.date&&t.date!==old.date&&daysLate(old)>=1){t.reschedLog=[...t.reschedLog,{from:old.date,to:t.date,reason:"editado",at:today()}];t.resched++}
   if(t.repeat&&!t.date)t.date=today();if(old.nextId)t.nextId=old.nextId;
   S.tasks.items[id]=t;const ns=$("#tk_status")?v("tk_status"):t.status;closeModal();if(ns!==t.status)moveTask(id,ns);else{commit();toast(old.id?"Tarefa salva.":"Tarefa criada.")}},
@@ -2501,7 +2563,7 @@ const A={
  leaveHH:()=>openModal("Sair das finanças compartilhadas",`<div class="stack"><p>Você volta a ver só as suas finanças pessoais, como estavam antes. Os lançamentos compartilhados continuam com a outra pessoa.</p><button class="btn danger block" data-act="leaveGo">Sair</button><button class="btn ghost" data-act="closeModal">Cancelar</button></div>`),
  leaveGo:async()=>{const code=S.profile.household;try{await Store.db.doc(`households/${code}`).update({members:{[ME.uid]:null}});await hhLeave(code)}catch(e){}S.profile.household=null;hhUnsubs.forEach(u=>u());hhUnsubs=[];HH=null;commit();closeModal();toast("Você saiu das finanças compartilhadas.")},
  copyCode:async()=>{try{await navigator.clipboard.writeText(S.profile.household);toast("Código copiado.")}catch(e){const c=document.querySelector(".code");if(c){const r=document.createRange();r.selectNodeContents(c);const s=getSelection();s.removeAllRanges();s.addRange(r)}toast("Selecione e copie o código.")}},
- exportData:()=>{const data={app:"porquinho",v:1,exported:new Date().toISOString(),S,PFIN,HFIN:finScope()==="h"?HFIN:null};saveFile(`prumo-backup-${today()}.json`,JSON.stringify(data,null,1))},
+ exportData:()=>{const data={app:"porquinho",v:1,exported:new Date().toISOString(),S:personalS(),PFIN,HFIN:finScope()==="h"?HFIN:null};saveFile(`prumo-backup-${today()}.json`,JSON.stringify(data,null,1))},
  resetAll:()=>openModal("Apagar meus dados",`<div class="stack"><p>Isto apaga seu perfil, estudos, exercícios, agenda, porquinho e finanças pessoais. Finanças compartilhadas continuam com a outra pessoa. Não dá para desfazer.</p><button class="btn danger block" data-act="resetGo">Apagar tudo</button><button class="btn ghost" data-act="closeModal">Cancelar</button></div>`),
  resetGo:async()=>{if(Store.cloud){for(const k in PFIN){await Store.db.doc(`data/users/${ME.uid}/fin-${k}`).delete().catch(()=>{})}if(S.profile.household)await Store.db.doc(`households/${S.profile.household}`).update({members:{[ME.uid]:null}}).catch(()=>{})}
   for(const k in PFIN)delete PFIN[k];S=defaultState();UI.onb=-1;UI.tab="home";if(Store.cloud)await Store.db.doc(appPath()).set(clone(S)).catch(()=>{});try{localStorage.removeItem(LSK)}catch(e){}closeModal();render()},
@@ -3683,6 +3745,219 @@ A.spaAdd=async()=>{const name=v("sp_name").trim();if(!name){toast("Informe o nom
 A.spaToggle=async el=>{await sb.from("sponsors").update({active:el.dataset.a!=="1"}).eq("id",el.dataset.v);spaLoad()};
 A.spaDel=async el=>{await sb.from("sponsors").delete().eq("id",el.dataset.v);toast("Empresa removida.");spaLoad()};
 document.addEventListener("change",ev=>{const el=ev.target;if(el&&el.id==="sp_logo"&&el.files&&el.files[0]){const img=new Image();const u=URL.createObjectURL(el.files[0]);img.onload=()=>{const m=320,sc=Math.min(1,m/Math.max(img.width,img.height));const cv=document.createElement("canvas");cv.width=Math.round(img.width*sc);cv.height=Math.round(img.height*sc);cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);SPA.logo=cv.toDataURL("image/png");URL.revokeObjectURL(u);render();toast("Logo pronta. Toque em Adicionar.")};img.src=u}});
+
+/* ============================================================
+   Equipes (web): ambientes compartilhados por e-mail
+   Cada equipe escolhe os módulos: calendário, tarefas, finanças, orçamentos e vaquinha.
+   O Prumo pessoal de cada pessoa continua separado.
+   ============================================================ */
+I.split='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6.4 6.4M12 12l-6.4 6.4"/></svg>';
+let TEAMS=null,TINV=[],TUNSUB=[],TTIMER=null,tPending=0,tLoading=false;const TBASE={},TCOUNT={};
+const teamsOn=()=>!!((typeof SB_ON!=="undefined"&&SB_ON&&Store.cloud)||Store.demo);
+const lsTeam=v=>{try{if(v===undefined)return localStorage.getItem("prumo.team");if(v)localStorage.setItem("prumo.team",v);else localStorage.removeItem("prumo.team")}catch(e){return null}};
+const teamFeatList=t=>TFEATS.filter(([k])=>t.features&&t.features[k]).map(x=>x[1]);
+const iOwn=()=>TEAM&&TEAM.owner===ME.uid;
+
+function mergeDiff(a,b){const out={};let any=false;a=a||{};
+ for(const k in b){const x=a[k],y=b[k];if(y===undefined)continue;
+  if(isObj(x)&&isObj(y)){const d=mergeDiff(x,y);if(d){out[k]=d;any=true}}
+  else if(JSON.stringify(x)!==JSON.stringify(y)){out[k]=isObj(y)?stripNulls(clone(y)):y;any=true}}
+ for(const k in a)if(!(k in b)||b[k]===undefined){out[k]=null;any=true}
+ return any?out:null}
+
+async function teamsLoad(){
+ if(Store.demo){if(!TEAMS){demoTeams();render()}return}
+ if(!sb||!Store.cloud||tLoading)return;tLoading=true;
+ try{const [a,b]=await Promise.all([sb.rpc("my_teams"),sb.rpc("my_team_invites")]);if(a.error)throw a.error;
+  TEAMS=a.data||[];TINV=(b&&!b.error&&b.data)||[];
+  if(TEAM){const t=TEAMS.find(x=>x.id===TEAM.id);if(!t){teamExit();toast("Você não faz mais parte dessa equipe.")}
+   else{const ch=JSON.stringify(t.features)!==JSON.stringify(TEAM.features);TEAM=t;if(ch)teamSubscribe()}}
+  else{const last=lsTeam();if(last&&TEAMS.find(x=>x.id===last))teamEnter(last,true)}
+  teamCounts();render()}catch(e){console.warn(e);if(TEAMS===null)TEAMS=[]}
+ tLoading=false}
+async function teamCounts(){if(Store.demo||!TEAMS)return;for(const t of TEAMS){if(!(t.features&&t.features.tasks))continue;
+ try{const s=await Store.db.doc(`teams/${t.id}/agenda`).get();const items=s.exists&&s.data().tasks&&s.data().tasks.items||{};
+  const n=vals(items).filter(x=>x.status!=="done"&&x.who===ME.uid).length;if(TCOUNT[t.id]!==n){TCOUNT[t.id]=n;if(!TEAM)render()}}catch(e){}}}
+setInterval(()=>{if(teamsOn()&&!document.hidden)teamsLoad()},60000);
+
+function teamEnter(id,silent){const t=(TEAMS||[]).find(x=>x.id===id);if(!t)return;
+ TEAM=t;lsTeam(id);teamSubscribe();if(!silent){UI.tab="home";window.scrollTo(0,0)}render()}
+function teamExit(){TUNSUB.forEach(u=>{try{u()}catch(e){}});TUNSUB=[];clearTimeout(TTIMER);TTIMER=null;tPending=0;
+ TEAM=null;lsTeam(null);for(const k in TFIN)delete TFIN[k];for(const k in TD)delete TD[k];UI.teamWho="tudo";
+ if(["vaq"].includes(UI.tab))UI.tab="home";render()}
+
+function teamApply(path,data){const p=TPARTS.find(x=>x.path===path);if(!p)return;const fresh=deepMerge(p.def(),stripNulls(clone(data||{})));TD[path]=fresh;TBASE[path]=clone(fresh)}
+function teamSubscribe(){TUNSUB.forEach(u=>{try{u()}catch(e){}});TUNSUB=[];
+ for(const k in TFIN)delete TFIN[k];for(const k in TD)delete TD[k];
+ if(!TEAM)return;const id=TEAM.id;
+ TPARTS.forEach(p=>{if(p.on()){TD[p.path]=p.def();TBASE[p.path]=clone(TD[p.path])}});
+ if(Store.demo){demoTeamData();return}
+ if(TD.agenda)TUNSUB.push(Store.db.doc(`teams/${id}/agenda`).onSnapshot(s=>{if(tPending||!TEAM||TEAM.id!==id)return;teamApply("agenda",s.exists?s.data():{});render()},e=>console.warn(e)));
+ if(teamHas("fin")||teamHas("quotes")||teamHas("vaq"))TUNSUB.push(Store.db.collection(`teams/${id}/fin`).onSnapshot(qs=>{if(!TEAM||TEAM.id!==id)return;
+  for(const d of qs.docs){if(d.id==="quotes"){if(!tPending)teamApply("fin/quotes",d.data())}else if(!d.metadata.hasPendingWrites)TFIN[d.id]=stripNulls(clone(d.data()))}render()},e=>console.warn(e)));
+}
+function teamSaveParts(){if(!TEAM)return;tPending=1;clearTimeout(TTIMER);const id=TEAM.id;
+ TTIMER=setTimeout(async()=>{try{for(const p of TPARTS){if(!teamPart(p)||!TEAM||TEAM.id!==id)continue;const cur=clone(TD[p.path]);const patch=mergeDiff(TBASE[p.path],cur);if(!patch)continue;
+   TBASE[p.path]=cur;if(Store.demo||!Store.cloud)continue;const ref=Store.db.doc(`teams/${id}/${p.path}`);
+   try{await ref.update(patch)}catch(e){if(e&&e.code==="invalid_argument")await ref.set(stripNulls(cur));else throw e}}}
+  catch(e){console.warn(e);toast("Não consegui salvar na equipe. Confira a internet.")}
+  tPending=0;if(Store.demo||!Store.cloud||!TEAM||TEAM.id!==id)return;
+  try{if(TD.agenda){const s=await Store.db.doc(`teams/${id}/agenda`).get();if(!tPending&&TEAM&&TEAM.id===id){teamApply("agenda",s.exists?s.data():{});render()}}}catch(e){}},600)}
+
+/* vaquinha: documento próprio (teams/<id>/fin/vaq) */
+const VQ=()=>{TFIN.vaq=TFIN.vaq||{};TFIN.vaq.items=TFIN.vaq.items||{};return TFIN.vaq};
+function vaqPatch(patch){if(!TEAM)return;TFIN.vaq=deepMerge(TFIN.vaq||{},clone(patch));
+ if(!Store.demo&&Store.cloud){const p=`teams/${TEAM.id}/fin/vaq`;enqueue(p,async()=>{const ref=Store.db.doc(p);try{await ref.update(patch)}catch(e){if(e&&e.code==="invalid_argument")await ref.set(stripNulls(clone(TFIN.vaq)));else throw e}})}
+ render()}
+const vqItems=()=>vals(VQ().items).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.created||0)-(a.created||0));
+const vqOpen=r=>Object.entries(r.shares||{}).some(([u,v])=>v!=null&&+v>0&&!(r.paid||{})[u]&&u!==r.payer);
+const nm=u=>u===ME.uid?"Você":teamNick(u);
+function vqDebts(){const net={};for(const r of vqItems()){if(!r.payer)continue;for(const [u,v] of Object.entries(r.shares||{})){if(v==null||u===r.payer||(r.paid||{})[u])continue;const k=u+">"+r.payer;net[k]=(net[k]||0)+(+v||0)}}
+ const pairs={};for(const k in net){const [a,b]=k.split(">");const rev=net[b+">"+a]||0;if(net[k]>rev+0.005&&!pairs[k])pairs[k]=net[k]-rev}
+ return Object.entries(pairs).map(([k,v])=>{const [from,to]=k.split(">");return{from,to,v}})}
+
+/* ---------- barra de ambiente ---------- */
+function teamEnvBar(){if(!teamsOn())return"";if(TEAMS===null){setTimeout(teamsLoad,0);return""}
+ if(TEAM)return `<div class="envbar"><button class="envbtn cur" data-act="teamPick"><span class="avatar" style="background:var(--money)">${esc(TEAM.name.slice(0,1).toUpperCase())}</span>${esc(TEAM.name)} ▾</button><button class="btn ghost sm" data-act="teamExit">Voltar ao meu Prumo</button></div>`;
+ if(UI.tab!=="home")return"";
+ const inv=TINV.map(i=>`<div class="banner info">${I.people.replace('<svg','<svg width="20" height="20" style="flex:none"')}<div class="stack-s"><span><b>${esc(i.from||"Alguém")}</b> te convidou para a equipe <b>${esc(i.name)}</b> no Prumo.</span><div class="row" style="gap:6px"><button class="btn sm" data-act="teamAccept" data-v="${i.team_id}">Entrar na equipe</button><button class="btn ghost sm" data-act="teamDecline" data-v="${i.team_id}">Recusar</button></div></div></div>`).join("");
+ return `${inv}<div class="envbar"><button class="envbtn cur" data-act="teamPick"><span class="avatar">${esc((S.profile.name||"Eu").slice(0,1).toUpperCase())}</span>Meu Prumo ▾</button>
+ ${TEAMS.map(t=>`<button class="envbtn" data-act="teamGo" data-v="${t.id}"><span class="avatar" style="background:var(--money)">${esc(t.name.slice(0,1).toUpperCase())}</span>${esc(t.name)}${TCOUNT[t.id]?`<span class="badge">${TCOUNT[t.id]}</span>`:""}</button>`).join("")}
+ ${TEAMS.length?"":`<button class="envbtn" data-act="teamNew" style="border-style:dashed">${I.plus.replace('<svg','<svg width="16" height="16"')} Criar equipe</button>`}</div>`}
+
+function teamPickView(){openModal("Onde você quer estar?",`<div class="stack">
+ <button class="card stack" style="text-align:left;gap:2px;${!TEAM?"border:2px solid var(--pig-deep)":""}" data-act="teamExit"><b>Meu Prumo</b><span class="small muted">Suas finanças, saúde, estudos, agenda e oração. Só você vê.</span></button>
+ ${(TEAMS||[]).map(t=>`<div class="card stack" style="gap:6px;${TEAM&&TEAM.id===t.id?"border:2px solid var(--money)":""}"><button class="stack-s" style="text-align:left;border:0;background:none;padding:0;gap:2px" data-act="teamGo" data-v="${t.id}"><b>${esc(t.name)}</b><span class="small muted">${t.members.length} ${t.members.length===1?"membro":"membros"} · ${teamFeatList(t).join(", ")||"nenhum módulo"}</span></button>
+  <button class="btn ghost sm" data-act="teamManage" data-v="${t.id}" style="align-self:flex-start">${t.owner===ME.uid?"Gerenciar equipe":"Ver equipe"}</button></div>`).join("")}
+ ${TINV.map(i=>`<div class="banner info"><div class="stack-s"><span>Convite de <b>${esc(i.from||"alguém")}</b> para <b>${esc(i.name)}</b>.</span><div class="row" style="gap:6px"><button class="btn sm" data-act="teamAccept" data-v="${i.team_id}">Entrar</button><button class="btn ghost sm" data-act="teamDecline" data-v="${i.team_id}">Recusar</button></div></div></div>`).join("")}
+ <button class="btn line" data-act="teamNew">${I.plus.replace('<svg','<svg width="16" height="16"')} Criar uma equipe</button>
+ <p class="tiny muted">Equipes servem para empresa, família ou amigos. Cada equipe escolhe o que compartilhar, e o seu Prumo pessoal continua só seu.</p></div>`)}
+
+function featPicker(f){return `<div class="field"><span>O que a equipe vai usar? Marque quantos quiser. Dá para mudar depois.</span><div class="stack-s">${TFEATS.map(([k,n,d])=>`<label class="check" style="align-items:flex-start"><input type="checkbox" class="tf_feat" data-k="${k}" ${f&&f[k]?"checked":""}><span><b>${n}</b><br><span class="tiny muted">${d}</span></span></label>`).join("")}</div></div>`}
+const readFeats=()=>{const o={};document.querySelectorAll(".tf_feat").forEach(c=>o[c.dataset.k]=c.checked);return o};
+
+function teamNewView(){openModal("Criar equipe",`<div class="stack">
+ <label class="field"><span>Nome da equipe</span><input id="tf_name" maxlength="60" placeholder="Ex.: CriaMente3d, Família Silva, Rachas da faculdade"></label>
+ ${featPicker({agenda:true,tasks:true,fin:true,vaq:true})}
+ <p class="tiny muted">Depois de criar, convide as pessoas pelo e-mail que elas usam no Prumo.</p>
+ <button class="btn block" data-act="teamCreate">Criar equipe</button></div>`)}
+
+function teamManageView(id){const t=(TEAMS||[]).find(x=>x.id===id);if(!t)return;const own=t.owner===ME.uid;UI.tmId=id;
+ openModal(own?"Gerenciar equipe":t.name,`<div class="stack">
+ ${own?`<label class="field"><span>Nome</span><input id="tf_name" maxlength="60" value="${esc(t.name)}"></label>${featPicker(t.features)}
+  <p class="tiny muted">Desligar um módulo esconde ele para todos, mas não apaga nada: se ligar de novo, os dados voltam.</p>
+  <button class="btn block" data-act="teamSave">Salvar</button>`:`<p class="small muted">Esta equipe usa: ${teamFeatList(t).join(", ")||"nenhum módulo"}. Quem criou a equipe decide o que fica ligado.</p>`}
+ <div class="section"><div class="label">Membros</div><div class="card list">${t.members.map(m=>`<div class="item"><span class="avatar">${esc(((m.uid===ME.uid?S.profile.name:m.nick)||m.email||"?").slice(0,1).toUpperCase())}</span><div class="grow stack-s" style="gap:0"><b>${esc(m.uid===ME.uid?"Você":(m.nick||m.email.split("@")[0]))}</b><span class="tiny muted">${esc(m.email)}${m.uid===t.owner?" · criou a equipe":""}</span></div>${own&&m.uid!==ME.uid?`<button class="btn ghost sm" data-act="teamKick" data-v="${m.uid}">Remover</button>`:""}</div>`).join("")}</div></div>
+ ${own?`<div class="card flat stack"><div class="label">Convidar pelo e-mail</div><div class="row"><input id="tf_mail" type="email" inputmode="email" class="grow" placeholder="email@exemplo.com"><button class="btn sm" data-act="teamInvite">Convidar</button></div>
+  <span class="tiny muted">A pessoa vê o convite ao entrar no Prumo com esse e-mail. Se ainda não tiver conta, é só criar com o mesmo e-mail.</span>
+  ${t.invites.length?`<div class="list">${t.invites.map(e=>`<div class="item"><span class="grow small">${esc(e)} <span class="tiny muted">· aguardando</span></span><a class="btn ghost sm" href="https://wa.me/?text=${encodeURIComponent(`Te convidei para a equipe "${t.name}" no Prumo. Entre em https://prumovidaemordem.com.br com o e-mail ${e} e aceite o convite na tela inicial.`)}" target="_blank" rel="noopener">Avisar</a><button class="btn ghost sm" data-act="teamUninvite" data-v="${esc(e)}">Cancelar</button></div>`).join("")}</div>`:""}</div>`:""}
+ <button class="btn ghost" data-act="teamGo" data-v="${t.id}">Entrar na equipe</button>
+ <button class="btn danger sm" data-act="askDel" style="align-self:center">${own?"Excluir equipe":"Sair da equipe"}</button>${confirmBox("teamLeave",own?"Excluir a equipe para todos? Ninguém mais vai conseguir abrir.":"Sair desta equipe? Você pode voltar se for convidado de novo.")}</div>`)}
+
+async function trpc(fn,args,ok){if(Store.demo){toast("Na demonstração isso não é salvo.");return null}
+ try{const {data,error}=await sb.rpc(fn,args);if(error)throw error;if(ok)toast(ok);return data===null?true:data}catch(e){const m=String(e&&e.message||"");toast(/só quem/.test(m)?"Só quem criou a equipe pode fazer isso.":/inválido/.test(m)?"E-mail inválido.":/limite/.test(m)?"Limite atingido.":"Não deu certo agora. Confira a internet.");return null}}
+
+Object.assign(A,{
+ teamPick:()=>teamPickView(),
+ teamNew:()=>{if(!Store.cloud&&!Store.demo){toast("Para criar equipes, entre com uma conta.");return}teamNewView()},
+ teamGo:el=>{closeModal();teamEnter(el.dataset.v)},
+ teamExit:()=>{closeModal();teamExit();window.scrollTo(0,0)},
+ teamManage:el=>teamManageView(el.dataset.v||(TEAM&&TEAM.id)),
+ teamCreate:async()=>{const name=v("tf_name").trim();const f=readFeats();if(!name){toast("Dê um nome para a equipe.");return}if(!Object.values(f).some(Boolean)){toast("Marque pelo menos um módulo.");return}
+  const id=await trpc("team_create",{p_name:name,p_features:f,p_nick:(S.profile.name||"").split(" ")[0]});if(!id)return;closeModal();await teamsLoad();teamEnter(id);setTimeout(()=>teamManageView(id),300);toast("Equipe criada! Agora convide as pessoas.")},
+ teamSave:async()=>{const id=UI.tmId;const f=readFeats();if(!Object.values(f).some(Boolean)){toast("Deixe pelo menos um módulo ligado.");return}
+  const r=await trpc("team_update",{p_team:id,p_name:v("tf_name").trim(),p_features:f},"Equipe atualizada.");if(r){closeModal();await teamsLoad()}},
+ teamInvite:async()=>{const e=v("tf_mail").trim().toLowerCase();if(!/^\S+@\S+\.\S+$/.test(e)){toast("Digite um e-mail válido.");return}
+  const r=await trpc("invite_to_team",{p_team:UI.tmId,p_email:e},"Convite criado. Avise a pessoa.");if(r){await teamsLoad();teamManageView(UI.tmId)}},
+ teamUninvite:async el=>{const r=await trpc("cancel_team_invite",{p_team:UI.tmId,p_email:el.dataset.v});if(r){await teamsLoad();teamManageView(UI.tmId)}},
+ teamKick:async el=>{const r=await trpc("leave_team",{p_team:UI.tmId,p_uid:el.dataset.v},"Pessoa removida da equipe.");if(r){await teamsLoad();teamManageView(UI.tmId)}},
+ teamLeaveYes:async()=>{const id=UI.tmId;const r=await trpc("leave_team",{p_team:id,p_uid:null});if(!r)return;closeModal();if(TEAM&&TEAM.id===id)teamExit();await teamsLoad();toast("Pronto.")},
+ teamAccept:async el=>{const id=el.dataset.v;const r=await trpc("answer_team_invite",{p_team:id,p_accept:true,p_nick:(S.profile.name||"").split(" ")[0]});if(!r)return;closeModal();await teamsLoad();teamEnter(id);toast("Você entrou na equipe!")},
+ teamDecline:async el=>{const r=await trpc("answer_team_invite",{p_team:el.dataset.v,p_accept:false,p_nick:""},"Convite recusado.");if(r){closeModal();teamsLoad()}},
+ /* vaquinha */
+ addVaq:()=>vaqForm(),
+ vaqOpen:el=>vaqDetail(el.dataset.v),
+ vaqEdit:el=>vaqForm(VQ().items[el.dataset.v]),
+ vaqFilter:el=>{UI.vqF=el.dataset.v;render()},
+ vaqSave:el=>{const title=v("vq_title").trim();const total=parseMoney(v("vq_total"));if(!title||!total){toast("Informe o que foi e o valor total.");return}
+  const on=[...document.querySelectorAll(".vq_on")].filter(c=>c.checked);if(!on.length){toast("Marque quem participa.");return}
+  const id=el.dataset.v||rid();const old=VQ().items[id]||{};const shares={};for(const u in(old.shares||{}))shares[u]=null;
+  on.forEach(c=>{const u=c.dataset.u;shares[u]=parseMoney((document.querySelector(`.vq_v[data-u="${u}"]`)||{}).value||"")||0});
+  const sum=on.reduce((s,c)=>s+(shares[c.dataset.u]||0),0);if(Math.abs(sum-total)>0.05&&!confirm2(el))return;
+  const payer=v("vq_payer")||"";
+  vaqPatch({items:{[id]:{id,title,total,date:v("vq_date")||today(),payer,shares,paid:old.paid||{},by:old.by||ME.uid,created:old.created||Date.now(),note:v("vq_note").trim()}}});closeModal();toast(old.id?"Vaquinha atualizada.":"Vaquinha criada. Muuu!")},
+ vaqPaid:el=>{const r=VQ().items[el.dataset.v];if(!r)return;const u=el.dataset.u;const was=!!(r.paid||{})[u];vaqPatch({items:{[r.id]:{paid:{[u]:was?null:today()}}}});
+  if(!was){const r2=VQ().items[r.id];if(!vqOpen(r2))toast("Todo mundo pagou! Vaquinha fechada. 🐮");else toast(`${nm(u)} pagou a parte.`)}vaqDetail(r.id)},
+ vaqDelYes:()=>{const id=UI.vqDel;closeModal();vaqPatch({items:{[id]:null}});toast("Vaquinha apagada.")},
+});
+
+/* ---------- Início da equipe ---------- */
+function viewTeamHome(){const t=TEAM;const tk=teamHas("tasks")&&TD.agenda?vals(S.tasks.items).filter(x=>x.status!=="done"):[];
+ const mine=tk.filter(x=>x.who===ME.uid).sort(taskSort),free=tk.filter(x=>!x.who);
+ let fin="";if(teamHas("fin")){const tt=totals(mkey(),false);fin=`<div class="card stack"><div class="row between"><div class="label">Finanças da equipe · ${monthLabel(mkey())}</div><button class="btn ghost sm" data-act="tab" data-v="fin">Abrir</button></div>
+  <div class="grid3"><div class="stack-s"><span class="tiny muted">Entrou</span><b class="num">${brl0(tt.income)}</b></div><div class="stack-s"><span class="tiny muted">Saiu</span><b class="num">${brl0(tt.spent)}</b></div><div class="stack-s"><span class="tiny muted">Saldo</span><b class="num" style="color:${tt.income-tt.spent<0?"var(--bad)":"var(--good)"}">${brl0(tt.income-tt.spent)}</b></div></div>
+  ${(()=>{const my=debts().flatMap(d=>vqRows(d).filter(r=>r.u===ME.uid&&r.paid<r.share-0.01).map(r=>({d,r})));return my.length?`<p class="small">${cowPig(28)} Sua parte nas vaquinhas de dívidas: falta ${brl0(my.reduce((s,x)=>s+x.r.share-x.r.paid,0))}.</p>`:""})()}</div>`}
+ let vq="";if(teamHas("vaq")){const ds=vqDebts().filter(x=>x.from===ME.uid||x.to===ME.uid);vq=`<div class="card stack"><div class="row between"><div class="row" style="gap:8px">${cowPig(36)}<div class="label">Vaquinha</div></div><button class="btn ghost sm" data-act="tab" data-v="vaq">Abrir</button></div>
+  ${ds.length?ds.map(x=>`<p class="small">${x.from===ME.uid?`Você deve <b>${brl(x.v)}</b> para ${esc(nm(x.to))}`:`${esc(nm(x.from))} te deve <b>${brl(x.v)}</b>`}</p>`).join(""):`<p class="small muted">Nada pendente entre você e a equipe.</p>`}</div>`}
+ const ev=teamHas("agenda")?upcoming(4):[];
+ return `<div class="stack"><h1 style="margin-top:4px">${esc(t.name)}</h1>
+ <div class="card stack" style="gap:10px"><div class="row" style="gap:6px;flex-wrap:wrap">${t.members.map(m=>`<span class="chip" style="cursor:default"><span class="avatar">${teamInitials(m.uid)}</span>${esc(nm(m.uid))}</span>`).join("")}</div>
+  <div class="row between"><span class="tiny muted">Usando: ${teamFeatList(t).join(", ")}</span><button class="btn ghost sm" data-act="teamManage">${iOwn()?"Gerenciar":"Ver equipe"}</button></div></div>
+ ${teamHas("tasks")?`<div class="card stack"><div class="row between"><div class="label">Suas tarefas na equipe</div><button class="btn ghost sm" data-act="goTasks">Ver quadro</button></div>
+  ${mine.length?`<div class="list">${mine.slice(0,5).map(x=>`<div class="item"><button class="iconbtn" style="width:34px;height:34px;border-radius:50%;border:2px solid var(--line);background:none" data-act="taskMove" data-v="${x.id}" data-to="done" aria-label="Concluir ${esc(x.title)}"></button><button class="grow" style="border:0;background:none;text-align:left;padding:0" data-act="editTask" data-v="${x.id}"><b>${esc(x.title)}</b></button>${taskDue(x)}</div>`).join("")}</div>`:`<p class="small muted">Nenhuma tarefa com você.${free.length?` Há ${free.length} sem responsável.`:""}</p>`}
+  <div class="row" style="gap:6px;flex-wrap:wrap">${t.members.map(m=>{const n=tk.filter(x=>x.who===m.uid).length;return n?`<span class="tiny muted">${esc(nm(m.uid))}: ${n}</span>`:""}).join(" ")}</div></div>`:""}
+ ${teamHas("agenda")?`<div class="card stack"><div class="row between"><div class="label">Próximos compromissos</div><button class="btn ghost sm" data-act="tab" data-v="agenda">Agenda</button></div>${ev.length?`<div class="list">${ev.map(e=>evItem(e)).join("")}</div>`:`<p class="small muted">Nada marcado nos próximos dias.</p>`}</div>`:""}
+ ${fin}${vq}
+ ${teamHas("quotes")?`<button class="card row between" style="text-align:left" data-act="tab" data-v="fin"><b>Orçamentos da equipe</b><span class="tiny muted">${vals(S.quotes&&S.quotes.items).length} orçamento(s)</span></button>`:""}
+ <button class="btn ghost" data-act="teamExit">Voltar ao meu Prumo</button></div>`}
+
+/* ---------- Vaquinha ---------- */
+function viewVaq(){if(!TEAM||!teamHas("vaq")){if(lsTeam()&&TEAMS===null)return `<div class="empty">Carregando a equipe…</div>`;UI.tab="home";return viewHome()}
+ const f=UI.vqF||"abertas";const all=vqItems();const list=all.filter(r=>f==="abertas"?vqOpen(r):!vqOpen(r));const ds=vqDebts();
+ return `<div class="stack"><h1 style="margin-top:4px">Vaquinha</h1>
+ <div class="card row" style="gap:12px">${cowPig(72)}<div class="stack-s" style="gap:2px"><b>Dividir a conta sem confusão</b><span class="small muted">Lance a despesa, marque quem participa e quanto cada um paga. Depois é só ir marcando quem já acertou.</span></div></div>
+ ${ds.length?`<div class="card stack"><div class="label">Quem deve para quem</div>${ds.map(x=>`<div class="row between small"><span class="row" style="gap:6px"><span class="avatar">${teamInitials(x.from)}</span>${esc(nm(x.from))} → <span class="avatar">${teamInitials(x.to)}</span>${esc(nm(x.to))}</span><b class="num">${brl(x.v)}</b></div>`).join("")}<span class="tiny muted">Já descontado o que um deve para o outro.</span></div>`:""}
+ <div class="chips">${[["abertas","Em aberto"],["fechadas","Quitadas"]].map(([id,n])=>`<button class="chip ${f===id?"on":""}" data-act="vaqFilter" data-v="${id}">${n}</button>`).join("")}</div>
+ ${list.length?list.map(r=>{const sh=Object.entries(r.shares||{}).filter(([,v])=>v!=null);const pd=sh.filter(([u])=>(r.paid||{})[u]||u===r.payer).length;return `<button class="card stack" style="text-align:left;gap:6px" data-act="vaqOpen" data-v="${r.id}"><div class="row between"><b>${esc(r.title)}</b><b class="num">${brl(r.total)}</b></div>
+  <div class="row" style="gap:4px;flex-wrap:wrap">${sh.map(([u])=>`<span class="avatar" style="${(r.paid||{})[u]||u===r.payer?"background:var(--good)":"background:var(--surface2);color:var(--muted)"}" title="${esc(nm(u))}">${teamInitials(u)}</span>`).join("")}</div>
+  <span class="tiny muted">${ddmm(r.date)}${r.payer?` · ${esc(nm(r.payer))} pagou a conta`:""} · ${pd} de ${sh.length} acertaram</span></button>`}).join("")
+  :`<div class="card empty">${f==="abertas"?"Nenhuma vaquinha em aberto. Toque no + para dividir uma despesa.":"Nenhuma vaquinha quitada ainda."}</div>`}
+ <button class="btn line" data-act="addVaq">${I.plus.replace('<svg','<svg width="16" height="16"')} Nova vaquinha</button>
+ ${teamHas("fin")&&debts().some(d=>vqRows(d).length)?`<button class="btn ghost sm" data-act="goDebts" style="align-self:flex-start">Ver dívidas com vaquinha</button>`:""}</div>`}
+A.goDebts=()=>{UI.tab="fin";UI.fin="dividas";render()};
+function vaqForm(r){r=r||{};const isEdit=!!r.id;const sh=r.shares||{};
+ openModal(isEdit?"Editar vaquinha":"Nova vaquinha",`<div class="stack">
+ <label class="field"><span>O que foi?</span><input id="vq_title" value="${esc(r.title||"")}" placeholder="Ex.: churrasco, material, aluguel do estande"></label>
+ <div class="grid2"><label class="field"><span>Valor total</span><input id="vq_total" inputmode="decimal" value="${r.total?String(r.total).replace(".",","):""}" placeholder="0,00"></label><label class="field"><span>Data</span><input id="vq_date" type="date" value="${r.date||today()}"></label></div>
+ <label class="field"><span>Quem pagou a conta?</span><select id="vq_payer"><option value="">Ninguém ainda (cada um paga direto)</option>${teamMembers().map(m=>`<option value="${m.uid}" ${r.payer===m.uid?"selected":""}>${esc(m.uid===ME.uid?"Eu":teamNick(m.uid))}</option>`).join("")}</select><span class="tiny muted">Se alguém adiantou o dinheiro, os outros devem para essa pessoa.</span></label>
+ <div class="field"><span>Quem participa e quanto paga</span>
+ ${teamMembers().map(m=>{const sv=isEdit?sh[m.uid]:0;return `<div class="row" style="gap:8px"><label class="check grow" style="margin:0"><input type="checkbox" class="vq_on" data-u="${m.uid}" ${!isEdit||sv!=null?"checked":""}><span class="small">${esc(m.uid===ME.uid?"Eu":teamNick(m.uid))}</span></label><input class="vq_v" data-u="${m.uid}" inputmode="decimal" style="max-width:130px" placeholder="0,00" value="${isEdit&&sv!=null?String(sv).replace(".",","):""}"></div>`}).join("")}
+ <div class="row between"><button type="button" class="btn ghost sm" data-act="vqEqual">Dividir igualmente</button><span class="tiny muted" id="vq_sum"></span></div></div>
+ <label class="field"><span>Observação (opcional)</span><input id="vq_note" value="${esc(r.note||"")}" placeholder="Ex.: PIX para a Ana"></label>
+ <button class="btn block" data-act="vaqSave" data-v="${r.id||""}">${isEdit?"Salvar":"Criar vaquinha"}</button></div>`)}
+function vaqDetail(id){const r=VQ().items[id];if(!r)return;const sh=Object.entries(r.shares||{}).filter(([,v])=>v!=null);UI.vqDel=id;
+ openModal(r.title,`<div class="stack"><div class="row" style="gap:12px">${cowPig(64)}<div class="stack-s" style="gap:2px"><b class="num" style="font-size:22px">${brl(r.total)}</b><span class="tiny muted">${dayLabel(r.date)}${r.payer?` · ${esc(nm(r.payer))} pagou a conta`:""}</span>${r.note?`<span class="small">${esc(r.note)}</span>`:""}</div></div>
+ <div class="card list">${sh.map(([u,val])=>{const ok=!!(r.paid||{})[u]||u===r.payer;return `<div class="item"><span class="avatar" style="${ok?"background:var(--good)":""}">${teamInitials(u)}</span><div class="grow stack-s" style="gap:0"><b>${esc(nm(u))}</b><span class="tiny muted">${u===r.payer?"Pagou a conta":ok?"Acertou em "+ddmm((r.paid||{})[u]):"Falta pagar"}</span></div><b class="num">${brl(+val||0)}</b>${u===r.payer?"":`<button class="btn ${ok?"ghost":"line"} sm" data-act="vaqPaid" data-v="${r.id}" data-u="${u}">${ok?"Desfazer":"Pagou"}</button>`}</div>`}).join("")}</div>
+ <button class="btn ghost" data-act="vaqEdit" data-v="${r.id}">Editar</button>
+ <button class="btn danger sm" data-act="askDel" style="align-self:center">Apagar vaquinha</button>${confirmBox("vaqDel","Apagar esta vaquinha para toda a equipe?")}</div>`)}
+
+/* ---------- Demonstração: equipe CriaMente3d ---------- */
+function demoTeams(){TEAMS=[{id:"demo-team",name:"CriaMente3d",owner:"demo",features:{agenda:true,tasks:true,fin:true,quotes:true,vaq:true},
+ members:[{uid:"demo",nick:"José",email:"jose@exemplo.com"},{uid:"m_ana",nick:"Ana",email:"ana@exemplo.com"},{uid:"m_lucas",nick:"Lucas",email:"lucas@exemplo.com"}],invites:["contato@exemplo.com"]}];TINV=[];TCOUNT["demo-team"]=3}
+function demoTeamData(){const D=n=>addDays(today(),n);const k=mkey();const id=()=>rid();
+ const tasks={};[["Imprimir pedido da Loja Arte & Cia",D(0),"demo","trabalho",[["Fatiar o modelo",true],["Imprimir 12 peças",false]]],["Responder orçamentos do Instagram",D(0),"m_ana","trabalho",[]],["Comprar filamento PLA branco",D(1),"m_lucas","pagar",[]],["Fotografar produtos novos",D(2),"demo","trabalho",[]],["Atualizar catálogo no site",D(3),"",  "trabalho",[]],["Revisar contas do mês",D(-1),"m_ana","trabalho",[]]]
+  .forEach(([title,date,who,kind,subs],i)=>{const tid="dt"+i;tasks[tid]={id:tid,title,date,time:i===0?"14:00":"",who,by:"demo",kind,prio:i===0?"alta":"media",status:i===1?"doing":"todo",cal:true,remind:30,subs:subs.map(([t,done])=>({t,done})),created:Date.now()-i*1e6,repeat:i===4?"weekly":""}});
+ tasks.dtx={id:"dtx",title:"Entregar chaveiros personalizados",date:D(-2),who:"m_lucas",by:"demo",kind:"trabalho",prio:"media",status:"done",doneAt:Date.now()-2e8,cal:true,subs:[]};
+ TD.agenda=deepMerge(TPARTS[0].def(),{agenda:{events:{de1:{id:"de1",title:"Reunião com fornecedor de resina",date:D(1),time:"10:00",remind:30,repeat:"none",place:"Online",notes:""},de2:{id:"de2",title:"Feira de artesanato (estande)",date:D(5),time:"08:00",remind:1440,repeat:"none",place:"Centro de eventos",notes:""},de3:{id:"de3",title:"Planejamento da semana",date:D(-((new Date().getDay()+6)%7)),time:"08:30",remind:10,repeat:"weekly",place:"",notes:""}}},tasks:{items:tasks,doneTotal:41}});
+ TD["fin/quotes"]=TPARTS[1].def();if(S.quotes)TD["fin/quotes"].quotes=deepMerge(TD["fin/quotes"].quotes,clone(S.quotes));
+ TBASE.agenda=clone(TD.agenda);TBASE["fin/quotes"]=clone(TD["fin/quotes"]);
+ const inc={},exp={};[["Vendas Shopee",4280,"m_ana",3],["Encomenda Loja Arte & Cia",1850,"demo",8],["Vendas na feira",960,"m_lucas",15]].forEach(([desc,v,by,d])=>inc[id()]={v,desc,by,date:k+"-"+pad(Math.min(d,28)),t:Date.now()});
+ [["Filamento PLA e PETG","compras",780,"m_lucas",4],["Energia da oficina","contas",410,"demo",10],["Anúncios no Instagram","outros",300,"m_ana",6],["Embalagens","compras",190,"m_ana",9],["Parcela da impressora","divida",900,"demo",12,"dimp"],["Parcela da impressora","divida",600,"m_ana",12,"dimp"]].forEach(([desc,cat,v,by,d,debtId])=>exp[id()]={v,desc,cat,by,date:k+"-"+pad(Math.min(d,28)),t:Date.now(),debtId:debtId||null});
+ TFIN["m"+k.replace("-","")]={incomes:inc,expenses:exp};
+ TFIN.meta={debts:{dimp:{name:"Impressora 3D Bambu (financiada)",kind:"financiamento",balance:7200,rate:1.6,min:900,inst:8,created:today(),split:{demo:3600,m_ana:2400,m_lucas:1200}}}};
+ TFIN.vaq={items:{v1:{id:"v1",title:"Estande na feira de artesanato",total:450,date:D(-3),payer:"demo",shares:{demo:150,m_ana:150,m_lucas:150},paid:{m_ana:D(-2)},by:"demo",created:Date.now()-3e8,note:"PIX para o José"},
+  v2:{id:"v2",title:"Almoço de comemoração (100 pedidos!)",total:186,date:D(-1),payer:"m_ana",shares:{demo:62,m_ana:62,m_lucas:62},paid:{},by:"m_ana",created:Date.now()-1e8},
+  v3:{id:"v3",title:"Caixa de ferramentas",total:240,date:D(-20),payer:"m_lucas",shares:{demo:80,m_ana:80,m_lucas:80},paid:{demo:D(-18),m_ana:D(-15)},by:"m_lucas",created:Date.now()-2e9}}}}
 
 /* início */
 (function boot(){

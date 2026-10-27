@@ -3367,10 +3367,14 @@ function viewAuth(){const m=AUTH.mode;
  ${AUTH.msg?`<div class="banner ${AUTH.ok?"info":"bad"}">${esc(AUTH.msg)}</div>`:""}
  <button class="btn block" data-act="authGo" ${AUTH.busy?"disabled":""}>${m==="entrar"?"Entrar":m==="criar"?"Criar minha conta":"Enviar link para trocar a senha"}</button>
  ${m==="entrar"?`<button class="btn ghost sm" data-act="authMode" data-v="esqueci" style="align-self:center">Esqueci minha senha</button>`:m==="esqueci"?`<button class="btn ghost sm" data-act="authMode" data-v="entrar" style="align-self:center">Voltar</button>`:""}
- <div class="card flat stack"><p class="small">Prefere não criar conta? Você pode usar o Prumo só neste aparelho. Os dados não vão para a internet, e as finanças a dois ficam desativadas.</p><button class="btn ghost sm" data-act="authLocal" style="align-self:flex-start">Usar sem conta</button></div>
+ <button class="card stack" data-act="howVideo" style="text-align:left;gap:10px;padding:12px"><div style="position:relative;border-radius:14px;overflow:hidden;aspect-ratio:16/10;background:#2B1E24"><img src="como-funciona.jpg" alt="" style="width:100%;height:100%;object-fit:cover;object-position:top;opacity:.85"><span style="position:absolute;inset:0;display:grid;place-items:center"><span style="width:58px;height:58px;border-radius:50%;background:var(--pig-deep);color:#fff;display:grid;place-items:center;box-shadow:0 6px 20px rgba(0,0,0,.3)">${I.play.replace('<svg','<svg width="26" height="26"')}</span></span></div>
+  <div class="stack-s" style="gap:2px"><b>Ainda não conhece? Veja como funciona</b><span class="small muted">Um vídeo de 1 minuto com tudo o que o Prumo faz. O Prumo é gratuito.</span></div></button>
  <button class="btn ghost sm" data-act="about" style="align-self:center">Sobre o Prumo</button></div>`}
 Object.assign(A,{
  authMode:el=>{AUTH.mode=el.dataset.v;AUTH.msg="";render()},
+ howVideo:()=>openModal("Como o Prumo funciona",`<div class="stack"><video src="como-funciona.mp4" poster="como-funciona.jpg" controls autoplay muted playsinline preload="metadata" style="width:100%;max-height:68vh;border-radius:16px;background:#000;object-fit:contain"></video>
+  <p class="tiny muted" style="text-align:center">Gostou? Crie sua conta: leva menos de 1 minuto e é gratuito.</p><button class="btn block" data-act="howCreate">Criar minha conta</button></div>`),
+ howCreate:()=>{closeModal();AUTH.mode="criar";AUTH.msg="";render();setTimeout(()=>{const e=document.getElementById("a_email");if(e)e.focus()},50)},
  authLocal:()=>{try{localStorage.setItem("prumo.localMode","1")}catch(e){}UI.needAuth=false;Store.localOnly=true;render()},
  authGo:async()=>{const email=v("a_email").trim(),pass=v("a_pass");const m=AUTH.mode;
   if(!/^\S+@\S+\.\S+$/.test(email)){AUTH.msg="Digite um e-mail válido.";AUTH.ok=false;render();return}
@@ -3601,6 +3605,11 @@ async function qSync(){if(!qCanLink())return;try{const {data,error}=await sb.fro
  Object.values(QS().items).forEach(q=>{const r=q&&q.pubId&&by[q.pubId];if(!r)return;if(r.status==="aprovado"&&q.status!=="aprovado"){q.status="aprovado";q.approvedAt=(r.approved_at||"").slice(0,10);q.approvedName=r.approved_name||"";changed=1;newly.push(q)}});
  if(changed){commit();toast(newly.length===1?`${newly[0].client.name} aprovou o orçamento nº ${qNum(newly[0])}!`:`${newly.length} orçamentos foram aprovados!`,5000)}}catch(e){}}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&UI.tab==="fin"&&UI.fin==="orc")qSync()});
+
+/* quem ainda usa sem conta: convite para criar a conta (os dados do aparelho vão junto) */
+A.localToAccount=()=>{AUTH.mode="criar";AUTH.ok=true;AUTH.msg="Crie sua conta com seu e-mail. Tudo o que você já anotou neste aparelho vai junto.";A.goLogin()};
+{const _rl=render;render=function(){_rl();try{if(!SB_ON||Store.cloud||Store.demo||!(Store.localOnly||localModeChosen())||!S.profile.created||UI.needAuth||UI.tab!=="home")return;const top=document.querySelector("#app .top");if(!top||document.getElementById("localNag"))return;
+ top.insertAdjacentHTML("afterend",`<div id="localNag" class="banner warn" style="margin-bottom:12px">${I.bell.replace('<svg','<svg width="20" height="20" style="flex:none"')}<div class="stack-s"><span><b>Seus dados estão só neste aparelho.</b> Se trocar de celular ou o navegador limpar os dados, você perde tudo. Crie sua conta gratuita: o que você já anotou vai junto.</span><button class="btn sm" data-act="localToAccount" style="align-self:flex-start">Criar minha conta</button></div></div>`)}catch(e){}}}
 
 
 /* ============================================================

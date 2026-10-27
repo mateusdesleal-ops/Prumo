@@ -1,6 +1,6 @@
 /* Prumo: guarda o app no aparelho para abrir rápido e funcionar sem internet.
    Ao publicar uma versão nova, aumente o número abaixo. */
-const VERSION = "prumo-v41";
+const VERSION = "prumo-v42";
 const SHELL = ["./", "index.html", "config.js", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 
@@ -15,6 +15,8 @@ self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  // Vídeo direto da internet (o iPhone precisa carregar em partes)
+  if (url.pathname.endsWith(".mp4")) return;
   // Dados e contas sempre pela internet
   if (url.hostname.endsWith("supabase.co") || url.hostname.includes("googleapis.com") && url.pathname.startsWith("/books") || url.hostname === "openlibrary.org") return;
   // Páginas: tenta a internet primeiro para pegar a versão nova

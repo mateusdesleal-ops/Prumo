@@ -2068,6 +2068,7 @@ function donateView(){const ok=!!PIX.key;const plan=UI.donPlan||"livre";const pl
   <p class="tiny muted">No app do seu banco, escolha Pix e depois Pix copia e cola. ${pl[2]?`O valor de ${brl(pl[2])} já vem preenchido.`:"Cole o código e digite o valor que quiser."} Ou use Pagar com chave e cole a chave acima.</p>
   ${pl[2]&&!sup?`<button class="btn line" data-act="donDone" data-v="${plan}">Já fiz o Pix, quero ser Apoiador</button>`:""}`
  :`<div class="banner warn">A chave Pix ainda não foi configurada.</div>`}
+ ${typeof sponsorsSection==="function"&&typeof SB_ON!=="undefined"&&(SB_ON||Store.demo)?sponsorsSection():""}
  <p class="small" style="text-align:center">Obrigado por ajudar o Prumo a continuar de pé.</p></div>`)}
 async function copyText(t,okMsg){try{await navigator.clipboard.writeText(t);toast(okMsg)}catch(e){const c=document.querySelector(".sheet .code");if(c){const r=document.createRange();r.selectNodeContents(c);const s=getSelection();s.removeAllRanges();s.addRange(r)}toast("Selecione e copie o texto.")}}
 
@@ -3111,7 +3112,7 @@ document.addEventListener("input",keepMark,true);document.addEventListener("chan
  for(const k in KEEP.vals){const el=keepFind(k);if(!el||!app.contains(el))continue;const s=KEEP.vals[k];if("c" in s)el.checked=s.c;else if(el.value!==s.v)el.value=s.v}
  if(fk){const el=keepFind(fk);if(el&&document.activeElement!==el){el.focus({preventScroll:true});try{if(sel)el.setSelectionRange(sel[0],sel[1])}catch(e){}}}}}
 /* depois de salvar, o que estava digitado vira o valor salvo */
-document.addEventListener("click",ev=>{const b=ev.target&&ev.target.closest&&ev.target.closest("[data-act]");if(b&&/^(save|qSave)/.test(b.dataset.act))setTimeout(()=>{KEEP.vals={}},0)},true);
+document.addEventListener("click",ev=>{const b=ev.target&&ev.target.closest&&ev.target.closest("[data-act]");if(b&&/^(save|qSave|spaAdd)/.test(b.dataset.act))setTimeout(()=>{KEEP.vals={}},0)},true);
 
 
 /* Config do orçamento: salva sozinho enquanto a pessoa digita */
@@ -3274,6 +3275,7 @@ function viewAdmin(){if(!UI.isAdmin)return `<div class="card empty">Acesso restr
    ${bar("Lançaram finanças",s.finance,base)}${bar("Cadastraram cartão",s.cards,base)}${bar("Cadastraram dívida",s.debts,base)}${bar("Registraram estudo",s.study,base)}${bar("Registraram exercício",s.exercise,base)}${bar("Registraram alimentação",s.food,base)}${bar("Criaram tarefas",s.tasks,base)}${bar("Porquinho ligado",s.pet,base)}${bar("Aba de Oração ligada",s.prayer,base)}
    <span class="tiny muted">Finanças compartilhadas: ${s.households} casal(is).</span></div>
   ${Object.keys(s.focus||{}).length?`<div class="card stack"><div class="label">Por onde quiseram começar</div>${Object.entries(s.focus).sort((a,b)=>b[1]-a[1]).map(([k,v])=>bar(FN[k]||k,v,base)).join("")}</div>`:""}
+  ${typeof spaCard==="function"?spaCard():""}
   <div class="card stack"><div class="row between"><div class="label">Contas</div><button class="btn ghost sm" data-act="admCsv">Baixar lista</button></div>
    <input id="admQ" placeholder="Buscar por e-mail" value="${esc(ADM.q)}">
    <p class="tiny muted">Toque em uma conta para ver os detalhes. O perfil completo só aparece para quem autorizou as dicas personalizadas (${(ADM.users||[]).filter(u=>u.shared).length} de ${(ADM.users||[]).length}).</p>
@@ -3538,6 +3540,43 @@ function simInject(){if(!Store.demo||!["home","pig"].includes(UI.tab)||document.
 {const _r2=render;render=function(){_r2();simInject()}}
 document.addEventListener("input",ev=>{const t=ev.target;if(t&&t.classList&&t.classList.contains("simr")){SIMV[t.dataset.k]=+t.value;simRedraw()}});
 A.simPreset=el=>{const P={bad:{fin:10,study:0,ex:0,gap:14,tasks:2,late:3,prayer:0,streak:0},mid:{fin:50,study:600,ex:500,gap:2,tasks:15,late:1,prayer:3,streak:9},good:{fin:95,study:2400,ex:3000,gap:0,tasks:55,late:0,prayer:7,streak:35}}[el.dataset.v];Object.assign(SIMV,P);simRedraw()};
+
+
+/* ============================================================
+   Empresas apoiadoras (aparecem em "Apoie o Prumo")
+   ============================================================ */
+const SPON={list:null,err:null};
+const SPON_MAIL="prumovidaemordem@gmail.com";
+function sponsorsSection(){return `<div class="card stack" id="spBox"><div class="label" style="color:var(--money)">Empresas que apoiam o Prumo</div><div id="spList"><p class="small muted">Carregando…</p></div>
+ <p class="tiny muted">Essas empresas ajudam a cobrir os custos do Prumo. Elas não têm acesso aos seus dados e não mostram anúncios no app.</p>
+ <a class="btn line block" href="mailto:${SPON_MAIL}?subject=${encodeURIComponent("Quero apoiar o Prumo")}&body=${encodeURIComponent("Olá! Minha empresa gostaria de apoiar o Prumo.\n\nNome da empresa:\nCidade:\nTelefone para contato:\n")}" style="text-decoration:none">Sua empresa quer apoiar o Prumo?</a></div>`}
+function sponsorCard(s){const inner=`${s.logo?`<img src="${s.logo}" alt="${esc(s.name)}" style="width:64px;height:64px;object-fit:contain;background:#fff;border-radius:12px;padding:4px;flex:none;border:1px solid var(--line)">`:`<span class="ico" style="width:64px;height:64px;font-size:22px;background:var(--surface2)">${esc(s.name.slice(0,2))}</span>`}<span class="grow stack-s" style="gap:2px;min-width:0"><b>${esc(s.name)}</b>${s.message?`<span class="small muted" style="white-space:normal">${esc(s.message)}</span>`:""}</span>`;
+ return s.url?`<a class="row" href="${esc(s.url)}" target="_blank" rel="noopener" style="gap:12px;text-decoration:none;color:inherit">${inner}</a>`:`<div class="row" style="gap:12px">${inner}</div>`}
+function sponsorsPaint(){const el=document.getElementById("spList");if(!el)return;
+ if(Store.demo){el.innerHTML=`<div class="stack-s" style="gap:10px">${[1,2].map(()=>`<div class="row" style="gap:12px"><span class="ico" style="width:64px;height:64px;border:2px dashed var(--line);background:none;color:var(--muted);font-size:12px">logo</span><span class="stack-s" style="gap:2px"><b>Sua empresa aqui</b><span class="small muted">Espaço de agradecimento às empresas que apoiam o Prumo.</span></span></div>`).join("")}</div>`;return}
+ if(SPON.list===null){el.innerHTML=`<p class="small muted">Carregando…</p>`;return}
+ el.innerHTML=SPON.list.length?`<div class="stack-s" style="gap:12px">${SPON.list.map(sponsorCard).join("")}</div>`:`<p class="small">Ainda não temos empresas apoiadoras. Que tal a sua ser a primeira? 🐷</p>`}
+async function sponsorsLoad(){if(typeof sb==="undefined"||!sb){SPON.list=[];sponsorsPaint();return}
+ try{const {data,error}=await sb.from("sponsors").select("id,name,message,url,logo,active,sort").eq("active",true).order("sort").order("created_at");if(error)throw error;SPON.list=data||[]}catch(e){SPON.list=[]}sponsorsPaint()}
+new MutationObserver(()=>{const b=document.getElementById("spList");if(b&&!b.dataset.loaded){b.dataset.loaded="1";if(Store.demo)sponsorsPaint();else{sponsorsPaint();sponsorsLoad()}}}).observe(document.getElementById("modal"),{childList:true,subtree:false});
+/* painel do administrador */
+const SPA={list:null,logo:null};
+async function spaLoad(){try{const {data,error}=await sb.from("sponsors").select("id,name,message,url,logo,active,sort,created_at").order("sort").order("created_at");if(error)throw error;SPA.list=data||[];SPA.err=null}catch(e){SPA.list=[];SPA.err=(e&&e.message)||"erro"}render()}
+function spaCard(){if(SPA.list===null)setTimeout(spaLoad,0);
+ return `<div class="card stack"><div class="label">Empresas apoiadoras</div><p class="tiny muted">Aparecem em Perfil > Apoie o Prumo, com logo e agradecimento.</p>
+ ${SPA.err?`<div class="banner bad"><span class="small">Não consegui carregar: ${esc(SPA.err)}. Confira se a tabela de apoiadores foi criada no Supabase.</span></div>`:""}
+ ${(SPA.list||[]).map(s=>`<div class="row" style="gap:10px;align-items:flex-start;${s.active?"":"opacity:.5"}">${s.logo?`<img src="${s.logo}" alt="" style="width:44px;height:44px;object-fit:contain;background:#fff;border-radius:10px;flex:none">`:`<span class="ico">${esc(s.name.slice(0,2))}</span>`}<div class="grow stack-s" style="gap:1px;min-width:0"><b class="small">${esc(s.name)}</b><span class="tiny muted">${esc(s.message||"")}</span></div><button class="btn ghost sm" data-act="spaToggle" data-v="${s.id}" data-a="${s.active?1:0}">${s.active?"Ocultar":"Mostrar"}</button><button class="btn danger sm" data-act="spaDel" data-v="${s.id}" aria-label="Apagar">${I.trash.replace('<svg','<svg width="14" height="14"')}</button></div>`).join("")||(SPA.list?`<p class="small muted">Nenhuma empresa cadastrada.</p>`:`<p class="small muted">Carregando…</p>`)}
+ <div class="card flat stack-s"><b class="small">Adicionar empresa</b>
+  <input id="sp_name" maxlength="80" placeholder="Nome da empresa">
+  <input id="sp_msg" maxlength="280" placeholder="Agradecimento, ex.: Obrigado por acreditar no Prumo!">
+  <input id="sp_url" inputmode="url" placeholder="Site ou Instagram (opcional), começando com https://">
+  <label class="btn line sm" style="cursor:pointer;align-self:flex-start">${SPA.logo?"Logo escolhida ✓":"Escolher logo"}<input type="file" id="sp_logo" accept="image/*" style="display:none"></label>
+  <button class="btn sm" data-act="spaAdd">Adicionar</button></div></div>`}
+A.spaAdd=async()=>{const name=v("sp_name").trim();if(!name){toast("Informe o nome da empresa.");return}let url=v("sp_url").trim();if(url&&!/^https?:\/\//.test(url))url="https://"+url;
+ const {error}=await sb.from("sponsors").insert({name,message:v("sp_msg").trim()||null,url:url||null,logo:SPA.logo,sort:(SPA.list||[]).length});if(error){toast("Não foi possível adicionar: "+error.message);return}SPA.logo=null;toast("Empresa adicionada.");spaLoad()};
+A.spaToggle=async el=>{await sb.from("sponsors").update({active:el.dataset.a!=="1"}).eq("id",el.dataset.v);spaLoad()};
+A.spaDel=async el=>{await sb.from("sponsors").delete().eq("id",el.dataset.v);toast("Empresa removida.");spaLoad()};
+document.addEventListener("change",ev=>{const el=ev.target;if(el&&el.id==="sp_logo"&&el.files&&el.files[0]){const img=new Image();const u=URL.createObjectURL(el.files[0]);img.onload=()=>{const m=320,sc=Math.min(1,m/Math.max(img.width,img.height));const cv=document.createElement("canvas");cv.width=Math.round(img.width*sc);cv.height=Math.round(img.height*sc);cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);SPA.logo=cv.toDataURL("image/png");URL.revokeObjectURL(u);render();toast("Logo pronta. Toque em Adicionar.")};img.src=u}});
 
 /* início */
 (function boot(){

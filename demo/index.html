@@ -375,12 +375,17 @@ const BUCKETS={N:{name:"Necessidades",color:"var(--need)",desc:"O que você prec
 const CATS=[
  {id:"moradia",n:"Moradia",b:"N",i:"Mo"},{id:"contas",n:"Contas da casa",b:"N",i:"Ct"},{id:"mercado",n:"Mercado",b:"N",i:"Me"},
  {id:"transporte",n:"Transporte",b:"N",i:"Tr"},{id:"saude",n:"Saúde",b:"N",i:"Sa"},{id:"educacao",n:"Educação",b:"N",i:"Ed"},{id:"impostos",n:"Impostos e taxas",b:"N",i:"It"},
- {id:"filhos",n:"Filhos e pets",b:"N",i:"Fi"},
+ {id:"filhos",n:"Filhos e pets",b:"N",i:"Fi"},{id:"outrosN",n:"Outros",b:"N",i:"Ou"},
  {id:"lazer",n:"Lazer",b:"D",i:"La"},{id:"delivery",n:"Restaurante e delivery",b:"D",i:"Rd"},{id:"compras",n:"Compras",b:"D",i:"Co"},
  {id:"assinaturas",n:"Assinaturas",b:"D",i:"As"},{id:"beleza",n:"Beleza e cuidados",b:"D",i:"Be"},{id:"presentes",n:"Presentes",b:"D",i:"Pr"},{id:"outros",n:"Outros",b:"D",i:"Ou"},
- {id:"reserva",n:"Reserva de emergência",b:"F",i:"Re"},{id:"investimento",n:"Investimentos",b:"F",i:"In"},{id:"divida",n:"Pagamento de dívida",b:"F",i:"Dv"},{id:"sonho",n:"Sonhos e objetivos",b:"F",i:"So"},
+ {id:"reserva",n:"Reserva de emergência",b:"F",i:"Re"},{id:"investimento",n:"Investimentos",b:"F",i:"In"},{id:"divida",n:"Pagamento de dívida",b:"F",i:"Dv"},{id:"sonho",n:"Sonhos e objetivos",b:"F",i:"So"},{id:"outrosF",n:"Outros",b:"F",i:"Ou"},
 ];
 const CAT=Object.fromEntries(CATS.map(c=>[c.id,c]));
+/* categorias criadas pela pessoa (ficam nas finanças: pessoais ou da equipe) */
+function syncCats(){for(let i=CATS.length-1;i>=0;i--)if(CATS[i].custom){delete CAT[CATS[i].id];CATS.splice(i,1)}
+ let mc={};try{mc=(finDocs().meta||{}).cats||{}}catch(e){}
+ for(const [id,c] of Object.entries(mc)){if(!c||!c.n||!BUCKETS[c.b])continue;const o={id,n:c.n,b:c.b,i:c.n.replace(/[^A-Za-zÀ-ú0-9]/g,"").slice(0,2)||"Ca",custom:true};
+  const oi=CATS.findIndex(x=>x.b===c.b&&/^outros/.test(x.id));const last=CATS.map(x=>x.b).lastIndexOf(c.b);CATS.splice(oi>=0?oi:last+1,0,o);CAT[id]=o}}
 
 const SUB_TIPS_TEXT=["Assinaturas são feitas para serem esquecidas: o valor parece pequeno, a cobrança é automática no cartão e cancelar costuma dar trabalho. Muita gente paga todo mês por serviços que nem usa mais.","Somadas, pesam. Três assinaturas de R$ 40 são R$ 120 por mês, quase R$ 1.500 por ano.","Faça um pente-fino: olhe a fatura do cartão e o extrato dos últimos 3 meses e cadastre no Prumo tudo que se repete. Para cada uma, pergunte: usei nos últimos 30 dias? Se não, cancele. Dá para assinar de novo quando quiser.","Streaming: fique com um ou dois e vá alternando mês a mês. Teste grátis vira cobrança: anote a data de fim e decida antes.","Pela lei, o cancelamento precisa ser tão fácil quanto a contratação, e a empresa deve dar um número de protocolo. Guarde esse número."];
 const LESSONS=[
@@ -1820,7 +1825,7 @@ function render(){
  if(!UI.booted)return;
  const app=$("#app");
  if(UI.needAuth){$("#tabs").hidden=true;$("#fab").hidden=true;app.innerHTML=UI.needAuth==="pending"?'<div class="empty">Carregando…</div>':viewAuth();return}
- teamSwap();
+ teamSwap();try{syncCats()}catch(e){}
  if(!S.profile.created){$("#tabs").hidden=true;$("#fab").hidden=true;app.innerHTML=viewOnboarding();bindOnb();return}
  $("#tabs").hidden=false;
  renderTabs();
@@ -2238,14 +2243,19 @@ function closeModal(){$("#modal").innerHTML="";document.body.style.overflow=""}
 const v=id=>{const e=document.getElementById(id);return e?e.value:""};
 function confirmBox(id,label){return `<div id="${id}" hidden class="banner bad stack" style="flex-direction:column"><span>${label}</span><div class="row"><button class="btn danger sm" data-act="${id}Yes">Sim, apagar</button><button class="btn ghost sm" data-act="hideEl" data-v="${id}">Cancelar</button></div></div>`}
 
-function expenseForm(e,month){e=e||{};const debtsOpen=debts().filter(d=>d.left>0||d.id===e.debtId);
+function catMineList(){const mine=CATS.filter(c=>c.custom);return `<div id="catMine" class="stack-s" style="gap:4px">${mine.length?`<span class="tiny muted" style="font-weight:700">Suas categorias</span>${mine.map(c=>`<div class="row between small"><span>${esc(c.n)} <span class="tiny muted">· ${BUCKETS[c.b].name}</span></span><button type="button" class="btn ghost sm" data-act="catDel" data-v="${c.id}" style="min-height:28px;padding:2px 10px">Remover</button></div>`).join("")}`:""}</div>`}
+function expenseForm(e,month){try{syncCats()}catch(x){}e=e||{};const debtsOpen=debts().filter(d=>d.left>0||d.id===e.debtId);
  const isEdit=!!e.id;const isCard=!!(e.card&&cardById(e.card));const showV=isCard&&e.total?e.total:e.v;const showD=isCard&&e.bought?e.bought:e.date;const curCat=e.cat||"mercado";
  openModal(isEdit?"Editar gasto":"Novo gasto",`<div class="stack">
  ${isEdit&&+e.n>1?`<div class="banner info"><span>Parcela ${e.i} de ${e.n}. As alterações valem para a compra inteira e todas as parcelas.</span></div>`:""}
  <label class="field"><span id="f_vlab">${isCard?"Valor total da compra":"Valor"}</span><input id="f_v" inputmode="decimal" placeholder="0,00" value="${showV?String(Math.round(showV*100)/100).replace(".",","):""}" style="font-size:24px;font-weight:700"></label>
  <label class="field"><span>Descrição</span><input id="f_desc" value="${esc(e.desc||"")}" placeholder="Ex.: mercado do mês"></label>
  ${payField(e)}
- <div class="field"><span>Categoria</span><div class="stack-s">${["N","D","F"].map(b=>`<div class="tiny muted" style="font-weight:700">${BUCKETS[b].name}</div><div class="chips" style="flex-wrap:wrap">${CATS.filter(c=>c.b===b).map(c=>`<button type="button" class="chip ${c.id===curCat?"on":""}" data-act="pickCat" data-v="${c.id}">${c.n}</button>`).join("")}</div>`).join("")}</div><input type="hidden" id="f_cat" value="${curCat}"><p class="tiny muted" id="f_bdesc">${BUCKETS[(CAT[curCat]||CAT.outros).b].name}: ${BUCKETS[(CAT[curCat]||CAT.outros).b].desc} <button type="button" class="btn ghost sm" data-act="bucketInfo" data-v="${(CAT[curCat]||CAT.outros).b}" style="min-height:26px;padding:2px 8px">Saber mais</button></p></div>
+ <div class="field"><span>Categoria</span><div class="stack-s">${["N","D","F"].map(b=>`<div class="tiny muted" style="font-weight:700">${BUCKETS[b].name}</div><div class="chips" id="f_cats_${b}" style="flex-wrap:wrap">${CATS.filter(c=>c.b===b).map(c=>`<button type="button" class="chip ${c.id===curCat?"on":""}" data-act="pickCat" data-v="${c.id}">${esc(c.n)}</button>`).join("")}</div>`).join("")}
+ <button type="button" class="btn ghost sm" data-act="catNewToggle" style="align-self:flex-start">${I.plus.replace('<svg','<svg width="14" height="14"')} Criar categoria</button>
+ <div id="catNew" class="card flat stack hide" style="gap:8px;padding:12px"><label class="field"><span>Nome da categoria</span><input id="cn_name" maxlength="30" placeholder="Ex.: Academia, Farmácia, Material de trabalho"></label>
+  <label class="field"><span>Entra em qual parte do plano?</span><select id="cn_b">${["N","D","F"].map(b=>`<option value="${b}">${BUCKETS[b].name}</option>`).join("")}</select></label>
+  <button type="button" class="btn sm" data-act="catCreate">Criar e usar</button>${catMineList()}</div></div><input type="hidden" id="f_cat" value="${curCat}"><p class="tiny muted" id="f_bdesc">${BUCKETS[(CAT[curCat]||CAT.outros).b].name}: ${BUCKETS[(CAT[curCat]||CAT.outros).b].desc} <button type="button" class="btn ghost sm" data-act="bucketInfo" data-v="${(CAT[curCat]||CAT.outros).b}" style="min-height:26px;padding:2px 8px">Saber mais</button></p></div>
  <label class="field ${curCat==="divida"?"":"hide"}" id="debtField"><span>Qual dívida?</span><select id="f_debt"><option value="">Nenhuma específica</option>${debtsOpen.map(d=>`<option value="${d.id}" ${d.id===e.debtId?"selected":""}>${esc(d.name)} (${brl0(d.left)})</option>`).join("")}</select></label>
  <div class="grid2"><label class="field"><span id="f_dlab">${isCard?"Data da compra":"Data"}</span><input id="f_date" type="date" value="${showD||(month&&month!==mkey()?month+"-01":today())}"></label><label class="field ${isCard?"hide":""}" id="f_fixedwrap"><span>&nbsp;</span><label class="check" style="min-height:44px;align-items:center"><input type="checkbox" id="f_fixed" ${e.fixed?"checked":""}><span>Conta fixa todo mês</span></label></label></div>
  <div id="f_warn"></div>
@@ -2362,6 +2372,15 @@ const A={
  addIncome:()=>incomeForm(null,UI.tab==="fin"?UI.month:null),
  quickSalary:()=>{const id=rid();const k=UI.month;finPatch(mid(k),{incomes:{[id]:{v:+S.profile.income,desc:"Salário",date:k===mkey()?today():k+"-05",by:ME.uid,t:Date.now()}}});markActive();saveApp();toast("Salário lançado.")},
  copyFixed:()=>{const k=UI.month;const prev=monthData(shiftMonth(k,-1)).expenses.filter(e=>e.fixed);const patch={expenses:{}};prev.forEach(e=>{const id=rid();const day=e.date.slice(8);const [y,m]=k.split("-").map(Number);const dim=new Date(y,m,0).getDate();patch.expenses[id]={v:e.v,desc:e.desc,cat:e.cat,date:k+"-"+pad(Math.min(+day,dim)),fixed:true,by:ME.uid,t:Date.now(),added:today(),debtId:e.debtId||null}});finPatch(mid(k),patch);markActive();saveApp();toast(`${prev.length} conta(s) fixa(s) lançada(s).`)},
+ catNewToggle:()=>{const b=$("#catNew");b.classList.toggle("hide");if(!b.classList.contains("hide"))$("#cn_name").focus()},
+ catCreate:()=>{const n=v("cn_name").trim();const b=v("cn_b");if(!n){toast("Dê um nome para a categoria.");return}
+  if(CATS.some(c=>c.n.toLowerCase()===n.toLowerCase()&&c.b===b)){toast("Essa categoria já existe.");return}
+  const id="c_"+rid();finPatch("meta",{cats:{[id]:{n,b}}});syncCats();
+  const box=$("#f_cats_"+b);if(box){const h=`<button type="button" class="chip" data-act="pickCat" data-v="${id}">${esc(n)}</button>`;const ou=box.querySelector('[data-v^="outros"]');if(ou)ou.insertAdjacentHTML("beforebegin",h);else box.insertAdjacentHTML("beforeend",h)}
+  const ch=document.querySelector(`[data-act="pickCat"][data-v="${id}"]`);if(ch)A.pickCat(ch);$("#cn_name").value="";$("#catNew").classList.add("hide");
+  const ml=$("#catMine");if(ml)ml.outerHTML=catMineList();toast(`Categoria ${n} criada.`)},
+ catDel:el=>{const id=el.dataset.v;const c=CAT[id];finPatch("meta",{cats:{[id]:null}});syncCats();const ch=document.querySelector(`[data-act="pickCat"][data-v="${id}"]`);if(ch){if(ch.classList.contains("on")){const o=document.querySelector('[data-act="pickCat"][data-v="outros"]');if(o)A.pickCat(o)}ch.remove()}
+  const ml=$("#catMine");if(ml)ml.outerHTML=catMineList();toast(`Categoria removida. Os gastos antigos dela aparecem como Outros.`)},
  pickCat:el=>{document.querySelectorAll('[data-act="pickCat"]').forEach(b=>b.classList.toggle("on",b===el));$("#f_cat").value=el.dataset.v;{const bk=(CAT[el.dataset.v]||CAT.outros).b;const bd=$("#f_bdesc");if(bd)bd.innerHTML=`${BUCKETS[bk].name}: ${BUCKETS[bk].desc} <button type="button" class="btn ghost sm" data-act="bucketInfo" data-v="${bk}" style="min-height:26px;padding:2px 8px">Saber mais</button>`}$("#debtField").classList.toggle("hide",el.dataset.v!=="divida");if(UI._warn)UI._warn()},
  saveExpense:el=>{const val=parseMoney(v("f_v"));if(!val){toast("Informe o valor do gasto.");return}const date=v("f_date")||today();const id=el.dataset.v||rid();const old=el.dataset.v?findTx("expenses",id):null;
   const card=cardById(v("f_card"));

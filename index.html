@@ -244,6 +244,13 @@ textarea{min-height:80px;resize:vertical}
 .cal button.sel{background:var(--ink);color:var(--bg)}
 .cal button i{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:var(--pig-deep)}
 .cal button.sel i{background:var(--bg)}
+.cal button.has{background:color-mix(in srgb,var(--pig) 30%,transparent);color:var(--pig-deep);font-weight:800}
+.cal button.has.out{opacity:.6}
+.cal button.wk:not(.sel):not(.has){background:var(--surface2)}
+.cal button.today{box-shadow:inset 0 0 0 2px var(--pig-deep)}
+.cal button.sel{background:var(--ink);color:var(--bg)}
+.cal button em{position:absolute;top:3px;right:4px;font-style:normal;font-size:9px;font-weight:800;background:var(--pig-deep);color:#fff;border-radius:99px;min-width:14px;height:14px;line-height:14px;padding:0 3px}
+.calleg{width:14px;height:14px;border-radius:5px;display:inline-block}.calleg.has{background:color-mix(in srgb,var(--pig) 30%,transparent)}.calleg.today{box-shadow:inset 0 0 0 2px var(--pig-deep)}
 
 /* timer */
 .timer{display:grid;place-items:center;position:relative}
@@ -1716,8 +1723,10 @@ function habitPrinciples(){const it=(ic,t,d)=>`<div class="row" style="align-ite
 function habitForm(sel,why,time){return `<div class="field"><span>Por onde você quer começar? Escolha quantas quiser.</span><div class="chips" style="flex-wrap:wrap">${FOCUS.map(([id,n])=>`<button type="button" class="chip ${sel.includes(id)?"on":""}" data-act="focusPick" data-v="${id}">${n}</button>`).join("")}</div></div>
  <label class="field"><span>Qual é o seu motivo? (opcional)</span><input id="h_why" maxlength="90" value="${esc(why||"")}" placeholder="Ex.: viajar com a família"></label>
  <div class="chips" style="flex-wrap:wrap;margin-top:-4px">${WHY_EX.map(w=>`<button type="button" class="chip" data-act="whyPick" data-v="${esc(w)}">${esc(w)}</button>`).join("")}</div>
- <label class="field"><span>Que horas quer lembrar de usar o Prumo?</span><input id="h_time" type="time" value="${time||"21:00"}"></label>`}
-function applyHabit(focus,why,time){S.profile.focus=focus.length?focus:["fin"];S.profile.why=why||"";S.profile.remindAt=time||"21:00";
+ <label class="check"><input type="checkbox" id="h_rem" ${S.profile.remindOn?"checked":""}><span><b>Quero um lembrete diário na agenda</b><br><span class="tiny muted">Um aviso por dia para usar o Prumo. Opcional.</span></span></label>
+ <label class="field"><span>Horário do lembrete</span><input id="h_time" type="time" value="${time||"21:00"}"></label>`}
+function applyHabit(focus,why,time,rem){S.profile.focus=focus.length?focus:["fin"];S.profile.why=why||"";S.profile.remindAt=time||"21:00";S.profile.remindOn=!!rem;
+ if(!rem){delete S.agenda.events.prumo_daily;return}
  S.agenda.events.prumo_daily={id:"prumo_daily",title:"Dois minutos no Prumo",date:today(),time:S.profile.remindAt,remind:0,repeat:"daily",place:"",notes:"Cumpra as missões do dia. Leva poucos minutos."}}
 function habitModal(){UI.focusSel=(S.profile.focus||[]).slice();openModal("Seu jeito de começar",`<div class="stack"><p class="small muted">Você não precisa ser organizado para começar. O Prumo te ajuda aos poucos.</p>${habitPrinciples()}${habitForm(UI.focusSel,S.profile.why,S.profile.remindAt)}<button class="btn block" data-act="saveHabit">Salvar</button></div>`)}
 function nextLessonId(){const unread=LESSONS.filter(l=>!S.learn.read[l.id]);const order=["fin","food","ex","mind"];const tr=order[parseDate(today()).getDate()%order.length];return(unread.find(l=>l.tr===tr)||unread[0]||LESSONS[0]).id}
@@ -1990,15 +1999,23 @@ function exHistory(){const ls=exLogs();const groups={};ls.slice(0,150).forEach(l
  return ls.length?Object.keys(groups).sort().reverse().map(d=>`<div class="card" style="padding:6px 16px"><div class="tiny muted" style="padding-top:8px;font-weight:700;text-transform:capitalize">${dayLabel(d)}</div><div class="list">${groups[d].map(l=>`<button class="item" style="width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;padding-inline:0" data-act="editEx" data-v="${l.id}"><span class="ico" style="background:color-mix(in srgb,var(--need) 16%,transparent);color:var(--need)">${(EXT[l.type]||EXT.outro).n.slice(0,2)}</span><div class="grow stack-s" style="gap:1px"><p><b>${esc(l.desc||(EXT[l.type]||EXT.outro).n)}</b></p><p class="tiny muted">${l.int} · cerca de ${kcal(l)} kcal</p></div><span class="amount">${l.min} min</span></button>`).join("")}</div></div>`).join(""):`<div class="card empty">Registre sua primeira caminhada, treino ou aula. Até 10 minutos contam.</div>`}
 
 /* ---------- Agenda ---------- */
+function calCount(s){return eventsOn(s).filter(e=>e.repeat!=="daily").length}
 function viewAgenda(){if(UI.agendaSub==="tasks")return tasksView();const k=UI.calMonth;const [y,m]=k.split("-").map(Number);const first=new Date(y,m-1,1);const start=new Date(first);start.setDate(1-first.getDay());
- let cells="";for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const s=ymd(d);const has=eventsOn(s).length;
-  cells+=`<button class="${d.getMonth()!==m-1?"out":""} ${s===today()?"today":""} ${s===UI.calDay?"sel":""}" data-act="calDay" data-v="${s}" aria-label="${d.getDate()} ${has?", "+has+" compromisso(s)":""}">${d.getDate()}${has?"<i></i>":""}</button>`}
- const evs=eventsOn(UI.calDay);
+ const rg=UI.calRange||"dia";const wk0=(()=>{const d=parseDate(UI.calDay);d.setDate(d.getDate()-d.getDay());return ymd(d)})();
+ let cells="";for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const s=ymd(d);const has=calCount(s);const inWk=rg==="semana"&&s>=wk0&&s<=addDays(wk0,6);
+  cells+=`<button class="${d.getMonth()!==m-1?"out":""} ${s===today()?"today":""} ${s===UI.calDay?"sel":""} ${has?"has":""} ${inWk?"wk":""}" data-act="calDay" data-v="${s}" aria-label="${d.getDate()}${has?", "+has+" compromisso(s)":""}">${d.getDate()}${has>1?`<em>${has}</em>`:""}</button>`}
+ const days=rg==="dia"?[UI.calDay]:rg==="semana"?Array.from({length:7},(_,i)=>addDays(wk0,i)):Array.from({length:new Date(y,m,0).getDate()},(_,i)=>k+"-"+pad(i+1));
+ const daily=[];const groups=days.map(d=>({d,evs:eventsOn(d).filter(e=>{if(rg!=="dia"&&e.repeat==="daily"){if(!daily.find(x=>x.id===e.id))daily.push(e);return false}return true})})).filter(g=>g.evs.length||rg==="dia");
+ const title=rg==="dia"?dayLabel(UI.calDay):rg==="semana"?`Semana de ${parseDate(wk0).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})} a ${parseDate(addDays(wk0,6)).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}`:monthLabel(k);
  return `<div class="stack">${agendaHead()}
  <div class="card stack"><div class="row between"><button class="iconbtn" data-act="calMonth" data-v="-1" aria-label="Mês anterior">${I.left}</button><h3 style="text-transform:capitalize">${monthLabel(k)}</h3><button class="iconbtn" data-act="calMonth" data-v="1" aria-label="Próximo mês">${I.right}</button></div>
- <div class="cal">${DOW.map(d=>`<span class="dow">${d}</span>`).join("")}${cells}</div></div>
- <div class="section"><div class="row between"><div class="label" style="text-transform:none;letter-spacing:0;font-size:15px;color:var(--ink)">${dayLabel(UI.calDay)}</div><button class="btn ghost sm" data-act="addEvent" data-v="${UI.calDay}">Novo neste dia</button></div>
- <div class="card">${evs.length?`<div class="list">${evs.map(e=>evItem({...e,day:UI.calDay})).join("")}</div>`:`<div class="empty">Nada marcado para este dia.</div>`}</div></div>
+ <div class="cal">${DOW.map(d=>`<span class="dow">${d}</span>`).join("")}${cells}</div>
+ <div class="row tiny muted" style="gap:12px;flex-wrap:wrap"><span class="row" style="gap:6px"><i class="calleg has"></i>Dia com compromisso</span><span class="row" style="gap:6px"><i class="calleg today"></i>Hoje</span></div></div>
+ <div class="section"><div class="chips">${[["dia","Dia"],["semana","Semana"],["mes","Mês"]].map(([id,n])=>`<button class="chip ${rg===id?"on":""}" data-act="calRange" data-v="${id}">${n}</button>`).join("")}</div>
+ <div class="row between"><div class="label" style="text-transform:${rg==="mes"?"capitalize":"none"};letter-spacing:0;font-size:15px;color:var(--ink)">${title}</div><button class="btn ghost sm" data-act="addEvent" data-v="${UI.calDay}">Novo${rg==="dia"?" neste dia":""}</button></div>
+ ${daily.length?`<p class="tiny muted">Todo dia: ${daily.map(e=>esc(e.title)+(e.time?" ("+esc(e.time)+")":"")).join(", ")}</p>`:""}
+ ${rg==="dia"?`<div class="card">${groups[0].evs.length?`<div class="list">${groups[0].evs.map(e=>evItem({...e,day:UI.calDay})).join("")}</div>`:`<div class="empty">Nada marcado para este dia.</div>`}</div>`
+  :groups.length?groups.map(g=>`<div class="card" style="padding:6px 16px"><div class="tiny" style="padding-top:8px;font-weight:700;color:${g.d===today()?"var(--pig-deep)":"var(--muted)"}">${dayLabel(g.d).replace(/^./,c=>c.toUpperCase())}</div><div class="list">${g.evs.map(e=>evItem({...e,day:g.d})).join("")}</div></div>`).join(""):`<div class="card empty">Nada marcado ${rg==="semana"?"nesta semana":"neste mês"}.</div>`}</div>
  <div class="banner info">${I.bell.replace('<svg','<svg width="20" height="20" style="flex:none"')}<div class="stack-s"><span>${LN()?"Os lembretes chegam como notificação no celular, mesmo com o app fechado.":"Com o app aberto, você recebe um aviso e uma notificação na hora do lembrete. Para ser avisado com o app fechado, envie o compromisso para o calendário do celular."}</span>${!LN()&&"Notification" in window&&Notification.permission!=="granted"?`<button class="btn ghost sm" data-act="enableNotif" style="align-self:flex-start">Ativar notificações</button>`:""}${vals(S.agenda.events).length?`<button class="btn ghost sm" data-act="icsAll" style="align-self:flex-start">Enviar todos para o calendário do celular</button>`:""}</div></div>
  </div>`}
 function evItem(e){return `<button class="item" style="width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;padding-inline:0" data-act="${e.task?"editTask":"editEvent"}" data-v="${e.task?e.taskId:e.id}">
@@ -2130,7 +2147,7 @@ const levelOpts=v=>[["sedentario","Não faço exercícios"],["iniciante","Faço 
 function bindOnb(){const inc=$("#o_income");if(inc){const up=()=>{const v=parseMoney(inc.value);const pl=planFor(v);$("#o_plan").innerHTML=v?`<div class="card stack"><div class="label">Sugestão do Prumo</div>${["N","D","F"].map(k=>`<div class="row between"><span class="row" style="gap:8px"><i class="dot" style="background:${BUCKETS[k].color}"></i>${BUCKETS[k].name} <span class="muted small">${pl[k]}%</span></span><b class="num">${brl0(v*pl[k]/100)}</b></div>`).join("")}<p class="tiny muted">Baseado na regra 50/30/20, ajustada para ${pl.label}.</p></div>`:""};inc.addEventListener("input",up);up()}
  const f=$("#o_name");if(f)f.focus()}
 function onbSave(){const g=id=>{const e=$("#"+id);return e?e.value:undefined};
- if(UI.onb===0.5){ONB.why=g("h_why");ONB.time=g("h_time");ONB.focus=(UI.focusSel||[]).slice()}
+ if(UI.onb===0.5){ONB.why=g("h_why");ONB.time=g("h_time");ONB.rem=!!($("#h_rem")&&$("#h_rem").checked);ONB.focus=(UI.focusSel||[]).slice()}
  if(UI.onb===0&&g("o_name")!==undefined)ONB.name=g("o_name").trim();
  if(UI.onb===1)ONB.income=g("o_income");
  if(UI.onb===2){ONB.age=g("o_age");ONB.weight=g("o_weight");ONB.height=g("o_height");ONB.level=g("o_level")}
@@ -2262,7 +2279,7 @@ const A={
  pnPick:el=>{const i=$("#pn_name")||$("#o_petname");i.value=el.dataset.v;i.focus()},
  savePetName:()=>{S.pet.name=v("pn_name").trim().slice(0,20)||null;commit();closeModal();if(S.pet.name){toast(`Agora o porquinho se chama ${S.pet.name}!`);setTimeout(()=>{const st=document.querySelector('.pigstage[data-act="pigPoke"]');if(st)A.pigPoke(st)},300)}},
  onbPrayer:el=>{ONB.prayer=el.dataset.v||null;A.onbFinish()},
- onbFinish:()=>{onbSave();const p=S.profile;p.name=ONB.name;p.income=parseMoney(ONB.income);p.pet=!!ONB.pet;p.age=+ONB.age||null;p.weight=parseMoney(ONB.weight)||null;p.height=+ONB.height||null;p.level=ONB.level||"iniciante";p.prayer=!!ONB.prayer;applyHabit(ONB.focus||[],ONB.why||"",ONB.time||"21:00");if(ONB.petName)S.pet.name=ONB.petName;if(ONB.prayer){S.prayer.trad=ONB.prayer;S.prayer.daily=null}p.created=today();markActive();UI.tab="home";commit();toast(`Bem-vindo, ${p.name.split(" ")[0]}!`)},
+ onbFinish:()=>{onbSave();const p=S.profile;p.name=ONB.name;p.income=parseMoney(ONB.income);p.pet=!!ONB.pet;p.age=+ONB.age||null;p.weight=parseMoney(ONB.weight)||null;p.height=+ONB.height||null;p.level=ONB.level||"iniciante";p.prayer=!!ONB.prayer;applyHabit(ONB.focus||[],ONB.why||"",ONB.time||"21:00",!!ONB.rem);if(ONB.petName)S.pet.name=ONB.petName;if(ONB.prayer){S.prayer.trad=ONB.prayer;S.prayer.daily=null}p.created=today();markActive();UI.tab="home";commit();toast(`Bem-vindo, ${p.name.split(" ")[0]}!`)},
  checkin:()=>{S.checkins[today()]=1;markActive();commit();toast(S.profile.pet?"Dia sem gastos registrado. O porquinho agradece.":"Dia sem gastos registrado.")},
  addExpense:()=>expenseForm(null,UI.tab==="fin"?UI.month:null),
  addIncome:()=>incomeForm(null,UI.tab==="fin"?UI.month:null),
@@ -2299,7 +2316,7 @@ const A={
  habitModal:()=>habitModal(),
  focusPick:el=>{UI.focusSel=UI.focusSel||[];const id=el.dataset.v;const i=UI.focusSel.indexOf(id);if(i>=0)UI.focusSel.splice(i,1);else{UI.focusSel.push(id)}document.querySelectorAll('[data-act="focusPick"]').forEach(c=>c.classList.toggle("on",UI.focusSel.includes(c.dataset.v)))},
  whyPick:el=>{const i=$("#h_why");i.value=el.dataset.v;i.focus()},
- saveHabit:()=>{applyHabit(UI.focusSel||[],v("h_why").trim(),v("h_time"));commit();closeModal();toast(`Pronto! Lembrete diário às ${S.profile.remindAt}.`)},
+ saveHabit:()=>{const rem=!!($("#h_rem")&&$("#h_rem").checked);applyHabit(UI.focusSel||[],v("h_why").trim(),v("h_time"),rem);commit();closeModal();toast(rem?`Pronto! Lembrete diário às ${S.profile.remindAt}.`:"Pronto! Preferências salvas.")},
  pauseDone:()=>{S.checkins["pausa_"+today()]=1;markActive();commit();toast("Que bom que você parou um minuto.")},
  dayAnalysis:()=>analysisView(UI.foodDay||today()),
  moreSuggest:el=>{const m=el.dataset.v;const pl=mealPlan(today());if(!pl.target[m])pl.target[m]=Math.round(clamp(pl.goal*MEAL_SHARE[m],MEAL_FLOOR[m],9999));openModal("Sugestões de refeição",`<div class="stack">${suggestionCard(pl,m,{n:4,more:false})}</div>`)},
@@ -2322,6 +2339,7 @@ const A={
  goTasksLate:()=>{UI.tab="agenda";UI.agendaSub="tasks";UI.taskFilter="atrasadas";window.scrollTo(0,0);render()},
  goTasks:()=>{UI.tab="agenda";UI.agendaSub="tasks";window.scrollTo(0,0);render()},
  taskFilter:el=>{UI.taskFilter=el.dataset.v;render()},
+ calRange:el=>{UI.calRange=el.dataset.v;render()},
  taskArea:el=>{UI.taskArea=el.dataset.v;try{localStorage.setItem("prumo.taskArea",el.dataset.v)}catch(e){}render()},
  addTask:el=>taskForm(null,UI.tab==="agenda"&&UI.agendaSub!=="tasks"?{date:UI.calDay}:null),
  editTask:el=>{const t=S.tasks.items[el.dataset.v];if(t)taskForm(t)},
@@ -3135,7 +3153,7 @@ document.addEventListener("change",ev=>{if(UI.tab==="fin"&&UI.fin==="orc"&&UI.qt
 document.addEventListener("click",ev=>{const a=ev.target&&ev.target.closest&&ev.target.closest("[data-qsent]");if(a){const id=a.dataset.qsent;setTimeout(()=>{qMarkSent(id);closeModal()},400)}});
 
 /* Ao recarregar a página, volta para a mesma tela (e a mesma rolagem) */
-const NAV_KEYS=["tab","fin","qtab","study","ex","agendaSub","learnTrack","month","taskFilter"];
+const NAV_KEYS=["tab","fin","qtab","study","ex","agendaSub","learnTrack","month","taskFilter","calRange","calDay","calMonth"];
 try{const n=JSON.parse(sessionStorage.getItem("prumo.nav")||"null");if(n){NAV_KEYS.forEach(k=>{if(n[k]!==undefined&&n[k]!==null)UI[k]=n[k]});if(UI.tab==="admin")UI.tab="profile";UI._navScroll=n.y||0}}catch(e){}
 {const _rn=render;render=function(){_rn();try{const o={};NAV_KEYS.forEach(k=>o[k]=UI[k]);o.y=window.scrollY;sessionStorage.setItem("prumo.nav",JSON.stringify(o))}catch(e){}
  if(UI._navScroll&&S.profile.created){const y=UI._navScroll;UI._navScroll=0;setTimeout(()=>window.scrollTo(0,y),60)}}}
@@ -3203,6 +3221,8 @@ A.buddyTap=()=>{const old=document.getElementById("buddyTip");if(old){old.remove
 A.buddyHide=()=>{S.profile.buddy=false;const t=document.getElementById("buddyTip");if(t)t.remove();commit();toast("Pronto. Para mostrar de novo, vá em Perfil.")};
 document.addEventListener("change",ev=>{if(ev.target&&ev.target.id==="buddyToggle"){S.profile.buddy=ev.target.checked;commit();toast(ev.target.checked?"O mascote vai aparecer nas abas.":"Mascote escondido das abas.")}});
 
+/* o lembrete diário agora é opcional: remove os que foram criados sozinhos */
+{const _rm=render;render=function(){if(S.profile.created&&!S.profile.dailyMig){S.profile.dailyMig=1;if(!S.profile.remindOn&&S.agenda.events.prumo_daily){delete S.agenda.events.prumo_daily;saveApp()}}_rm()}}
 
 /* ============================================================
    Versão web: contas e dados no Supabase
@@ -3511,7 +3531,7 @@ if(DEMO_ON)Store.demo=true;
 function demoBuild(){const td=today();const D=n=>addDays(td,n);const K=n=>shiftMonth(mkey(),n);let seq=0;const id=p=>p+"_"+(++seq);
  const s=defaultState();
  Object.assign(s.profile,{name:"José da Silva",income:6500,pet:true,age:34,weight:82.1,height:176,level:"intermediario",cleared:true,created:D(-95),studyGoal:25,limit48:150,prayer:true,focus:["fin","saude"],why:"Juntar para viajar com a família",remindAt:"21:00",shareAsked:1});
- s.agenda.events.prumo_daily={id:"prumo_daily",title:"Dois minutos no Prumo",date:D(-95),time:"21:00",remind:0,repeat:"daily",place:"",notes:""};
+
  // atividade: 23 dias seguidos + dias espalhados antes
  for(let i=0;i<23;i++)s.activity[D(-i)]=1;for(let i=24;i<95;i++)if(i%3!==0)s.activity[D(-i)]=1;
  for(let i=0;i<20;i++)if(i%2===0)s.missionDays[D(-i)]=1;

@@ -1,6 +1,6 @@
 /* Prumo: guarda o app no aparelho para abrir rápido e funcionar sem internet.
    Ao publicar uma versão nova, aumente o número abaixo. */
-const VERSION = "prumo-v36";
+const VERSION = "prumo-v37";
 const SHELL = ["./", "index.html", "config.js", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 

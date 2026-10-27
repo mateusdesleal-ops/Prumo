@@ -3373,8 +3373,8 @@ function viewAuth(){const m=AUTH.mode;
  <button class="btn ghost sm" data-act="about" style="align-self:center">Sobre o Prumo</button></div>`}
 Object.assign(A,{
  authMode:el=>{AUTH.mode=el.dataset.v;AUTH.msg="";render()},
- howVideo:()=>openModal("Como o Prumo funciona",`<div class="stack"><video src="como-funciona.mp4" poster="como-funciona.jpg" controls autoplay muted playsinline preload="metadata" style="width:100%;max-height:68vh;border-radius:16px;background:#000;object-fit:contain"></video>
-  <p class="tiny muted" style="text-align:center">Gostou? Crie sua conta: leva menos de 1 minuto e é gratuito.</p><button class="btn block" data-act="howCreate">Criar minha conta</button></div>`),
+ howVideo:()=>openModal("Como o Prumo funciona",`<div class="stack"><video src="como-funciona.mp4?v=2" poster="como-funciona.jpg" controls playsinline preload="auto" style="width:100%;max-height:68vh;border-radius:16px;background:#000;object-fit:contain"></video>
+  <p class="tiny muted" style="text-align:center">Gostou? Crie sua conta: leva menos de 1 minuto e é gratuito.</p><button class="btn block" data-act="howCreate">Criar minha conta</button></div>`,()=>{const vd=document.querySelector(".sheet video");if(vd){vd.volume=.7;const p=vd.play();if(p&&p.catch)p.catch(()=>{vd.muted=true;vd.play().catch(()=>{})})}}),
  howCreate:()=>{closeModal();AUTH.mode="criar";AUTH.msg="";render();setTimeout(()=>{const e=document.getElementById("a_email");if(e)e.focus()},50)},
  authLocal:()=>{try{localStorage.setItem("prumo.localMode","1")}catch(e){}UI.needAuth=false;Store.localOnly=true;render()},
  authGo:async()=>{const email=v("a_email").trim(),pass=v("a_pass");const m=AUTH.mode;

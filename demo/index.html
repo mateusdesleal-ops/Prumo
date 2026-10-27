@@ -3134,6 +3134,14 @@ document.addEventListener("change",ev=>{if(UI.tab==="fin"&&UI.fin==="orc"&&UI.qt
 
 document.addEventListener("click",ev=>{const a=ev.target&&ev.target.closest&&ev.target.closest("[data-qsent]");if(a){const id=a.dataset.qsent;setTimeout(()=>{qMarkSent(id);closeModal()},400)}});
 
+/* Ao recarregar a página, volta para a mesma tela (e a mesma rolagem) */
+const NAV_KEYS=["tab","fin","qtab","study","ex","agendaSub","learnTrack","month","taskFilter"];
+try{const n=JSON.parse(sessionStorage.getItem("prumo.nav")||"null");if(n){NAV_KEYS.forEach(k=>{if(n[k]!==undefined&&n[k]!==null)UI[k]=n[k]});if(UI.tab==="admin")UI.tab="profile";UI._navScroll=n.y||0}}catch(e){}
+{const _rn=render;render=function(){_rn();try{const o={};NAV_KEYS.forEach(k=>o[k]=UI[k]);o.y=window.scrollY;sessionStorage.setItem("prumo.nav",JSON.stringify(o))}catch(e){}
+ if(UI._navScroll&&S.profile.created){const y=UI._navScroll;UI._navScroll=0;setTimeout(()=>window.scrollTo(0,y),60)}}}
+window.addEventListener("pagehide",()=>{try{const n=JSON.parse(sessionStorage.getItem("prumo.nav")||"{}");n.y=window.scrollY;sessionStorage.setItem("prumo.nav",JSON.stringify(n))}catch(e){}});
+
+
 /* ============================================================
    Versão web: contas e dados no Supabase
    ============================================================ */
@@ -3509,7 +3517,7 @@ function demoBuild(){const td=today();const D=n=>addDays(td,n);const K=n=>shiftM
  Object.keys(F.meta.cards).forEach(cid=>{const c={id:cid,...F.meta.cards[cid]};const open=invoiceMonth(c,td);F.meta.cardPaid[cid]={};for(let m=-4;m<0;m++){const k=shiftMonth(open,m);if(dayIn(k,c.due)<td)F.meta.cardPaid[cid][ccKey(k)]=1}});
  return{S:s,F}}
 function startDemo(){Store.demo=true;Store.cloud=false;Store.localOnly=true;UI.needAuth=false;try{Store.unsubs.forEach(u=>u())}catch(e){}
- const d=demoBuild();S=hydrate(d.S);for(const k in PFIN)delete PFIN[k];Object.assign(PFIN,d.F);ME.uid="demo";UI.tab="home";UI.onb=-1;
+ const d=demoBuild();S=hydrate(d.S);for(const k in PFIN)delete PFIN[k];Object.assign(PFIN,d.F);ME.uid="demo";UI.onb=-1;
  MSG.list=[{id:"demo",body:"Oi, José! Vi que você já está há 23 dias seguidos cuidando das suas finanças. Que orgulho! Continue assim que a viagem com a família está cada vez mais perto.",created_at:new Date().toISOString()}];
  applyTheme();render()}
 function demoBar(){if(!Store.demo)return;let b=document.getElementById("demobar");if(!b){b=document.createElement("div");b.id="demobar";b.style.cssText="position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--ink);color:var(--bg);border-radius:999px;padding:6px 6px 6px 14px;font-size:12px;font-weight:700;display:flex;gap:10px;align-items:center;box-shadow:0 6px 18px rgba(0,0,0,.25)";b.innerHTML=`Demonstração · nada é salvo <button data-act="demoExit" aria-label="Recomeçar a demonstração" style="border:0;border-radius:999px;padding:5px 10px;background:var(--pig-deep);color:#fff;font-weight:700;font-size:12px">Recomeçar</button>`;document.body.appendChild(b)}}

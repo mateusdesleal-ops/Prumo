@@ -3159,13 +3159,13 @@ function buddyKind(){const t=UI.tab;if(t==="fin")return"coin";if(t==="study")ret
  if(t==="ex"){const s=UI.ex||"comida";return s==="comida"?"apple":s==="peso"?"scale":"dumbbell"}return null}
 function buddyOn(){return S.profile.created&&S.profile.pet&&S.profile.buddy!==false&&!!buddyKind()}
 document.head.insertAdjacentHTML("beforeend",`<style>
-#buddy{position:fixed;left:12px;bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:14;width:62px;height:62px;border:0;padding:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#buddy{position:relative;flex:none;width:62px;height:62px;border:0;padding:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent;transform:scale(.72);transform-origin:left center;margin:-8px -17px -8px 4px}
 #buddy .bd-av{width:54px;height:54px;border-radius:50%;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.18);border:2px solid var(--surface);background:var(--sky);animation:bdBob 3.2s ease-in-out infinite}
 #buddy .bd-av svg{width:100%;height:100%;display:block}
 #buddy .bd-prop{position:absolute;width:30px;height:30px;pointer-events:none}
 #buddy .bd-prop svg{width:100%;height:100%;overflow:visible}
 #buddy .p-top{left:12px;top:-20px}#buddy .p-front{left:14px;top:30px}#buddy .p-mouth{left:30px;top:24px}#buddy .p-under{left:8px;top:34px;width:40px;height:40px}#buddy .p-side{left:36px;top:18px}
-#buddyTip{position:fixed;left:12px;bottom:calc(146px + env(safe-area-inset-bottom,0px));z-index:14;max-width:min(260px,calc(100vw - 40px));background:var(--surface);border:1px solid var(--line);border-radius:14px 14px 14px 4px;padding:10px 12px;font-size:13px;box-shadow:var(--shadow);animation:bdTip .25s ease-out}
+#buddyTip{position:fixed;left:12px;top:80px;z-index:40;max-width:min(260px,calc(100vw - 40px));background:var(--surface);border:1px solid var(--line);border-radius:4px 14px 14px 14px;padding:10px 12px;font-size:13px;box-shadow:var(--shadow);animation:bdTip .25s ease-out}
 #buddyTip button{border:0;background:none;color:var(--muted);font-size:11px;padding:4px 0 0;text-decoration:underline}
 @keyframes bdBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 @keyframes bdTip{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -3185,19 +3185,22 @@ document.head.insertAdjacentHTML("beforeend",`<style>
 @keyframes bdFlame{from{transform:scale(1,1) rotate(-3deg)}to{transform:scale(.85,1.12) rotate(3deg)}}
 .bd-cap{transform-box:fill-box;transform-origin:center;animation:bdCap 3s ease-in-out infinite}
 @keyframes bdCap{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
-@media (min-width:1000px){#buddy{left:252px;bottom:24px}#buddyTip{left:252px;bottom:96px}}
+@media (min-width:1000px){#buddy{transform:scale(.8)}}
 @media (prefers-reduced-motion: reduce){#buddy *{animation:none!important}}
 body:has(.scrim) #buddy,body:has(.scrim) #buddyTip,body:has(#tfull:not([hidden])) #buddy{display:none}
 </style>`);
 function buddyPaint(){let b=document.getElementById("buddy");const tip=document.getElementById("buddyTip");
  if(!buddyOn()){if(b)b.remove();if(tip)tip.remove();return}
  const k=buddyKind();const P=BUDDY[k];const sig=k+"|"+JSON.stringify(effectiveEquip());
- if(!b){b=document.createElement("button");b.id="buddy";b.dataset.act="buddyTap";document.body.appendChild(b)}
+ if(!b){b=document.createElement("button");b.id="buddy";b.dataset.act="buddyTap"}
+ const desk=window.innerWidth>=1000;const host=desk?document.querySelector("#tabs .side-logo"):document.querySelector("#app .top > .grow");
+ if(!host){b.remove();return}
+ if(b.parentElement!==host){if(desk){host.style.position="relative";b.style.cssText="position:absolute;right:-4px;top:-4px;margin:0"}else{host.style.display="flex";host.style.alignItems="center";host.style.gap="2px";b.style.cssText=""}host.appendChild(b)}
  b.setAttribute("aria-label",`${petCap()}: toque para uma dica`);
  if(b.dataset.sig!==sig){b.dataset.sig=sig;b.innerHTML=`<div class="bd-av">${pigFace(effectiveEquip())}</div><div class="bd-prop p-${P.pos}"><svg viewBox="0 0 40 40" aria-hidden="true">${P.svg}</svg></div>`;if(tip)tip.remove()}}
 {const _rb=render;render=function(){_rb();buddyPaint()}}
 A.buddyTap=()=>{const old=document.getElementById("buddyTip");if(old){old.remove();return}const P=BUDDY[buddyKind()];if(!P)return;UI._bdI=((UI._bdI||0)+1)%P.tips.length;
- const t=document.createElement("div");t.id="buddyTip";t.innerHTML=`<b style="color:var(--pig-deep)">${esc(petCap())}</b><br>${P.tips[UI._bdI]}<br><button data-act="buddyHide">Esconder o mascote das abas</button>`;document.body.appendChild(t);clearTimeout(UI._bdT);UI._bdT=setTimeout(()=>t.remove(),6000)};
+ const t=document.createElement("div");t.id="buddyTip";const r=document.getElementById("buddy").getBoundingClientRect();t.style.top=Math.round(r.bottom+8)+"px";t.style.left=Math.max(8,Math.round(r.left-6))+"px";t.innerHTML=`<b style="color:var(--pig-deep)">${esc(petCap())}</b><br>${P.tips[UI._bdI]}<br><button data-act="buddyHide">Esconder o mascote das abas</button>`;document.body.appendChild(t);clearTimeout(UI._bdT);UI._bdT=setTimeout(()=>t.remove(),6000)};
 A.buddyHide=()=>{S.profile.buddy=false;const t=document.getElementById("buddyTip");if(t)t.remove();commit();toast("Pronto. Para mostrar de novo, vá em Perfil.")};
 document.addEventListener("change",ev=>{if(ev.target&&ev.target.id==="buddyToggle"){S.profile.buddy=ev.target.checked;commit();toast(ev.target.checked?"O mascote vai aparecer nas abas.":"Mascote escondido das abas.")}});
 

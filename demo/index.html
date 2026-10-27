@@ -3201,7 +3201,7 @@ LESSONS.push(
 function prumoAboutBlock(){return `<div class="card stack" style="gap:10px"><div class="label" style="color:var(--pig-deep)">O Método PRUMO</div><p class="small">Cinco áreas que deixam a vida no prumo:</p>
  <div class="stack-s" style="gap:6px">${PRUMO.map(a=>`<div class="row" style="gap:10px"><b style="font-family:var(--f-display);font-size:22px;color:${a.c};width:22px;flex:none">${a.k}</b><span class="small"><b>${a.n}</b> <span class="muted">· ${a.a}</span></span></div>`).join("")}</div>
  <p class="tiny muted">Equilíbrio, não perfeição: o objetivo é nenhuma área ficar esquecida.</p></div>`}
-document.head.insertAdjacentHTML("beforeend",`<style>.tab-k{display:none}@media (min-width:1000px){.tab-k{display:inline-grid;place-items:center;margin-left:auto;width:22px;height:22px;border-radius:7px;font-family:var(--f-display);font-size:13px;background:var(--surface2);color:var(--muted)}.tab.on .tab-k{background:var(--pig-deep);color:#fff}}</style>`);
+document.head.insertAdjacentHTML("beforeend",`<style>.tab-k{display:none!important}@media (min-width:1000px){.tab-k{display:inline-grid;place-items:center;margin-left:auto;width:22px;height:22px;border-radius:7px;font-family:var(--f-display);font-size:13px;background:var(--surface2);color:var(--muted)}.tab.on .tab-k{background:var(--pig-deep);color:#fff}}</style>`);
 {const TK={prayer:"P",fin:"R",agenda:"U",study:"M",ex:"O"};const _rp=render;render=function(){_rp();document.querySelectorAll("#tabs .tab[data-v]").forEach(t=>{const k=TK[t.dataset.v];if(k&&!t.querySelector(".tab-k"))t.insertAdjacentHTML("beforeend",`<b class="tab-k" aria-hidden="true">${k}</b>`)})}}
 
 

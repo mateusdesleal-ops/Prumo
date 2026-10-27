@@ -2028,6 +2028,7 @@ function viewProfile(){const p=S.profile;
   ${p.prayer?`<label class="field"><span>Tradição</span><select id="prayerTradSel">${Object.entries(PRAYER_TRADS).map(([id,t])=>`<option value="${id}" ${S.prayer.trad===id?"selected":""}>${t.n}</option>`).join("")}</select></label>`:""}
   ${p.pet?`<label class="field"><span>Nome do porquinho</span><input id="petNameInp" maxlength="20" value="${esc(S.pet.name||"")}" placeholder="Ex.: Toicinho"></label>`:""}
   <label class="check"><input type="checkbox" id="petToggle" ${p.pet?"checked":""} data-act="petToggle"><span><b>Mostrar o porquinho</b><br><span class="small muted">O mascote que cresce com a sua saúde financeira.</span></span></label>
+  ${p.pet?`<label class="check"><input type="checkbox" id="buddyToggle" ${p.buddy!==false?"checked":""}><span><b>Mascote nas abas</b><br><span class="small muted">Um porquinho pequeno no canto de cada aba: comendo, lendo, se exercitando. Toque nele para uma dica.</span></span></label>`:""}
   <label class="field"><span>Tema</span><select id="themeSel" data-act="themeSel"><option value="system" ${p.theme==="system"?"selected":""}>Igual ao aparelho</option><option value="light" ${p.theme==="light"?"selected":""}>Claro</option><option value="dark" ${p.theme==="dark"?"selected":""}>Escuro</option></select></label>
  </div></div>
  <div class="section"><div class="label">Seus dados</div>
@@ -3139,6 +3140,65 @@ try{const n=JSON.parse(sessionStorage.getItem("prumo.nav")||"null");if(n){NAV_KE
 {const _rn=render;render=function(){_rn();try{const o={};NAV_KEYS.forEach(k=>o[k]=UI[k]);o.y=window.scrollY;sessionStorage.setItem("prumo.nav",JSON.stringify(o))}catch(e){}
  if(UI._navScroll&&S.profile.created){const y=UI._navScroll;UI._navScroll=0;setTimeout(()=>window.scrollTo(0,y),60)}}}
 window.addEventListener("pagehide",()=>{try{const n=JSON.parse(sessionStorage.getItem("prumo.nav")||"{}");n.y=window.scrollY;sessionStorage.setItem("prumo.nav",JSON.stringify(n))}catch(e){}});
+
+
+/* ============================================================
+   Mascote discreto que acompanha cada aba (canto da tela)
+   ============================================================ */
+const BUDDY={
+ coin:{svg:`<g class="bd-coin"><circle cx="20" cy="20" r="9" fill="#F2C230" stroke="#C99A12" stroke-width="2"/><path d="M17 20h6M20 16v8" stroke="#C99A12" stroke-width="2" stroke-linecap="round"/></g>`,pos:"top",tips:["Oinc! Cada moedinha guardada me deixa mais gordinho.","Lançar os gastos do dia leva menos de um minuto.","Guardar um pouco todo mês vale mais que guardar muito uma vez."]},
+ book:{svg:`<g class="bd-book"><path d="M4 12 Q12 8 20 12 L20 32 Q12 28 4 32 Z" fill="#fff" stroke="#3C6FD1" stroke-width="2" stroke-linejoin="round"/><path d="M36 12 Q28 8 20 12 L20 32 Q28 28 36 32 Z" fill="#fff" stroke="#3C6FD1" stroke-width="2" stroke-linejoin="round"/><path class="bd-page" d="M20 12 Q27 9 34 13 L34 30 Q27 27 20 31 Z" fill="#EAF1FF"/><path d="M8 17h8M8 21h8M24 17h7M24 21h7" stroke="#B9C9E8" stroke-width="1.6" stroke-linecap="round"/></g>`,pos:"front",tips:["Dez minutinhos de leitura por dia viram vários livros no ano.","Tô lendo junto com você! Oinc.","Experimente o Foco: 25 minutos sem distração."]},
+ apple:{svg:`<g class="bd-apple"><path d="M20 13c-4-3-11-1-11 7 0 7 5 13 9 13 1 0 2-1 2-1s1 1 2 1c4 0 9-6 9-13 0-8-7-10-11-7z" fill="#E5484D"/><path d="M20 13c0-3 1-5 3-6" stroke="#6B4423" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M22 9c3-2 6-1 7 1-3 1-5 1-7-1z" fill="#5FA950"/><ellipse cx="15" cy="19" rx="2" ry="3" fill="#fff" opacity=".45"/></g>`,pos:"mouth",tips:["Nham! Comida de verdade dá energia de verdade.","Registrar a refeição ajuda a perceber o que te faz bem.","Um copo de água agora? Eu topo! Oinc."]},
+ scale:{svg:`<g class="bd-scale"><rect x="2" y="24" width="36" height="12" rx="5" fill="#E9EEF3" stroke="#B9C7D4" stroke-width="2"/><rect x="13" y="27" width="14" height="6" rx="2" fill="#2B1E24"/><text class="bd-num" x="20" y="32" text-anchor="middle" font-size="5" font-family="monospace" fill="#7CF0B0">00.0</text></g>`,pos:"under",tips:["Subindo na balança... Oinc! O número é só um dado, não um julgamento.","Pesar uma vez por semana, no mesmo horário, já basta.","O que importa é a tendência, não um dia só."]},
+ dumbbell:{svg:`<g class="bd-dumb"><rect x="8" y="18" width="24" height="4" rx="2" fill="#7A6670"/><rect x="3" y="12" width="6" height="16" rx="2" fill="#2B1E24"/><rect x="31" y="12" width="6" height="16" rx="2" fill="#2B1E24"/></g>`,pos:"side",tips:["Um, dois... ufa! Oinc. Dez minutos já contam.","A OMS recomenda 150 minutos por semana. Bora juntos?","Mexer o corpo melhora o humor no mesmo dia."]},
+ check:{svg:`<g><rect x="7" y="4" width="26" height="32" rx="4" fill="#fff" stroke="#C98A12" stroke-width="2"/><rect x="14" y="2" width="12" height="6" rx="2" fill="#C98A12"/><path d="M12 15h10M12 22h10M12 29h7" stroke="#E5D3B0" stroke-width="2" stroke-linecap="round"/><path class="bd-tick" d="M24 14l2.5 2.5 4.5-5" stroke="#1E8A5A" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>`,pos:"side",tips:["Uma tarefa de cada vez. Oinc!","Atrasou? Remarque sem culpa, o importante é não esquecer.","Anotar tira o peso da cabeça."]},
+ candle:{svg:`<g><rect x="15" y="16" width="10" height="20" rx="2" fill="#F5EFE6" stroke="#D9C9B0" stroke-width="1.5"/><path d="M20 16v-3" stroke="#6B4423" stroke-width="1.5"/><path class="bd-flame" d="M20 3c3 4 4 6 4 8a4 4 0 0 1-8 0c0-2 1-4 4-8z" fill="#F2A93B"/><circle cx="20" cy="9" r="7" fill="#F2C230" opacity=".18"/></g>`,pos:"side",tips:["Um momento de silêncio faz bem pra alma. Oinc.","Gratidão também é oração: pense em uma coisa boa de hoje.","Respira fundo comigo: inspira... solta."]},
+ cap:{svg:`<g class="bd-cap"><path d="M2 16 L20 8 L38 16 L20 24 Z" fill="#2B1E24"/><path d="M10 19v7c3 3 17 3 20 0v-7" fill="#3A2B32"/><path d="M33 17v9" stroke="#E8B53D" stroke-width="2"/><circle cx="33" cy="27" r="2.5" fill="#E8B53D"/></g>`,pos:"top",tips:["Cada lição lida vale pontinhos para o meu guarda-roupa!","Aprender um pouquinho todo dia é o segredo. Oinc."]}};
+function buddyKind(){const t=UI.tab;if(t==="fin")return"coin";if(t==="study")return"book";if(t==="agenda")return"check";if(t==="prayer")return"candle";if(t==="learn")return"cap";
+ if(t==="ex"){const s=UI.ex||"comida";return s==="comida"?"apple":s==="peso"?"scale":"dumbbell"}return null}
+function buddyOn(){return S.profile.created&&S.profile.pet&&S.profile.buddy!==false&&!!buddyKind()}
+document.head.insertAdjacentHTML("beforeend",`<style>
+#buddy{position:fixed;left:12px;bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:14;width:62px;height:62px;border:0;padding:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#buddy .bd-av{width:54px;height:54px;border-radius:50%;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.18);border:2px solid var(--surface);background:var(--sky);animation:bdBob 3.2s ease-in-out infinite}
+#buddy .bd-av svg{width:100%;height:100%;display:block}
+#buddy .bd-prop{position:absolute;width:30px;height:30px;pointer-events:none}
+#buddy .bd-prop svg{width:100%;height:100%;overflow:visible}
+#buddy .p-top{left:12px;top:-20px}#buddy .p-front{left:14px;top:30px}#buddy .p-mouth{left:30px;top:24px}#buddy .p-under{left:8px;top:34px;width:40px;height:40px}#buddy .p-side{left:36px;top:18px}
+#buddyTip{position:fixed;left:12px;bottom:calc(146px + env(safe-area-inset-bottom,0px));z-index:14;max-width:min(260px,calc(100vw - 40px));background:var(--surface);border:1px solid var(--line);border-radius:14px 14px 14px 4px;padding:10px 12px;font-size:13px;box-shadow:var(--shadow);animation:bdTip .25s ease-out}
+#buddyTip button{border:0;background:none;color:var(--muted);font-size:11px;padding:4px 0 0;text-decoration:underline}
+@keyframes bdBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes bdTip{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.bd-coin{animation:bdCoin 2.4s ease-in infinite;transform-box:fill-box}
+@keyframes bdCoin{0%{transform:translateY(-14px);opacity:0}20%{opacity:1}70%{transform:translateY(16px);opacity:1}85%,100%{transform:translateY(20px);opacity:0}}
+.bd-page{transform-box:fill-box;transform-origin:left center;animation:bdPage 3s ease-in-out infinite}
+@keyframes bdPage{0%,60%{transform:scaleX(1)}75%{transform:scaleX(-1)}100%{transform:scaleX(-1);opacity:0}}
+.bd-apple{transform-box:fill-box;animation:bdApple 2.2s ease-in-out infinite}
+@keyframes bdApple{0%,100%{transform:translate(4px,2px) rotate(8deg)}45%,60%{transform:translate(-6px,-2px) rotate(-6deg)}}
+.bd-num{animation:bdNum 1.6s steps(1) infinite}
+@keyframes bdNum{0%,40%{opacity:.25}50%,100%{opacity:1}}
+.bd-dumb{transform-box:fill-box;transform-origin:center;animation:bdDumb 1.4s ease-in-out infinite}
+@keyframes bdDumb{0%,100%{transform:translateY(6px) rotate(-8deg)}50%{transform:translateY(-8px) rotate(8deg)}}
+.bd-tick{stroke-dasharray:14;animation:bdTick 2.6s ease-out infinite}
+@keyframes bdTick{0%,25%{stroke-dashoffset:14}55%,100%{stroke-dashoffset:0}}
+.bd-flame{transform-box:fill-box;transform-origin:center bottom;animation:bdFlame .9s ease-in-out infinite alternate}
+@keyframes bdFlame{from{transform:scale(1,1) rotate(-3deg)}to{transform:scale(.85,1.12) rotate(3deg)}}
+.bd-cap{transform-box:fill-box;transform-origin:center;animation:bdCap 3s ease-in-out infinite}
+@keyframes bdCap{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+@media (min-width:1000px){#buddy{left:252px;bottom:24px}#buddyTip{left:252px;bottom:96px}}
+@media (prefers-reduced-motion: reduce){#buddy *{animation:none!important}}
+body:has(.scrim) #buddy,body:has(.scrim) #buddyTip,body:has(#tfull:not([hidden])) #buddy{display:none}
+</style>`);
+function buddyPaint(){let b=document.getElementById("buddy");const tip=document.getElementById("buddyTip");
+ if(!buddyOn()){if(b)b.remove();if(tip)tip.remove();return}
+ const k=buddyKind();const P=BUDDY[k];const sig=k+"|"+JSON.stringify(effectiveEquip());
+ if(!b){b=document.createElement("button");b.id="buddy";b.dataset.act="buddyTap";document.body.appendChild(b)}
+ b.setAttribute("aria-label",`${petCap()}: toque para uma dica`);
+ if(b.dataset.sig!==sig){b.dataset.sig=sig;b.innerHTML=`<div class="bd-av">${pigFace(effectiveEquip())}</div><div class="bd-prop p-${P.pos}"><svg viewBox="0 0 40 40" aria-hidden="true">${P.svg}</svg></div>`;if(tip)tip.remove()}}
+{const _rb=render;render=function(){_rb();buddyPaint()}}
+A.buddyTap=()=>{const old=document.getElementById("buddyTip");if(old){old.remove();return}const P=BUDDY[buddyKind()];if(!P)return;UI._bdI=((UI._bdI||0)+1)%P.tips.length;
+ const t=document.createElement("div");t.id="buddyTip";t.innerHTML=`<b style="color:var(--pig-deep)">${esc(petCap())}</b><br>${P.tips[UI._bdI]}<br><button data-act="buddyHide">Esconder o mascote das abas</button>`;document.body.appendChild(t);clearTimeout(UI._bdT);UI._bdT=setTimeout(()=>t.remove(),6000)};
+A.buddyHide=()=>{S.profile.buddy=false;const t=document.getElementById("buddyTip");if(t)t.remove();commit();toast("Pronto. Para mostrar de novo, vá em Perfil.")};
+document.addEventListener("change",ev=>{if(ev.target&&ev.target.id==="buddyToggle"){S.profile.buddy=ev.target.checked;commit();toast(ev.target.checked?"O mascote vai aparecer nas abas.":"Mascote escondido das abas.")}});
 
 
 /* ============================================================

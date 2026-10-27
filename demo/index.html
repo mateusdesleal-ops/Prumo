@@ -1330,6 +1330,7 @@ function taskCard(t){const k=TASK_KINDS[t.kind]||TASK_KINDS.outro;const subs=t.s
  return `<div class="kcard ${t.status==="done"?"kdone":""}" draggable="true" data-task="${t.id}">
  <button class="ktitle" data-act="editTask" data-v="${t.id}"><span class="row" style="gap:6px;flex-wrap:wrap"><i class="dot" style="background:${k.c}"></i><span class="tiny muted">${k.n}</span>${t.prio&&t.prio!=="media"?`<span class="pill ${PRIO[t.prio].k}" style="padding:1px 8px">${PRIO[t.prio].n}</span>`:""}</span><b>${esc(t.title)}</b></button>
  ${t.date||subs.length||t.value||t.place?`<div class="row wrap" style="gap:8px">${taskDue(t)}${subs.length?`<span class="tiny muted">${I.check.replace('<svg','<svg width="12" height="12"')} ${sd}/${subs.length}</span>`:""}${t.value?`<span class="tiny muted num">${brl(t.value)}</span>`:""}${t.place?`<span class="tiny muted">${esc(t.place)}</span>`:""}</div>`:""}
+ ${subs.length&&t.status!=="done"?`<div class="stack-s" style="gap:2px">${subs.map((x,i)=>`<button class="row" style="gap:8px;border:0;background:none;padding:4px 0;text-align:left;min-height:30px" data-act="cardSub" data-v="${t.id}" data-i="${i}" aria-label="${x.done?"Desmarcar":"Marcar"} ${esc(x.t)}"><span style="width:20px;height:20px;border-radius:6px;flex:none;display:grid;place-items:center;${x.done?"background:var(--good);color:#fff":"border:2px solid var(--line)"}">${x.done?I.check.replace('<svg','<svg width="12" height="12"'):""}</span><span class="small" style="${x.done?"text-decoration:line-through;color:var(--muted)":""}">${esc(x.t)}</span></button>`).join("")}</div>`:""}
  ${t.resched?`<span class="tiny muted">Remarcada ${t.resched}x</span>`:""}
  <div class="row" style="gap:6px;flex-wrap:wrap">${mv}${daysLate(t)>=1?`<button class="btn ghost sm" data-act="reschedTask" data-v="${t.id}">Remarcar</button>`:""}</div></div>`}
 function agendaHead(){return `<h1 style="margin-top:4px">Agenda</h1><div class="subtabs">${[["cal","Calendário"],["tasks","Tarefas"]].map(([id,n])=>`<button class="${(UI.agendaSub||"cal")===id?"on":""}" data-act="agendaSub" data-v="${id}">${n}</button>`).join("")}</div>`}
@@ -2326,6 +2327,9 @@ const A={
  editTask:el=>{const t=S.tasks.items[el.dataset.v];if(t)taskForm(t)},
  tkKind:el=>{UI.taskKind=el.dataset.v;document.querySelectorAll('[data-act="tkKind"]').forEach(c=>c.classList.toggle("on",c===el));$("#tk_valf").classList.toggle("hide",el.dataset.v!=="pagar");$("#tk_placef").classList.toggle("hide",!(el.dataset.v==="ir"||el.dataset.v==="falar"||v("tk_place")))},
  tkAddSub:()=>{const t=v("tk_newsub").trim();if(!t)return;UI.taskSubs.push({t,done:false});$("#tk_newsub").value="";renderTaskSubs();$("#tk_newsub").focus()},
+ cardSub:el=>{const t=S.tasks.items[el.dataset.v];if(!t||!t.subs)return;const x=t.subs[+el.dataset.i];if(!x)return;x.done=!x.done;markActive();
+  const all=t.subs.every(y=>y.done);if(x.done&&t.status==="todo")t.status="doing";commit();
+  if(all&&t.status!=="done")toast("Todas as etapas feitas! Toque em Concluir para fechar a tarefa.",4000)},
  tkToggleSub:el=>{const s=UI.taskSubs[+el.dataset.v];s.done=!s.done;renderTaskSubs()},
  tkDelSub:el=>{UI.taskSubs.splice(+el.dataset.v,1);renderTaskSubs()},
  saveTask:el=>{const title=v("tk_title").trim();if(!title){toast("Escreva o que precisa fazer.");return}const lb=taskDecay().lost;setTimeout(()=>taskLostToast(lb),0);const id=el.dataset.v||rid();const old=S.tasks.items[id]||{};

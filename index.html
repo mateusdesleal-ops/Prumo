@@ -257,6 +257,7 @@ body.team-env #app::before{content:"";position:fixed;left:0;right:0;top:0;height
 .envbtn{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px 6px 8px;font-weight:700;font-size:13px;color:var(--ink);min-height:36px}
 body.team-env .envbtn.cur{border-color:var(--money);background:color-mix(in srgb,var(--money) 12%,var(--surface))}
 .envbtn .badge{background:var(--pig-deep);color:#fff;border-radius:99px;font-size:10px;padding:1px 6px}
+#fl_pin::placeholder{letter-spacing:0;font-size:15px}
 .desk-only{display:none}@media (min-width:1000px) and (hover:hover){.desk-only{display:flex}}
 .calleg{width:14px;height:14px;border-radius:5px;display:inline-block}.calleg.has{background:color-mix(in srgb,var(--pig) 30%,transparent)}.calleg.today{box-shadow:inset 0 0 0 2px var(--pig-deep)}
 
@@ -3322,7 +3323,7 @@ function finLockView(){const pin=!!S.profile.finPin;
   <svg viewBox="0 0 60 70" style="position:absolute;right:-4px;bottom:0;width:62px;height:72px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.18))"><path d="M15 32V22a15 15 0 0 1 30 0v10" fill="none" stroke="#9AA3AE" stroke-width="7" stroke-linecap="round"/><rect x="5" y="30" width="50" height="38" rx="9" fill="#F2C230" stroke="#C99A12" stroke-width="3"/><circle cx="30" cy="46" r="5" fill="#7A5A08"/><rect x="28" y="48" width="4" height="10" rx="2" fill="#7A5A08"/></svg></div>
  <h2>Finanças trancadas</h2>
  <p class="small muted">Para ninguém ver seu salário e seus gastos sem querer, eu tranco esta aba no computador sempre que você sai dela.</p>
- ${pin?`<input id="fl_pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="Sua senha de números" style="max-width:220px;text-align:center;letter-spacing:.3em;font-size:20px" aria-label="Senha das finanças">
+ ${pin?`<input id="fl_pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="Digite sua senha" style="max-width:220px;text-align:center;letter-spacing:.3em;font-size:20px" aria-label="Senha das finanças">
   <button class="btn block" data-act="finUnlock" style="max-width:220px">Desbloquear</button>
   <button class="btn ghost sm" data-act="finPinForgot">Esqueci a senha</button>`
  :`<button class="btn block" data-act="finUnlock" style="max-width:240px">${LOCK_ICO.replace('stroke-width="2.2"','stroke-width="2.2" style="vertical-align:-3px"')} Desbloquear</button>

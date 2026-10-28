@@ -250,3 +250,23 @@ begin
   if not found then raise exception 'só quem criou a equipe pode mudar'; end if;
 end $$;
 grant execute on function public.team_create(text, jsonb, text), public.team_update(uuid, text, jsonb) to authenticated;
+
+-- Módulo Projetos (fica no mesmo documento da agenda da equipe)
+create or replace function public.team_clean_features(p jsonb)
+returns jsonb language sql immutable as $$
+  select jsonb_build_object('agenda', public.team_feat(p, 'agenda'), 'tasks', public.team_feat(p, 'tasks'),
+    'fin', public.team_feat(p, 'fin'), 'quotes', public.team_feat(p, 'quotes'), 'vaq', public.team_feat(p, 'vaq'),
+    'proj', public.team_feat(p, 'proj'));
+$$;
+create or replace function public.team_can(p_path text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.teams t join public.team_members m on m.team_id = t.id and m.uid = auth.uid() and m.active
+    where t.id::text = split_part(p_path, '/', 2) and not t.archived
+      and case
+        when split_part(p_path, '/', 3) = 'agenda' then public.team_feat(t.features, 'agenda') or public.team_feat(t.features, 'tasks') or public.team_feat(t.features, 'proj')
+        when split_part(p_path, '/', 3) = 'fin' and split_part(p_path, '/', 4) = 'quotes' then public.team_feat(t.features, 'quotes')
+        when split_part(p_path, '/', 3) = 'fin' and split_part(p_path, '/', 4) = 'vaq' then public.team_feat(t.features, 'vaq')
+        when split_part(p_path, '/', 3) = 'fin' then public.team_feat(t.features, 'fin')
+        else false end);
+$$;

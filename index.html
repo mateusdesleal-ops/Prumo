@@ -259,6 +259,9 @@ body.team-env .envbtn.cur{border-color:var(--money);background:color-mix(in srgb
 .envbtn .badge{background:var(--pig-deep);color:#fff;border-radius:99px;font-size:10px;padding:1px 6px}
 #fl_pin::placeholder{letter-spacing:0;font-size:15px}
 .desk-only{display:none}@media (min-width:1000px) and (hover:hover){.desk-only{display:flex}}
+.pjsteps{padding:6px 14px}.pjstep{display:flex;gap:12px;align-items:center;padding:10px 0;position:relative}
+.pjstep+.pjstep::before{content:"";position:absolute;left:16px;top:-12px;height:24px;border-left:2px dashed var(--line)}
+.pjdot{width:34px;height:34px;border-radius:50%;border:2.5px solid var(--line);background:var(--surface);display:grid;place-items:center;font-weight:800;font-size:13px;flex:none;z-index:1;color:var(--muted)}
 .calleg{width:14px;height:14px;border-radius:5px;display:inline-block}.calleg.has{background:color-mix(in srgb,var(--pig) 30%,transparent)}.calleg.today{box-shadow:inset 0 0 0 2px var(--pig-deep)}
 
 /* timer */
@@ -519,15 +522,15 @@ const appPath=()=>`data/users/${ME.uid}/app`;
    O Prumo pessoal continua igual. Quando a pessoa entra numa equipe, as partes compartilhadas
    (agenda/tarefas e finanças/orçamentos) passam a mostrar os dados da equipe. */
 let TEAM=null,PERS=null;const TFIN={},TD={},TOBJ=new WeakSet();
-const TFEATS=[["agenda","Calendário","Compromissos da equipe, com lembretes"],["tasks","Tarefas","Quadro de tarefas com responsável"],["fin","Finanças","Entradas, gastos, cartões, contas fixas e dívidas (com vaquinha)"],["quotes","Orçamentos","Orçamentos da equipe enviados por link ou PDF"],["vaq","Vaquinha","Dividir despesas e ver quem já pagou a sua parte"]];
+const TFEATS=[["agenda","Calendário","Compromissos da equipe, com lembretes"],["tasks","Tarefas","Quadro de tarefas com responsável"],["fin","Finanças","Entradas, gastos, cartões, contas fixas e dívidas (com vaquinha)"],["quotes","Orçamentos","Orçamentos da equipe enviados por link ou PDF"],["vaq","Vaquinha","Dividir despesas e ver quem já pagou a sua parte"],["proj","Projetos","Projetos com etapas, prazos e um responsável por etapa"]];
 const teamHas=f=>!!(TEAM&&TEAM.features&&TEAM.features[f]);
-const TPARTS=[{keys:["agenda","tasks"],path:"agenda",on:()=>teamHas("agenda")||teamHas("tasks"),def:()=>({agenda:{events:{}},tasks:{items:{},doneTotal:0}})},
+const TPARTS=[{keys:["agenda","tasks","projects"],path:"agenda",on:()=>teamHas("agenda")||teamHas("tasks")||teamHas("proj"),def:()=>({agenda:{events:{}},tasks:{items:{},doneTotal:0},projects:{items:{}}})},
  {keys:["quotes"],path:"fin/quotes",on:()=>teamHas("quotes"),def:()=>({quotes:{items:{},cfg:{},tpl:{},seq:0}})}];
 const teamPart=p=>!!(TEAM&&p.on()&&TD[p.path]);
-const teamAg=()=>!!((teamHas("agenda")||teamHas("tasks"))&&TD.agenda);
+const teamAg=()=>!!((teamHas("agenda")||teamHas("tasks")||teamHas("proj"))&&TD.agenda);
 function teamSwap(){
  if(!PERS||PERS.S!==S){const o=PERS;PERS={S};TPARTS.forEach(p=>p.keys.forEach(k=>{PERS[k]=TOBJ.has(S[k])?(o&&o[k]):S[k]}))}
- TPARTS.forEach(p=>{const on=teamPart(p);p.keys.forEach(k=>{if(on){const o=TD[p.path][k];TOBJ.add(o);S[k]=o}else if(TOBJ.has(S[k])){if(PERS[k])S[k]=PERS[k];else delete S[k]}})})}
+ TPARTS.forEach(p=>{const on=teamPart(p);p.keys.forEach(k=>{if(on){const o=TD[p.path][k];if(S[k]!==undefined&&!TOBJ.has(S[k]))PERS[k]=S[k];TOBJ.add(o);S[k]=o}else if(TOBJ.has(S[k])){if(PERS[k])S[k]=PERS[k];else delete S[k]}})})}
 function personalS(){if(!PERS||PERS.S!==S)return S;let o=S;TPARTS.forEach(p=>p.keys.forEach(k=>{if(TOBJ.has(S[k])){if(o===S)o=Object.assign({},S);if(PERS[k])o[k]=PERS[k];else delete o[k]}}));return o}
 function withPersonal(fn){const o=personalS();if(o===S)return fn();const keep={};TPARTS.forEach(p=>p.keys.forEach(k=>{keep[k]=S[k];S[k]=o[k]}));try{return fn()}finally{Object.assign(S,keep)}}
 const teamMembers=()=>TEAM&&TEAM.members||[];
@@ -1394,12 +1397,13 @@ function taskCard(t){const k=TASK_KINDS[t.kind]||TASK_KINDS.outro;const subs=t.s
   :t.status==="doing"?`<button class="btn ghost sm" data-act="taskMove" data-v="${t.id}" data-to="todo" aria-label="Voltar para A fazer">${I.left.replace('<svg','<svg width="14" height="14"')}</button><button class="btn money sm" data-act="taskMove" data-v="${t.id}" data-to="done">${I.check.replace('<svg','<svg width="14" height="14"')} Concluir</button>`
   :`<button class="btn ghost sm" data-act="taskMove" data-v="${t.id}" data-to="todo">Reabrir</button>`;
  return `<div class="kcard ${t.status==="done"?"kdone":""}" draggable="true" data-task="${t.id}">
- <button class="ktitle" data-act="editTask" data-v="${t.id}"><span class="row" style="gap:6px;flex-wrap:wrap"><i class="dot" style="background:${k.c}"></i><span class="tiny muted">${k.n}</span>${t.prio&&t.prio!=="media"?`<span class="pill ${PRIO[t.prio].k}" style="padding:1px 8px">${PRIO[t.prio].n}</span>`:""}${t.repeat?`<span class="pill info" style="padding:1px 8px">&#8635; ${(TREP.find(x=>x[0]===t.repeat)||["",""])[1].replace(" (seg. a sex.)","")}</span>`:""}</span><b>${esc(t.title)}</b>${teamAg()&&t.who?`<span class="tiny row" style="gap:6px;color:var(--muted)"><span class="avatar">${teamInitials(t.who)}</span>${t.who===ME.uid?"Com você":"Com "+esc(teamNick(t.who))}</span>`:""}</button>
+ <button class="ktitle" data-act="editTask" data-v="${t.id}"><span class="row" style="gap:6px;flex-wrap:wrap"><i class="dot" style="background:${k.c}"></i><span class="tiny muted">${k.n}</span>${t.prio&&t.prio!=="media"?`<span class="pill ${PRIO[t.prio].k}" style="padding:1px 8px">${PRIO[t.prio].n}</span>`:""}${t.proj&&PJ().items[t.proj]?`<span class="pill" style="padding:1px 8px;background:color-mix(in srgb,${PJ().items[t.proj].color||"var(--pig)"} 22%,transparent)">${esc(PJ().items[t.proj].name)}</span>`:""}${t.repeat?`<span class="pill info" style="padding:1px 8px">&#8635; ${(TREP.find(x=>x[0]===t.repeat)||["",""])[1].replace(" (seg. a sex.)","")}</span>`:""}</span><b>${esc(t.title)}</b>${teamAg()&&t.who?`<span class="tiny row" style="gap:6px;color:var(--muted)"><span class="avatar">${teamInitials(t.who)}</span>${t.who===ME.uid?"Com você":"Com "+esc(teamNick(t.who))}</span>`:""}</button>
  ${t.date||subs.length||t.value||t.place?`<div class="row wrap" style="gap:8px">${taskDue(t)}${subs.length?`<span class="tiny muted">${I.check.replace('<svg','<svg width="12" height="12"')} ${sd}/${subs.length}</span>`:""}${t.value?`<span class="tiny muted num">${brl(t.value)}</span>`:""}${t.place?`<span class="tiny muted">${esc(t.place)}</span>`:""}</div>`:""}
  ${subs.length&&t.status!=="done"?`<div class="stack-s" style="gap:2px">${subs.map((x,i)=>`<button class="row" style="gap:8px;border:0;background:none;padding:4px 0;text-align:left;min-height:30px" data-act="cardSub" data-v="${t.id}" data-i="${i}" aria-label="${x.done?"Desmarcar":"Marcar"} ${esc(x.t)}"><span style="width:20px;height:20px;border-radius:6px;flex:none;display:grid;place-items:center;${x.done?"background:var(--good);color:#fff":"border:2px solid var(--line)"}">${x.done?I.check.replace('<svg','<svg width="12" height="12"'):""}</span><span class="small" style="${x.done?"text-decoration:line-through;color:var(--muted)":""}">${esc(x.t)}</span></button>`).join("")}</div>`:""}
  ${t.resched?`<span class="tiny muted">Remarcada ${t.resched}x</span>`:""}
  <div class="row" style="gap:6px;flex-wrap:wrap">${mv}${daysLate(t)>=1?`<button class="btn ghost sm" data-act="reschedTask" data-v="${t.id}">Remarcar</button>`:""}</div></div>`}
-function agendaHead(){const tabs=[["cal","Calendário"],["tasks","Tarefas"]].filter(([id])=>!TEAM||teamHas(id==="cal"?"agenda":"tasks"));if(tabs.length<2)return `<h1 style="margin-top:4px">${tabs[0][1]}</h1>`;return `<h1 style="margin-top:4px">Agenda</h1><div class="subtabs">${tabs.map(([id,n])=>`<button class="${(UI.agendaSub||"cal")===id?"on":""}" data-act="agendaSub" data-v="${id}">${n}</button>`).join("")}</div>`}
+const AG_SUBS=()=>[["cal","Calendário"],["tasks","Tarefas"],["proj","Projetos"]].filter(([id])=>!TEAM||teamHas(id==="cal"?"agenda":id));
+function agendaHead(){const tabs=AG_SUBS();if(tabs.length<2)return `<h1 style="margin-top:4px">${tabs[0][1]}</h1>`;return `<h1 style="margin-top:4px">Agenda</h1><div class="subtabs">${tabs.map(([id,n])=>`<button class="${(UI.agendaSub||"cal")===id?"on":""}" data-act="agendaSub" data-v="${id}">${n}</button>`).join("")}</div>`}
 function tasksView(){const all=taskList().filter(taskAreaFn);const open=all.filter(t=>t.status!=="done");const late=open.filter(t=>t.date&&t.date<today()).length;const tot=+S.tasks.doneTotal||0;
  const nextR=TASK_REWARDS.find(r=>tot<r.tasks);
  return `<div class="stack">${agendaHead()}
@@ -1426,10 +1430,11 @@ function trepMatch(t,day){if(!t.repeat||!t.date||day<t.date)return day===t.date;
  if(t.repeat==="monthly"){const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();return d.getDate()===Math.min(o.getDate(),last)}return day===t.date}
 function trepNext(t){let d=t.date||today();const step=x=>{const o=parseDate(t.date||today());if(t.repeat==="monthly"){const c=parseDate(x);const y=c.getFullYear(),m=c.getMonth()+1;const last=new Date(y,m+1,0).getDate();return ymd(new Date(y,m,Math.min(o.getDate(),last)))}let n=addDays(x,1);while(!trepMatch(t,n))n=addDays(n,1);return n};
  d=step(d);while(d<=today()&&(t.date||today())<=today())d=step(d);return d}
-function taskEvents(day){return taskList().filter(t=>t.status!=="done"&&t.cal!==false&&(t.date===day||(t.repeat&&trepMatch(t,day)))).map(t=>({id:"task_"+t.id+(t.date===day?"":"_"+day),taskId:t.id,task:true,title:t.title,date:day,time:t.time||"",remind:t.date===day?+t.remind||0:0,repeat:t.repeat==="daily"||t.repeat==="weekdays"?"daily":"none",place:t.place||""}))}
-function taskForm(t,preset){t=t||Object.assign({kind:UI.taskArea==="trabalho"?"trabalho":"pessoal",prio:"media",status:"todo",cal:true,remind:30},preset||{});const isEdit=!!t.id;UI.taskSubs=clone(t.subs||[]);UI.taskKind=t.kind;UI.tkWho=t.who||(t.id?"":(UI.teamWho&&!["tudo","livre"].includes(UI.teamWho)?(UI.teamWho==="eu"?ME.uid:UI.teamWho):""));
+function taskEvents(day){return taskList().filter(t=>t.status!=="done"&&t.cal!==false&&(t.date===day||(t.repeat&&trepMatch(t,day)))).map(t=>({id:"task_"+t.id+(t.date===day?"":"_"+day),taskId:t.id,task:true,title:(t.proj&&PJ().items[t.proj]?PJ().items[t.proj].name+" · ":"")+t.title,date:day,time:t.time||"",remind:t.date===day?+t.remind||0:0,repeat:t.repeat==="daily"||t.repeat==="weekdays"?"daily":"none",place:t.place||""}))}
+function taskForm(t,preset){t=t||Object.assign({kind:UI.taskArea==="trabalho"?"trabalho":"pessoal",prio:"media",status:"todo",cal:true,remind:30},preset||{});const isEdit=!!t.id;UI.taskSubs=clone(t.subs||[]);UI.taskKind=t.kind;UI.tkProj=t.proj||null;UI.tkWho=t.who||(t.id?"":(UI.teamWho&&!["tudo","livre"].includes(UI.teamWho)?(UI.teamWho==="eu"?ME.uid:UI.teamWho):""));
  openModal(isEdit?"Editar tarefa":"Nova tarefa",`<div class="stack">
- <label class="field"><span>O que precisa fazer?</span><input id="tk_title" value="${esc(t.title||"")}" placeholder="Ex.: editar o vídeo do casamento"></label>
+ ${t.proj&&PJ().items[t.proj]?`<div class="row" style="gap:8px"><i class="dot" style="background:${PJ().items[t.proj].color||"var(--pig)"}"></i><span class="small">Etapa do projeto <b>${esc(PJ().items[t.proj].name)}</b></span></div>`:""}
+ <label class="field"><span>${t.proj?"Nome da etapa":"O que precisa fazer?"}</span><input id="tk_title" value="${esc(t.title||"")}" placeholder="${t.proj?"Ex.: protótipo, fotos, lançamento":"Ex.: editar o vídeo do casamento"}"></label>
  <div class="field"><span>Tipo</span><div class="chips" style="flex-wrap:wrap">${Object.entries(TASK_KINDS).map(([id,k])=>`<button type="button" class="chip ${t.kind===id?"on":""}" data-act="tkKind" data-v="${id}">${k.n}</button>`).join("")}</div></div>
  ${teamAg()?`<div class="field"><span>Responsável</span><div class="chips" style="flex-wrap:wrap">${[["","Ninguém"],...teamMembers().map(m=>[m.uid,m.uid===ME.uid?"Eu":teamNick(m.uid)])].map(([id,n])=>`<button type="button" class="chip ${(UI.tkWho||"")===id?"on":""}" data-act="tkWho" data-v="${id}">${id?`<span class="avatar">${teamInitials(id)}</span>`:""}${esc(n)}</button>`).join("")}</div>${t.by&&t.by!==ME.uid?`<span class="tiny muted">Criada por ${esc(teamNick(t.by))}.</span>`:""}</div>`:""}
  <label class="field ${t.kind==="pagar"?"":"hide"}" id="tk_valf"><span>Valor (opcional)</span><input id="tk_val" inputmode="decimal" value="${t.value?String(t.value).replace(".",","):""}" placeholder="0,00"><span class="tiny muted">Ao concluir, o Prumo abre o lançamento do gasto já preenchido.</span></label>
@@ -1830,7 +1835,8 @@ function render(){
  renderTabs();
  syncSubs();
  if(TEAM){if(!["home","profile","admin"].includes(UI.tab)&&!(UI.tab==="fin"&&(teamHas("fin")||teamHas("quotes")))&&!(UI.tab==="agenda"&&teamAg())&&!(UI.tab==="vaq"&&teamHas("vaq")))UI.tab="home";
-  if(UI.tab==="fin"&&!teamHas("fin"))UI.fin="orc";if(UI.tab==="agenda"&&!teamHas("tasks"))UI.agendaSub="cal";if(UI.tab==="agenda"&&!teamHas("agenda"))UI.agendaSub="tasks"}
+  if(UI.tab==="fin"&&!teamHas("fin"))UI.fin="orc";}
+ if(UI.tab==="agenda"){const subs=AG_SUBS();if(subs.length&&!subs.some(x=>x[0]===(UI.agendaSub||"cal")))UI.agendaSub=subs[0][0]}
  document.body.classList.toggle("team-env",!!TEAM);
  if(UI.tab!=="fin")UI.finOpen=false;
  const views={home:()=>TEAM&&typeof viewTeamHome==="function"?viewTeamHome():viewHome(),vaq:()=>typeof viewVaq==="function"?viewVaq():viewHome(),fin:()=>finLocked()?finLockView():viewFin(),study:viewStudy,ex:viewEx,agenda:viewAgenda,prayer:viewPrayer,learn:viewLearn,pig:viewPig,profile:viewProfile,admin:viewAdmin};
@@ -1839,15 +1845,15 @@ function render(){
  app.innerHTML=header()+envBar()+(views[UI.tab]||views.home)();
  window.scrollTo(0,sy);
  if(UI.wdPending)setTimeout(wardrobePlay,250);
- const fab={home:null,vaq:"addVaq",fin:(TEAM&&!teamHas("fin"))||finLocked()?null:"addExpense",study:"addStudy",ex:UI.ex==="comida"?"addFood":"addEx",agenda:UI.agendaSub==="tasks"?"addTask":"addEvent"}[UI.tab];
+ const fab={home:null,vaq:"addVaq",fin:(TEAM&&!teamHas("fin"))||finLocked()?null:"addExpense",study:"addStudy",ex:UI.ex==="comida"?"addFood":"addEx",agenda:UI.agendaSub==="tasks"?"addTask":UI.agendaSub==="proj"?(UI.projOpen?"projAddStep":"addProject"):"addEvent"}[UI.tab];
  const f=$("#fab");f.hidden=!fab;f.dataset.act=fab||"";f.innerHTML=I.plus;
- f.setAttribute("aria-label",{fin:"Adicionar gasto",study:"Registrar estudo",ex:UI.ex==="comida"?"Adicionar alimento":"Registrar exercício",agenda:UI.agendaSub==="tasks"?"Nova tarefa":"Novo compromisso"}[UI.tab]||"Adicionar");
+ f.setAttribute("aria-label",{fin:"Adicionar gasto",study:"Registrar estudo",ex:UI.ex==="comida"?"Adicionar alimento":"Registrar exercício",agenda:UI.agendaSub==="tasks"?"Nova tarefa":UI.agendaSub==="proj"?(UI.projOpen?"Nova etapa":"Novo projeto"):"Novo compromisso"}[UI.tab]||"Adicionar");
  renderTFull();tickTimer();
 }
 function renderTabs(){const t=[["home","Início",I.home],["fin","Finanças",I.money],["study","Estudos",I.book],["ex","Saúde",I.heart.replace('fill="currentColor"','fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"')],["agenda","Agenda",I.cal]];if(S.profile.prayer)t.push(["prayer","Oração",I.candle]);
  if(TEAM){for(let i=t.length-1;i>=0;i--){const id=t[i][0];if(!(id==="home"||(id==="fin"&&(teamHas("fin")||teamHas("quotes")))||(id==="agenda"&&teamAg())))t.splice(i,1)}t[0]=["home",TEAM.name.length>10?"Equipe":esc(TEAM.name),I.people];
   const fi=t.findIndex(x=>x[0]==="fin");if(fi>=0&&!teamHas("fin"))t[fi]=["fin","Orçamentos",I.money];if(teamHas("vaq"))t.splice(fi>=0?fi+1:1,0,["vaq","Vaquinha",I.split||I.people]);
-  const ai=t.findIndex(x=>x[0]==="agenda");if(ai>=0&&!teamHas("agenda"))t[ai]=["agenda","Tarefas",I.cal]}
+  const ai=t.findIndex(x=>x[0]==="agenda");if(ai>=0){const sb=AG_SUBS();if(sb.length===1)t[ai]=["agenda",sb[0][1],I.cal]}}
  $("#tabs").innerHTML=`<div class="tabs-in" style="grid-template-columns:repeat(${t.length},1fr)">${t.map(([id,n,ic])=>`<button class="tab ${UI.tab===id||((UI.tab==="pig"||UI.tab==="learn")&&id==="home")?"on":""}" data-act="tab" data-v="${id}" aria-label="${n}">${ic}<span>${n}</span></button>`).join("")}</div>`}
 function logoHTML(px){return `<span role="img" aria-label="Prumo" style="display:inline-block;white-space:nowrap;font-family:var(--f-display);font-weight:600;font-size:${px}px;line-height:1;letter-spacing:-.02em;color:var(--ink)"><span aria-hidden="true">Prum</span><svg aria-hidden="true" viewBox="0 0 100 100" style="display:inline-block;width:.54em;height:.54em;margin-left:.03em;vertical-align:-.01em"><circle cx="50" cy="50" r="50" fill="#F28AA8"/><ellipse cx="35" cy="50" rx="8.5" ry="15" fill="#2B1E24"/><ellipse cx="65" cy="50" rx="8.5" ry="15" fill="#2B1E24"/></svg></span>`}
 function header(){const st=streak();const first=(S.profile.name||"").split(" ")[0];
@@ -2080,7 +2086,7 @@ function exHistory(){const ls=exLogs();const groups={};ls.slice(0,150).forEach(l
 
 /* ---------- Agenda ---------- */
 function calCount(s){return eventsOn(s).filter(e=>e.repeat!=="daily").length}
-function viewAgenda(){if(UI.agendaSub==="tasks")return tasksView();const k=UI.calMonth;const [y,m]=k.split("-").map(Number);const first=new Date(y,m-1,1);const start=new Date(first);start.setDate(1-first.getDay());
+function viewAgenda(){if(UI.agendaSub==="tasks")return tasksView();if(UI.agendaSub==="proj")return projView();const k=UI.calMonth;const [y,m]=k.split("-").map(Number);const first=new Date(y,m-1,1);const start=new Date(first);start.setDate(1-first.getDay());
  const rg=UI.calRange||"dia";const wk0=(()=>{const d=parseDate(UI.calDay);d.setDate(d.getDate()-d.getDay());return ymd(d)})();
  let cells="";for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const s=ymd(d);const has=calCount(s);const inWk=rg==="semana"&&s>=wk0&&s<=addDays(wk0,6);
   cells+=`<button class="${d.getMonth()!==m-1?"out":""} ${s===today()?"today":""} ${s===UI.calDay?"sel":""} ${has?"has":""} ${inWk?"wk":""}" data-act="calDay" data-v="${s}" aria-label="${d.getDate()}${has?", "+has+" compromisso(s)":""}">${d.getDate()}${has>1?`<em>${has}</em>`:""}</button>`}
@@ -2456,13 +2462,13 @@ const A={
  tkDelSub:el=>{UI.taskSubs.splice(+el.dataset.v,1);renderTaskSubs()},
  saveTask:el=>{const title=v("tk_title").trim();if(!title){toast("Escreva o que precisa fazer.");return}const lb=taskDecay().lost;setTimeout(()=>taskLostToast(lb),0);const id=el.dataset.v||rid();const old=S.tasks.items[id]||{};
   const pend=v("tk_newsub").trim();if(pend)UI.taskSubs.push({t:pend,done:false});
-  const t={id,title,kind:UI.taskKind||"pessoal",prio:v("tk_prio"),date:v("tk_date")||null,time:v("tk_time")||"",remind:+v("tk_rem")||0,cal:$("#tk_cal").checked,place:v("tk_place").trim(),value:UI.taskKind==="pagar"?parseMoney(v("tk_val"))||null:null,notes:v("tk_notes").trim(),subs:clone(UI.taskSubs||[]),repeat:v("tk_rep")||"",who:teamAg()?(UI.tkWho||""):(old.who||""),by:old.by||ME.uid,status:old.status||"todo",created:old.created||Date.now(),doneAt:old.doneAt||null,resched:old.resched||0,reschedLog:old.reschedLog||[]};
+  const t={id,title,kind:UI.taskKind||"pessoal",prio:v("tk_prio"),date:v("tk_date")||null,time:v("tk_time")||"",remind:+v("tk_rem")||0,cal:$("#tk_cal").checked,place:v("tk_place").trim(),value:UI.taskKind==="pagar"?parseMoney(v("tk_val"))||null:null,notes:v("tk_notes").trim(),subs:clone(UI.taskSubs||[]),repeat:v("tk_rep")||"",who:teamAg()?(UI.tkWho||""):(old.who||""),by:old.by||ME.uid,...(UI.tkProj?{proj:UI.tkProj,order:old.order!=null?old.order:projNextOrder(UI.tkProj)}:{}),status:old.status||"todo",created:old.created||Date.now(),doneAt:old.doneAt||null,resched:old.resched||0,reschedLog:old.reschedLog||[]};
   if(old.id&&old.date&&t.date!==old.date&&daysLate(old)>=1){t.reschedLog=[...t.reschedLog,{from:old.date,to:t.date,reason:"editado",at:today()}];t.resched++}
   if(t.repeat&&!t.date)t.date=today();if(old.nextId)t.nextId=old.nextId;
   S.tasks.items[id]=t;const ns=$("#tk_status")?v("tk_status"):t.status;closeModal();if(ns!==t.status)moveTask(id,ns);else{commit();toast(old.id?"Tarefa salva.":"Tarefa criada.")}},
  delTaskYes:()=>{const lb=taskDecay().lost;setTimeout(()=>taskLostToast(lb),0);const id=document.querySelector('[data-act="saveTask"]').dataset.v;delete S.tasks.items[id];commit();closeModal();toast("Tarefa apagada.")},
  taskMove:el=>moveTask(el.dataset.v,el.dataset.to),
- clearDone:()=>{taskList().filter(t=>t.status==="done").forEach(t=>delete S.tasks.items[t.id]);commit();toast("Concluídas removidas do quadro. Elas continuam contando para o porquinho.")},
+ clearDone:()=>{taskList().filter(t=>t.status==="done"&&!(t.proj&&PJ().items[t.proj])).forEach(t=>delete S.tasks.items[t.id]);commit();toast("Concluídas removidas do quadro. Elas continuam contando para o porquinho.")},
  prTick:el=>{const id=el.dataset.v;const d=today();const l=S.prayer.log[d]=S.prayer.log[d]||{};const before=prayerPeace();if(l[id])delete l[id];else{l[id]=1;markActive()}commit();
   if($("#modal").innerHTML&&document.querySelector('.sheet [data-act="prTick"]'))prOpenView(id);
   if(l[id]){const after=prayerPeace();if(S.profile.pet&&after>before&&[1,4,7].includes(after))toast(after===7?"Uma semana de oração: o porquinho ganhou uma luz suave.":after===4?"O ambiente do porquinho ganhou brilho.":"Uma pombinha chegou ao ambiente do porquinho.",4500)}},
@@ -3377,6 +3383,85 @@ document.addEventListener("change",ev=>{if(ev.target&&ev.target.id==="finLockTog
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&UI.finOpen&&finLockOn()){UI.finOpen=false;if(UI.tab==="fin")render()}});
 setInterval(()=>{if(UI.finOpen&&finLockOn()&&Date.now()-(UI.finAct||0)>5*60000){UI.finOpen=false;if(UI.tab==="fin"&&!$("#modal").innerHTML){render();toast("Finanças trancadas depois de 5 minutos paradas.")}}},20000);
 {const _rf=render;render=function(){_rf();if(finLocked()&&UI.tab==="fin"){const i=document.getElementById("fl_pin");if(i&&document.activeElement!==i)setTimeout(()=>i.focus(),30)}}}
+/* ---------- Projetos ----------
+   Um projeto tem nome, objetivo, prazo e etapas em ordem. Cada etapa é uma tarefa ligada ao projeto
+   (aparece no quadro de Tarefas e no calendário). Nas equipes, cada etapa pode ter um responsável. */
+function PJ(){S.projects=S.projects||{};S.projects.items=S.projects.items||{};return S.projects}
+const PJ_COLORS=["#E5739A","#2F8F6B","#3F7FD9","#E0A23B","#8B5CF6","#5B6B7A"];
+const PJ_ST={plan:"Planejando",doing:"Em andamento",pause:"Pausado",done:"Concluído"};
+const projSteps=id=>vals(S.tasks.items).filter(t=>t.proj===id).sort((a,b)=>(a.order||0)-(b.order||0)||(a.created||0)-(b.created||0));
+function projNextOrder(id){return projSteps(id).reduce((m,t)=>Math.max(m,+t.order||0),0)+1}
+function projProg(id){const st=projSteps(id);if(!st.length)return 0;return st.reduce((s,t)=>s+(t.status==="done"?1:(t.subs&&t.subs.length?t.subs.filter(x=>x.done).length/t.subs.length*.9:t.status==="doing"?.3:0)),0)/st.length}
+const stepLate=t=>t.status!=="done"&&t.date&&t.date<today();
+function projCard(p){const st=projSteps(p.id);const done=st.filter(t=>t.status==="done").length;const pr=projProg(p.id);const nx=st.find(t=>t.status!=="done");const late=st.filter(stepLate).length;
+ return `<button class="card stack" style="text-align:left;gap:8px;border-left:6px solid ${p.color||PJ_COLORS[0]}" data-act="projOpen" data-v="${p.id}">
+ <div class="row between"><b style="font-size:16px">${esc(p.name)}</b><span class="pill ${p.status==="done"?"good":p.status==="pause"?"warn":"info"}" style="padding:1px 8px">${PJ_ST[p.status||"doing"]}</span></div>
+ <div class="meter"><i style="width:${Math.round(pr*100)}%;background:${p.color||PJ_COLORS[0]}"></i></div>
+ <div class="row between tiny muted"><span>${done} de ${st.length} etapa${st.length===1?"":"s"} · ${Math.round(pr*100)}%</span><span>${p.due?`Prazo ${ddmm(p.due)}`:""}</span></div>
+ ${p.status!=="done"&&nx?`<span class="small">Próxima: <b>${esc(nx.title)}</b>${nx.date?` · ${ddmm(nx.date)}`:""}${teamAg()&&nx.who?` · <span class="avatar" style="width:18px;height:18px;font-size:8px">${teamInitials(nx.who)}</span>${esc(nx.who===ME.uid?"você":teamNick(nx.who))}`:""}</span>`:""}
+ ${late?`<span class="pill bad" style="align-self:flex-start;padding:1px 8px">${late} etapa${late>1?"s":""} atrasada${late>1?"s":""}</span>`:""}</button>`}
+function projView(){if(UI.projOpen&&PJ().items[UI.projOpen])return projDetail(UI.projOpen);UI.projOpen=null;
+ const f=UI.projF||"ativos";const all=vals(PJ().items).sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999")||(a.created||0)-(b.created||0));
+ const chips=[["ativos","Em andamento"],["done","Concluídos"],["todos","Todos"]];if(teamAg())chips.push(["minhas","Minhas etapas"]);
+ let body;
+ if(f==="minhas"){const mine=vals(S.tasks.items).filter(t=>t.proj&&PJ().items[t.proj]&&t.who===ME.uid&&t.status!=="done").sort(taskSort);
+  body=mine.length?`<div class="card list">${mine.map(t=>{const p=PJ().items[t.proj];return `<div class="item"><button class="iconbtn" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--line);background:none;flex:none" data-act="projStepDone" data-v="${t.id}" aria-label="Concluir ${esc(t.title)}"></button><button class="grow stack-s" style="gap:1px;border:0;background:none;text-align:left;padding:0" data-act="editTask" data-v="${t.id}"><b>${esc(t.title)}</b><span class="tiny muted"><i class="dot" style="background:${p.color};display:inline-block;margin-right:4px"></i>${esc(p.name)}</span></button>${taskDue(t)}</div>`}).join("")}</div>`:`<div class="card empty">Nenhuma etapa com você agora.</div>`}
+ else{const list=all.filter(p=>f==="todos"?true:f==="done"?p.status==="done":p.status!=="done");
+  body=list.length?list.map(projCard).join(""):`<div class="card empty stack" style="align-items:center">${f==="done"?"Nenhum projeto concluído ainda.":`<span>Um projeto é um objetivo maior dividido em etapas. Ex.: ${TEAM?"lançar um produto, montar o estande da feira":"reformar o quarto, planejar a viagem, fazer um curso"}.</span>`}</div>`}
+ return `<div class="stack">${agendaHead()}
+ <div class="chips">${chips.map(([id,n])=>`<button class="chip ${f===id?"on":""}" data-act="projFilter" data-v="${id}">${n}</button>`).join("")}</div>
+ ${body}
+ <button class="btn line" data-act="addProject">${I.plus.replace('<svg','<svg width="16" height="16"')} Novo projeto</button></div>`}
+function projDetail(id){const p=PJ().items[id];const st=projSteps(id);const pr=projProg(id);const c=p.color||PJ_COLORS[0];
+ return `<div class="stack">${agendaHead()}
+ <button class="btn ghost sm" data-act="projBack" style="align-self:flex-start">${I.left.replace('<svg','<svg width="16" height="16"')} Projetos</button>
+ <div class="card stack" style="border-top:6px solid ${c};gap:10px">
+  <div class="row between"><h2 style="margin:0">${esc(p.name)}</h2><button class="btn ghost sm" data-act="projEdit" data-v="${id}">Editar</button></div>
+  ${p.goal?`<p class="small">${esc(p.goal)}</p>`:""}
+  <div class="row" style="gap:8px;flex-wrap:wrap"><span class="pill ${p.status==="done"?"good":p.status==="pause"?"warn":"info"}" style="padding:1px 8px">${PJ_ST[p.status||"doing"]}</span>${p.due?`<span class="tiny ${p.due<today()&&p.status!=="done"?"":"muted"}" style="${p.due<today()&&p.status!=="done"?"color:var(--bad);font-weight:700":""}">Prazo: ${dayLabel(p.due)}</span>`:""}</div>
+  <div class="stack-s" style="gap:4px"><div class="row between small"><span>Progresso</span><b class="num">${Math.round(pr*100)}%</b></div><div class="meter" style="height:12px"><i style="width:${Math.round(pr*100)}%;background:${c}"></i></div></div>
+  ${p.status==="done"?`<div class="row" style="gap:10px"><span style="width:64px;flex:none">${pigSVG({score:95,mood:"feliz",equip:{},env:0,mini:true})}</span><span class="small"><b>Projeto concluído!</b> Que orgulho. Cada etapa feita foi um passo no prumo.</span></div>`:""}
+ </div>
+ <div class="section"><div class="label">Etapas</div>
+ ${st.length?`<div class="card pjsteps">${st.map((t,i)=>{const sd=(t.subs||[]).filter(x=>x.done).length;const ok=t.status==="done";return `<div class="pjstep ${ok?"ok":""}">
+  <button class="pjdot" style="${ok?`background:${c};border-color:${c};color:#fff`:t.status==="doing"?`border-color:${c};color:${c}`:""}" data-act="projStepDone" data-v="${t.id}" aria-label="${ok?"Reabrir":"Concluir"} ${esc(t.title)}">${ok?I.check.replace('<svg','<svg width="14" height="14"'):i+1}</button>
+  <button class="grow stack-s" style="gap:2px;border:0;background:none;text-align:left;padding:2px 0;min-width:0" data-act="editTask" data-v="${t.id}"><b style="${ok?"text-decoration:line-through;color:var(--muted)":""}">${esc(t.title)}</b>
+   <span class="tiny muted row" style="gap:6px;flex-wrap:wrap">${t.date?`<span style="${stepLate(t)?"color:var(--bad);font-weight:700":""}">${stepLate(t)?"Atrasada · ":""}${ddmm(t.date)}</span>`:"Sem prazo"}${t.status==="doing"?"<span>· fazendo</span>":""}${(t.subs||[]).length?`<span>· ${sd}/${t.subs.length} itens</span>`:""}${teamAg()&&t.who?`<span class="row" style="gap:3px">· <span class="avatar" style="width:18px;height:18px;font-size:8px;margin:0">${teamInitials(t.who)}</span>${esc(t.who===ME.uid?"você":teamNick(t.who))}</span>`:teamAg()?"<span>· sem responsável</span>":""}</span></button>
+  <span class="stack-s" style="gap:2px;flex:none">${i>0?`<button class="iconbtn" style="width:28px;height:24px" data-act="projStepMove" data-v="${t.id}" data-d="-1" aria-label="Subir">&#9650;</button>`:""}${i<st.length-1?`<button class="iconbtn" style="width:28px;height:24px" data-act="projStepMove" data-v="${t.id}" data-d="1" aria-label="Descer">&#9660;</button>`:""}</span></div>`}).join("")}</div>`
+  :`<div class="card empty">Divida o projeto em etapas. Ex.: pesquisa, protótipo, fotos, lançamento.</div>`}
+ <button class="btn line" data-act="projAddStep">${I.plus.replace('<svg','<svg width="16" height="16"')} Adicionar etapa</button>
+ <p class="tiny muted">As etapas com prazo aparecem no calendário e no quadro de Tarefas${teamAg()?", com o responsável":""}. Toque numa etapa para mudar prazo, ${teamAg()?"responsável, ":""}itens e anotações.</p></div></div>`}
+function projForm(p){p=p||{color:PJ_COLORS[vals(PJ().items).length%PJ_COLORS.length],status:"doing"};const isEdit=!!p.id;UI.pjColor=p.color;const n=isEdit?projSteps(p.id).length:0;
+ openModal(isEdit?"Editar projeto":"Novo projeto",`<div class="stack">
+ <label class="field"><span>Nome do projeto</span><input id="pj_name" maxlength="60" value="${esc(p.name||"")}" placeholder="${TEAM?"Ex.: Linha de luminárias 3D":"Ex.: Reformar o quarto"}"></label>
+ <label class="field"><span>Objetivo (opcional)</span><textarea id="pj_goal" placeholder="O que vai estar pronto quando o projeto acabar?">${esc(p.goal||"")}</textarea></label>
+ <div class="grid2"><label class="field"><span>Prazo final</span><input id="pj_due" type="date" value="${p.due||""}"></label>
+ <label class="field"><span>Situação</span><select id="pj_st">${Object.entries(PJ_ST).map(([k,v])=>`<option value="${k}" ${(p.status||"doing")===k?"selected":""}>${v}</option>`).join("")}</select></label></div>
+ <div class="field"><span>Cor</span><div class="row" style="gap:10px">${PJ_COLORS.map(c=>`<button type="button" data-act="pjColor" data-v="${c}" aria-label="Cor" style="width:34px;height:34px;border-radius:50%;background:${c};border:3px solid ${c===p.color?"var(--ink)":"transparent"}"></button>`).join("")}</div></div>
+ ${!isEdit?`<label class="field"><span>Etapas (opcional, uma por linha)</span><textarea id="pj_steps" placeholder="Pesquisa&#10;Protótipo&#10;Fotos&#10;Lançamento"></textarea><span class="tiny muted">Depois você coloca prazo${TEAM?" e responsável":""} em cada uma.</span></label>`:""}
+ <button class="btn block" data-act="projSave" data-v="${p.id||""}">${isEdit?"Salvar":"Criar projeto"}</button>
+ ${isEdit?`<button class="btn danger" data-act="askDel">Apagar projeto</button>${confirmBox("projDel",`Apagar o projeto${n?` e as ${n} etapas`:""}? Não dá para desfazer.`)}`:""}</div>`)}
+function projCheckDone(pid){const p=PJ().items[pid];if(!p)return;const st=projSteps(pid);if(st.length&&st.every(t=>t.status==="done")&&p.status!=="done"){p.status="done";p.doneAt=today();commit();setTimeout(()=>toast(`Projeto "${p.name}" concluído! O porquinho está comemorando.`,5000),400)}
+ else if(p.status==="done"&&st.some(t=>t.status!=="done")){p.status="doing";commit()}}
+{const _mt=moveTask;moveTask=function(id,to){const t=S.tasks.items[id];_mt(id,to);if(t&&t.proj)projCheckDone(t.proj)}}
+Object.assign(A,{
+ addProject:()=>projForm(),
+ projOpen:el=>{UI.projOpen=el.dataset.v;render();window.scrollTo(0,0)},
+ projBack:()=>{UI.projOpen=null;render();window.scrollTo(0,0)},
+ projFilter:el=>{UI.projF=el.dataset.v;render()},
+ projEdit:el=>projForm(PJ().items[el.dataset.v]),
+ pjColor:el=>{UI.pjColor=el.dataset.v;document.querySelectorAll('[data-act="pjColor"]').forEach(b=>b.style.borderColor=b===el?"var(--ink)":"transparent")},
+ projSave:el=>{const name=v("pj_name").trim();if(!name){toast("Dê um nome ao projeto.");return}const id=el.dataset.v||rid();const old=PJ().items[id]||{};
+  PJ().items[id]={...old,id,name,goal:v("pj_goal").trim(),due:v("pj_due")||null,status:v("pj_st")||"doing",color:UI.pjColor||PJ_COLORS[0],created:old.created||Date.now(),by:old.by||ME.uid};
+  if(!old.id){const lines=(v("pj_steps")||"").split("\n").map(x=>x.trim()).filter(Boolean).slice(0,30);lines.forEach((title,i)=>{const tid=rid();S.tasks.items[tid]={id:tid,title,kind:TEAM?"trabalho":"pessoal",prio:"media",status:"todo",date:null,time:"",remind:30,cal:true,subs:[],notes:"",place:"",value:null,repeat:"",who:"",by:ME.uid,proj:id,order:i+1,created:Date.now()+i,doneAt:null,resched:0,reschedLog:[]}})}
+  UI.projOpen=id;closeModal();commit();window.scrollTo(0,0);toast(old.id?"Projeto salvo.":"Projeto criado. Agora coloque prazo nas etapas.")},
+ projDelYes:()=>{const id=document.querySelector('[data-act="projSave"]').dataset.v;projSteps(id).forEach(t=>delete S.tasks.items[t.id]);delete PJ().items[id];UI.projOpen=null;closeModal();commit();toast("Projeto apagado.")},
+ projAddStep:()=>{const id=UI.projOpen;if(!id)return;taskForm(null,{proj:id,kind:TEAM?"trabalho":"pessoal",title:""})},
+ projStepDone:el=>{const t=S.tasks.items[el.dataset.v];if(!t)return;moveTask(t.id,t.status==="done"?"todo":"done")},
+ projStepMove:el=>{const t=S.tasks.items[el.dataset.v];if(!t)return;const st=projSteps(t.proj);const i=st.findIndex(x=>x.id===t.id);const j=i+(+el.dataset.d);if(j<0||j>=st.length)return;
+  st.forEach((x,k)=>x.order=k+1);const o=st[j].order;st[j].order=t.order;t.order=o;commit()},
+});
+
 
 /* ============================================================
    Versão web: contas e dados no Supabase
@@ -4006,6 +4091,10 @@ function viewTeamHome(){const t=TEAM;const tk=teamHas("tasks")&&TD.agenda?vals(S
  return `<div class="stack"><h1 style="margin-top:4px">${esc(t.name)}</h1>
  <div class="card stack" style="gap:10px"><div class="row" style="gap:6px;flex-wrap:wrap">${t.members.map(m=>`<span class="chip" style="cursor:default"><span class="avatar">${teamInitials(m.uid)}</span>${esc(nm(m.uid))}</span>`).join("")}</div>
   <div class="row between"><span class="tiny muted">Usando: ${teamFeatList(t).join(", ")}</span><button class="btn ghost sm" data-act="teamManage">${iOwn()?"Gerenciar":"Ver equipe"}</button></div></div>
+ ${teamHas("proj")?(()=>{const ps=vals(PJ().items).filter(p=>p.status!=="done");const my=vals(S.tasks.items).filter(t=>t.proj&&PJ().items[t.proj]&&t.who===ME.uid&&t.status!=="done").length;
+  return `<div class="card stack"><div class="row between"><div class="label">Projetos</div><button class="btn ghost sm" data-act="goProj">Abrir</button></div>
+  ${ps.length?ps.slice(0,4).map(p=>`<button class="stack-s" style="gap:4px;border:0;background:none;text-align:left;padding:0" data-act="goProj" data-v="${p.id}"><div class="row between small"><b>${esc(p.name)}</b><span class="num muted">${Math.round(projProg(p.id)*100)}%</span></div><div class="meter"><i style="width:${Math.round(projProg(p.id)*100)}%;background:${p.color}"></i></div></button>`).join(""):`<p class="small muted">Nenhum projeto em andamento.</p>`}
+  ${my?`<p class="small">Você tem <b>${my} etapa${my>1?"s":""}</b> para fazer. <button class="btn ghost sm" data-act="goProjMine">Ver</button></p>`:""}</div>`})():""}
  ${teamHas("tasks")?`<div class="card stack"><div class="row between"><div class="label">Suas tarefas na equipe</div><button class="btn ghost sm" data-act="goTasks">Ver quadro</button></div>
   ${mine.length?`<div class="list">${mine.slice(0,5).map(x=>`<div class="item"><button class="iconbtn" style="width:34px;height:34px;border-radius:50%;border:2px solid var(--line);background:none" data-act="taskMove" data-v="${x.id}" data-to="done" aria-label="Concluir ${esc(x.title)}"></button><button class="grow" style="border:0;background:none;text-align:left;padding:0" data-act="editTask" data-v="${x.id}"><b>${esc(x.title)}</b></button>${taskDue(x)}</div>`).join("")}</div>`:`<p class="small muted">Nenhuma tarefa com você.${free.length?` Há ${free.length} sem responsável.`:""}</p>`}
   <div class="row" style="gap:6px;flex-wrap:wrap">${t.members.map(m=>{const n=tk.filter(x=>x.who===m.uid).length;return n?`<span class="tiny muted">${esc(nm(m.uid))}: ${n}</span>`:""}).join(" ")}</div></div>`:""}
@@ -4045,13 +4134,17 @@ function vaqDetail(id){const r=VQ().items[id];if(!r)return;const sh=Object.entri
  <button class="btn danger sm" data-act="askDel" style="align-self:center">Apagar vaquinha</button>${confirmBox("vaqDel","Apagar esta vaquinha para toda a equipe?")}</div>`)}
 
 /* ---------- Demonstração: equipe CriaMente3d ---------- */
-function demoTeams(){TEAMS=[{id:"demo-team",name:"CriaMente3d",owner:"demo",features:{agenda:true,tasks:true,fin:true,quotes:true,vaq:true},
+function demoTeams(){TEAMS=[{id:"demo-team",name:"CriaMente3d",owner:"demo",features:{agenda:true,tasks:true,fin:true,quotes:true,vaq:true,proj:true},
  members:[{uid:"demo",nick:"José",email:"jose@exemplo.com"},{uid:"m_ana",nick:"Ana",email:"ana@exemplo.com"},{uid:"m_lucas",nick:"Lucas",email:"lucas@exemplo.com"}],invites:["contato@exemplo.com"]}];TINV=[];TCOUNT["demo-team"]=3}
 function demoTeamData(){const D=n=>addDays(today(),n);const k=mkey();const id=()=>rid();
  const tasks={};[["Imprimir pedido da Loja Arte & Cia",D(0),"demo","trabalho",[["Fatiar o modelo",true],["Imprimir 12 peças",false]]],["Responder orçamentos do Instagram",D(0),"m_ana","trabalho",[]],["Comprar filamento PLA branco",D(1),"m_lucas","pagar",[]],["Fotografar produtos novos",D(2),"demo","trabalho",[]],["Atualizar catálogo no site",D(3),"",  "trabalho",[]],["Revisar contas do mês",D(-1),"m_ana","trabalho",[]]]
   .forEach(([title,date,who,kind,subs],i)=>{const tid="dt"+i;tasks[tid]={id:tid,title,date,time:i===0?"14:00":"",who,by:"demo",kind,prio:i===0?"alta":"media",status:i===1?"doing":"todo",cal:true,remind:30,subs:subs.map(([t,done])=>({t,done})),created:Date.now()-i*1e6,repeat:i===4?"weekly":""}});
  tasks.dtx={id:"dtx",title:"Entregar chaveiros personalizados",date:D(-2),who:"m_lucas",by:"demo",kind:"trabalho",prio:"media",status:"done",doneAt:Date.now()-2e8,cal:true,subs:[]};
- TD.agenda=deepMerge(TPARTS[0].def(),{agenda:{events:{de1:{id:"de1",title:"Reunião com fornecedor de resina",date:D(1),time:"10:00",remind:30,repeat:"none",place:"Online",notes:""},de2:{id:"de2",title:"Feira de artesanato (estande)",date:D(5),time:"08:00",remind:1440,repeat:"none",place:"Centro de eventos",notes:""},de3:{id:"de3",title:"Planejamento da semana",date:D(-((new Date().getDay()+6)%7)),time:"08:30",remind:10,repeat:"weekly",place:"",notes:""}}},tasks:{items:tasks,doneTotal:41}});
+ const pjs={pl:{id:"pl",name:"Linha de luminárias 3D",goal:"Lançar 5 modelos de luminária na loja e na feira.",due:D(24),status:"doing",color:"#3F7FD9",created:Date.now()-9e8,by:"demo"},pe:{id:"pe",name:"Estande da feira de artesanato",goal:"Estande montado com produtos, preços e QR code do Instagram.",due:D(5),status:"doing",color:"#E0A23B",created:Date.now()-5e8,by:"m_ana"}};
+ [["pl","Pesquisa de modelos","done",D(-12),"m_ana",[]],["pl","Protótipo das 5 luminárias","doing",D(3),"demo",[["Modelo Lua",true],["Modelo Colmeia",true],["Modelo Onda",false],["Modelo Folha",false],["Modelo Prisma",false]]],["pl","Fotos e vídeos","todo",D(10),"m_ana",[]],["pl","Cadastrar na loja online","todo",D(18),"m_lucas",[]],["pl","Lançamento no Instagram","todo",D(24),"m_ana",[]],
+  ["pe","Reservar o espaço","done",D(-8),"demo",[]],["pe","Banner e etiquetas de preço","doing",D(2),"m_lucas",[["Arte do banner",true],["Imprimir etiquetas",false]]],["pe","Separar estoque","todo",D(4),"demo",[]]]
+ .forEach(([pj,title,status,date,who,subs],i)=>{const tid="dp"+i;tasks[tid]={id:tid,title,proj:pj,order:i+1,status,date,who,by:"demo",kind:"trabalho",prio:"media",cal:true,remind:30,subs:subs.map(([t,done])=>({t,done})),created:Date.now()-i*1e5,doneAt:status==="done"?Date.now()-3e8:null}});
+ TD.agenda=deepMerge(TPARTS[0].def(),{projects:{items:pjs},agenda:{events:{de1:{id:"de1",title:"Reunião com fornecedor de resina",date:D(1),time:"10:00",remind:30,repeat:"none",place:"Online",notes:""},de2:{id:"de2",title:"Feira de artesanato (estande)",date:D(5),time:"08:00",remind:1440,repeat:"none",place:"Centro de eventos",notes:""},de3:{id:"de3",title:"Planejamento da semana",date:D(-((new Date().getDay()+6)%7)),time:"08:30",remind:10,repeat:"weekly",place:"",notes:""}}},tasks:{items:tasks,doneTotal:41}});
  TD["fin/quotes"]=TPARTS[1].def();if(S.quotes)TD["fin/quotes"].quotes=deepMerge(TD["fin/quotes"].quotes,clone(S.quotes));
  TBASE.agenda=clone(TD.agenda);TBASE["fin/quotes"]=clone(TD["fin/quotes"]);
  const inc={},exp={};[["Vendas Shopee",4280,"m_ana",3],["Encomenda Loja Arte & Cia",1850,"demo",8],["Vendas na feira",960,"m_lucas",15]].forEach(([desc,v,by,d])=>inc[id()]={v,desc,by,date:k+"-"+pad(Math.min(d,28)),t:Date.now()});
@@ -4061,6 +4154,13 @@ function demoTeamData(){const D=n=>addDays(today(),n);const k=mkey();const id=()
  TFIN.vaq={items:{v1:{id:"v1",title:"Estande na feira de artesanato",total:450,date:D(-3),payer:"demo",shares:{demo:150,m_ana:150,m_lucas:150},paid:{m_ana:D(-2)},by:"demo",created:Date.now()-3e8,note:"PIX para o José"},
   v2:{id:"v2",title:"Almoço de comemoração (100 pedidos!)",total:186,date:D(-1),payer:"m_ana",shares:{demo:62,m_ana:62,m_lucas:62},paid:{},by:"m_ana",created:Date.now()-1e8},
   v3:{id:"v3",title:"Caixa de ferramentas",total:240,date:D(-20),payer:"m_lucas",shares:{demo:80,m_ana:80,m_lucas:80},paid:{demo:D(-18),m_ana:D(-15)},by:"m_lucas",created:Date.now()-2e9}}}}
+
+A.goProj=el=>{UI.tab="agenda";UI.agendaSub="proj";UI.projOpen=el&&el.dataset&&el.dataset.v||null;UI.projF="ativos";render();window.scrollTo(0,0)};
+A.goProjMine=()=>{UI.tab="agenda";UI.agendaSub="proj";UI.projOpen=null;UI.projF="minhas";render();window.scrollTo(0,0)};
+/* demonstração: um projeto pessoal */
+if(typeof startDemo==="function"){const _sd=startDemo;startDemo=function(){_sd();try{const D=n=>addDays(today(),n);PJ().items.pv={id:"pv",name:"Viagem com a família",goal:"Uma semana na praia em janeiro, sem dívida.",due:D(70),status:"doing",color:"#2F8F6B",created:Date.now()-4e8};
+ [["Definir destino e datas","done",D(-10),[]],["Juntar R$ 3.000 na reserva","doing",D(45),[["R$ 1.000",true],["R$ 2.000",true],["R$ 3.000",false]]],["Reservar a pousada","todo",D(20),[]],["Organizar as malas","todo",D(68),[]]]
+ .forEach(([title,status,date,subs],i)=>{const tid="pv"+i;S.tasks.items[tid]={id:tid,title,proj:"pv",order:i+1,status,date,kind:"pessoal",prio:"media",cal:true,remind:30,subs:subs.map(([t,done])=>({t,done})),created:Date.now()-i*1e5,doneAt:status==="done"?Date.now()-3e8:null}});render()}catch(e){console.warn(e)}}}
 
 /* início */
 (function boot(){

@@ -186,25 +186,27 @@ textarea{min-height:80px;resize:vertical}
 .kcard.kdone b{text-decoration:line-through;color:var(--muted)}
 .ktitle{border:0;background:none;padding:0;text-align:left;display:flex;flex-direction:column;gap:4px;min-width:0}
 .ktitle b{overflow-wrap:anywhere}
-.dvfly{animation:dvFly 60s linear infinite;transform:translate(-90px,30px)}
-.dvturn{transform-box:fill-box;transform-origin:center;animation:dvTurn 60s steps(1,end) infinite}
+.dvfly{animation:dvF 120s linear infinite;transform:translate(-90px,40px)}
+.dvperch{opacity:0;animation:dvPerch 120s linear infinite}@keyframes dvPerch{0%,62%{opacity:0}62.1%,71.9%{opacity:1}72%,100%{opacity:0}}
+.dvturn{transform-box:fill-box;transform-origin:center;animation:dvTurn 120s steps(1,end) infinite}
+@keyframes dvTurn{0%{transform:scaleX(1)}45%{transform:scaleX(-1)}84%{transform:scaleX(1)}}
 .dvbob{animation:bob 2.2s ease-in-out infinite}
-.dvfold{transform-box:fill-box;transform-origin:20% 100%;animation:dvFold 60s ease-in-out infinite}
 .dvwing{transform-box:fill-box;transform-origin:25% 100%;animation:dvFlap .32s ease-in-out infinite}
-.dvheart{opacity:0;transform-box:fill-box;transform-origin:center;animation:dvHeart 60s ease-out infinite}
 @keyframes dvFlap{0%,100%{transform:scaleY(1)}50%{transform:scaleY(-.45)}}
-@keyframes dvFly{0%{transform:translate(-90px,40px)}7%{transform:translate(40px,14px)}14%{transform:translate(118px,calc(var(--hy,58)*1px - 26px))}18.5%{transform:translate(134px,calc(var(--hy,58)*1px))}
- 31%{transform:translate(134px,calc(var(--hy,58)*1px))}36%{transform:translate(230px,6px)}42%{transform:translate(400px,26px)}
- 64%{transform:translate(-90px,34px)}66%{transform:translate(-90px,20px)}76%{transform:translate(160px,8px)}86%{transform:translate(400px,24px)}86.2%{transform:translate(400px,24px)}86.3%,100%{transform:translate(-90px,40px)}}
-@keyframes dvTurn{0%{transform:scaleX(1)}43%{transform:scaleX(-1)}65%{transform:scaleX(1)}}
-@keyframes dvFold{0%,17%{transform:scaleY(1)}19%,30.5%{transform:scaleY(.18)}32%,100%{transform:scaleY(1)}}
-@keyframes dvHeart{0%,21%{opacity:0;transform:translateY(0) scale(.4)}22.5%{opacity:1;transform:translateY(-6px) scale(1)}27%{opacity:1;transform:translateY(-16px) scale(1)}29%,100%{opacity:0;transform:translateY(-22px) scale(.8)}}
+.dvheart{opacity:0;transform-box:fill-box;transform-origin:center;animation:dvHeart 120s ease-out infinite}
+@keyframes dvHeart{0%,64%{opacity:0;transform:translateY(0) scale(.4)}65%{opacity:1;transform:translateY(-5px) scale(1)}68%{opacity:1;transform:translateY(-14px) scale(1)}69.5%,100%{opacity:0;transform:translateY(-20px) scale(.8)}}
+.dvground{opacity:0;animation:dvGround 120s linear infinite}@keyframes dvGround{0%,20%{opacity:0}20.1%,32.9%{opacity:1}33%,100%{opacity:0}}
+.dvgwalk{transform:translate(268px,233px);animation:dvGWalk 120s ease-in-out infinite}
+@keyframes dvGWalk{0%,22%{transform:translate(268px,233px)}24.5%{transform:translate(288px,233px)}27%{transform:translate(288px,233px)}29.5%{transform:translate(256px,233px)}31%,100%{transform:translate(268px,233px)}}
+.dvgstep{animation:dvStep .42s ease-in-out infinite alternate}@keyframes dvStep{from{transform:translateY(0)}to{transform:translateY(-1.2px)}}
+.dvghead{transform-box:fill-box;transform-origin:50% 100%;animation:dvLook 120s ease-in-out infinite}
+@keyframes dvLook{0%,21%{transform:none}21.8%{transform:rotate(-14deg)}22.6%{transform:rotate(12deg)}23.4%,27.2%{transform:none}27.6%{transform:translateY(5px)}28%{transform:none}28.4%{transform:translateY(5px)}28.8%,31.4%{transform:none}31.9%{transform:rotate(10deg)}32.5%,100%{transform:none}}
 .twinkle{transform-box:fill-box;transform-origin:center;animation:twinkle 2.6s ease-in-out infinite}
 .twinkle.b{animation-delay:.9s}.twinkle.c{animation-delay:1.7s}
 @keyframes twinkle{0%,100%{opacity:.25;transform:scale(.7)}50%{opacity:1;transform:scale(1.1)}}
 .glow{animation:glow 4s ease-in-out infinite}
 @keyframes glow{0%,100%{opacity:.35}50%{opacity:.6}}
-@media (prefers-reduced-motion: reduce){.dvfly,.dvturn,.dvbob,.dvfold,.dvwing,.dvheart,.twinkle,.glow{animation:none!important}.dvfly{transform:translate(22px,14px)!important}}
+@media (prefers-reduced-motion: reduce){.dvfly,.dvturn,.dvbob,.dvfold,.dvwing,.dvheart,.dvperch,.dvground,.dvgwalk,.dvgstep,.dvghead,.twinkle,.glow{animation:none!important}.dvperch,.dvground{display:none}.dvfly{transform:translate(22px,14px)!important}}
 .tfull{display:none}
 @media (orientation: landscape) and (max-height: 600px){
  .tfull:not([hidden]){display:flex;position:fixed;inset:0;z-index:55;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:max(12px,env(safe-area-inset-top,0px)) max(24px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(24px,env(safe-area-inset-left,0px))}
@@ -879,7 +881,26 @@ function envSVG(lv,dry,peace){
 
  if(peace>=4)[[60,90,""],[118,52,"b"],[196,108,"c"],[286,92,"b"],[30,150,"c"]].forEach(([x,y,c])=>{s+=`<path class="twinkle ${c}" d="M${x} ${y-7} L${x+2} ${y-2} L${x+7} ${y} L${x+2} ${y+2} L${x} ${y+7} L${x-2} ${y+2} L${x-7} ${y} L${x-2} ${y-2}Z" fill="#FFF3B0"/>`});
  return s}
-function doveSVG(){return `<g class="dvfly"><g class="dvturn"><g transform="scale(1.15)"><g class="dvbob"><path d="M9 21 L0 16.5 L1.6 21.5 L0 26.5 L10 24 Z" fill="#fff" stroke="#B9C7D4" stroke-width=".9" stroke-linejoin="round"/><path d="M7 21.5 C11 15.5 22 14 30 16.5 C33.5 17.5 35.5 19.5 36 21.5 C30 25 19 26.5 11 24.5 Z" fill="#fff" stroke="#B9C7D4" stroke-width=".9" stroke-linejoin="round"/><g class="dvfold"><g class="dvwing"><path d="M15 17.5 C12 10 16 3 26 0 C24.5 5 25 9 27 13 C24 14 20 15.5 18.5 18 Z" fill="#fff" stroke="#B9C7D4" stroke-width=".9" stroke-linejoin="round"/><path d="M19 9 C21 8 23 8.5 25 10 M18 12.5 C20.5 11.5 23 12 25.5 13.5" fill="none" stroke="#D5DEE7" stroke-width=".8" stroke-linecap="round"/></g></g><circle cx="35" cy="17.5" r="4.2" fill="#fff" stroke="#B9C7D4" stroke-width=".9"/><path d="M30.5 18 C31 16 32 15 33.5 14.6" fill="none" stroke="#fff" stroke-width="2.4"/><circle cx="36.3" cy="16.6" r=".95" fill="#2B1E24"/><path d="M38.8 16.8 L43.5 18 L38.8 19.4 Z" fill="#F2A93B"/><path d="M42.2 18.6 C44 21 44.5 24 43.5 27" fill="none" stroke="#5E8C3A" stroke-width=".9" stroke-linecap="round"/><ellipse cx="45.2" cy="21.6" rx="1.9" ry=".9" transform="rotate(35 45.2 21.6)" fill="#7CB342"/><ellipse cx="41.9" cy="23.6" rx="1.9" ry=".9" transform="rotate(-35 41.9 23.6)" fill="#7CB342"/><ellipse cx="45.1" cy="25.6" rx="1.9" ry=".9" transform="rotate(30 45.1 25.6)" fill="#7CB342"/></g></g></g></g><path class="dvheart" d="M160 60 c-4 -7 -14 -3 -8 5 l8 7 l8 -7 c6 -8 -4 -12 -8 -5z" fill="#E23D6D"/>`}
+const DOVE_BODY=`<path d="M9 21 L0 16.5 L1.6 21.5 L0 26.5 L10 24 Z" fill="#fff" stroke="#B9C7D4" stroke-width=".9" stroke-linejoin="round"/><path d="M7 21.5 C11 15.5 22 14 30 16.5 C33.5 17.5 35.5 19.5 36 21.5 C30 25 19 26.5 11 24.5 Z" fill="#fff" stroke="#B9C7D4" stroke-width=".9" stroke-linejoin="round"/><g class="dvfold"><g class="dvwing"><path d="M15 17.5 C12 10 16 3 26 0 C24.5 5 25 9 27 13 C24 14 20 15.5 18.5 18 Z" fill="#fff" stroke="#B9C7D4" stroke-width=".9" stroke-linejoin="round"/><path d="M19 9 C21 8 23 8.5 25 10 M18 12.5 C20.5 11.5 23 12 25.5 13.5" fill="none" stroke="#D5DEE7" stroke-width=".8" stroke-linecap="round"/></g></g><circle cx="35" cy="17.5" r="4.2" fill="#fff" stroke="#B9C7D4" stroke-width=".9"/><path d="M30.5 18 C31 16 32 15 33.5 14.6" fill="none" stroke="#fff" stroke-width="2.4"/><circle cx="36.3" cy="16.6" r=".95" fill="#2B1E24"/><path d="M38.8 16.8 L43.5 18 L38.8 19.4 Z" fill="#F2A93B"/><path d="M42.2 18.6 C44 21 44.5 24 43.5 27" fill="none" stroke="#5E8C3A" stroke-width=".9" stroke-linecap="round"/><ellipse cx="45.2" cy="21.6" rx="1.9" ry=".9" transform="rotate(35 45.2 21.6)" fill="#7CB342"/><ellipse cx="41.9" cy="23.6" rx="1.9" ry=".9" transform="rotate(-35 41.9 23.6)" fill="#7CB342"/><ellipse cx="45.1" cy="25.6" rx="1.9" ry=".9" transform="rotate(30 45.1 25.6)" fill="#7CB342"/>`;
+const DOVE_PERCH=`<path d="M9 21 L0 16.5 L1.6 21.5 L0 26.5 L10 24 Z" fill="#fff" stroke="#B9C7D4" stroke-width=".9" stroke-linejoin="round"/><path d="M7 21.5 C11 15.5 22 14 30 16.5 C33.5 17.5 35.5 19.5 36 21.5 C30 25 19 26.5 11 24.5 Z" fill="#fff" stroke="#B9C7D4" stroke-width=".9" stroke-linejoin="round"/><g transform="matrix(1 0 0 .25 0 13.5)"><g><path d="M15 17.5 C12 10 16 3 26 0 C24.5 5 25 9 27 13 C24 14 20 15.5 18.5 18 Z" fill="#fff" stroke="#B9C7D4" stroke-width=".9" stroke-linejoin="round"/><path d="M19 9 C21 8 23 8.5 25 10 M18 12.5 C20.5 11.5 23 12 25.5 13.5" fill="none" stroke="#D5DEE7" stroke-width=".8" stroke-linecap="round"/></g></g><circle cx="35" cy="17.5" r="4.2" fill="#fff" stroke="#B9C7D4" stroke-width=".9"/><path d="M30.5 18 C31 16 32 15 33.5 14.6" fill="none" stroke="#fff" stroke-width="2.4"/><circle cx="36.3" cy="16.6" r=".95" fill="#2B1E24"/><path d="M38.8 16.8 L43.5 18 L38.8 19.4 Z" fill="#F2A93B"/><path d="M42.2 18.6 C44 21 44.5 24 43.5 27" fill="none" stroke="#5E8C3A" stroke-width=".9" stroke-linecap="round"/><ellipse cx="45.2" cy="21.6" rx="1.9" ry=".9" transform="rotate(35 45.2 21.6)" fill="#7CB342"/><ellipse cx="41.9" cy="23.6" rx="1.9" ry=".9" transform="rotate(-35 41.9 23.6)" fill="#7CB342"/><ellipse cx="45.1" cy="25.6" rx="1.9" ry=".9" transform="rotate(30 45.1 25.6)" fill="#7CB342"/><path class="dvheart" d="M22 -4 c-3 -5 -10 -2 -6 4 l6 5 l6 -5 c4 -6 -3 -9 -6 -4z" fill="#E23D6D"/>`;
+/* pombinha: a que voa fica solta no céu; quando pousa, uma cópia já faz parte do desenho do porquinho
+   (anda e pula junto com ele em qualquer aparelho). As duas trocam de lugar no pouso e na decolagem. */
+const DOVE_FRONT=`<g class="dvgbody"><path d="M-3 -5 L-3.5 0 M3 -5 L3.5 0 M-5.5 0 H-1.5 M1.5 0 H5.5" stroke="#F2A93B" stroke-width="1.3" stroke-linecap="round"/>
+ <ellipse cx="-8.2" cy="-12" rx="3.8" ry="8" transform="rotate(14 -8.2 -12)" fill="#EEF3F8" stroke="#B9C7D4" stroke-width=".9"/><ellipse cx="8.2" cy="-12" rx="3.8" ry="8" transform="rotate(-14 8.2 -12)" fill="#EEF3F8" stroke="#B9C7D4" stroke-width=".9"/>
+ <ellipse cx="0" cy="-12.5" rx="8.5" ry="10" fill="#fff" stroke="#B9C7D4" stroke-width=".9"/><path d="M-4 -15 Q0 -12.5 4 -15" fill="none" stroke="#E3EAF1" stroke-width=".8"/></g>
+ <g class="dvghead"><circle cx="0" cy="-25" r="6.2" fill="#fff" stroke="#B9C7D4" stroke-width=".9"/><circle cx="-2.4" cy="-26" r="1.15" fill="#2B1E24"/><circle cx="2.4" cy="-26" r="1.15" fill="#2B1E24"/><circle cx="-2.1" cy="-26.4" r=".35" fill="#fff"/><circle cx="2.7" cy="-26.4" r=".35" fill="#fff"/>
+ <path d="M-1.6 -23.6 L1.6 -23.6 L0 -21 Z" fill="#F2A93B"/><ellipse cx="-3.6" cy="-23.2" rx="1.6" ry=".8" fill="#F4A3B8" opacity=".6"/><ellipse cx="3.6" cy="-23.2" rx="1.6" ry=".8" fill="#F4A3B8" opacity=".6"/></g>`;
+/* pombinha (ciclo de 2 min): pousa no chão de frente e passeia; some; às vezes pousa na cabeça do porquinho; às vezes só passa voando.
+   Quando está pousada, a pombinha voadora some e aparece uma cópia parada (no chão, ou dentro do desenho do porquinho). */
+const DV_GX=268,DV_GY=233;
+function doveFly(hy,walking){const off=walking?31.22:0;const xl=134+off,nm="dvF"+hy+(walking?"w":"");const gx=DV_GX-26,gy=DV_GY-31;
+ const T=(x,y)=>`transform:translate(${x}px,${y}px)`;const o=v=>`;opacity:${v}`;
+ const kf=`@keyframes ${nm}{0%{${T(-90,40)}${o(1)}}10%{${T(-90,40)}}15%{${T(120,10)}}19%{${T(gx-30,gy-40)}}20%{${T(gx,gy)}${o(1)}}20.1%{${T(gx,gy)}${o(0)}}32.9%{${T(gx,gy)}${o(0)}}33%{${T(gx,gy)}${o(1)}}36%{${T(320,-10)}}40%{${T(420,20)}}
+52%{${T(420,30)}}56%{${T(250,4)}}60.5%{${T(xl+18,hy-24)}}62%{${T(xl,hy)}${o(1)}}62.1%{${T(xl,hy)}${o(0)}}71.9%{${T(xl,hy)}${o(0)}}72%{${T(xl,hy)}${o(1)}}76%{${T(60,0)}}80%{${T(-100,24)}}
+86%{${T(-100,12)}}95%{${T(420,6)}}95.1%{${T(-90,40)}}100%{${T(-90,40)}${o(1)}}}`;
+ return `<style>${kf}</style><g class="dvfly" style="animation-name:${nm}"><g class="dvturn"><g transform="scale(1.15)"><g class="dvbob">${DOVE_BODY}</g></g></g></g>`}
+const dovePerch=hy=>`<g transform="translate(134 ${hy})"><g class="dvperch"><g transform="scale(1.15)">${DOVE_PERCH}</g></g></g>`;
+const doveGround=()=>`<g class="dvground"><g class="dvgwalk"><g transform="scale(1.25)"><g class="dvgstep">${DOVE_FRONT}</g></g></g></g>`;
 function pigSVG(o){
  const {score=60,mood="ok",equip={},env=0,mini=false,dry=false,peace=0}=o;
  const s=score/100;const sx=.74+s*.42, sy=.86+s*.18;
@@ -933,8 +954,9 @@ function pigSVG(o){
  let coins="";if(mood==="feliz")coins=`<g opacity=".9"><circle class="pig-coin" cx="${cx-rx-18}" cy="${cy-40}" r="8" fill="#F2C230" stroke="#C99A12" stroke-width="2"/><circle class="pig-coin b" cx="${cx+rx+20}" cy="${cy-56}" r="6" fill="#F2C230" stroke="#C99A12" stroke-width="2"/></g>`;
  const heart=`<path class="pig-heart" d="M${cx+rx*.4} ${cy-ry-6} c-6 -10 -20 -4 -12 8 l12 10 l12 -10 c8 -12 -6 -18 -12 -8z" fill="#E23D6D"/>`;
  const vb=mini?"60 60 200 170":"0 0 320 240";
+ const hy=Math.round(cy-ry-29-(equip.head?({laco:6,fone:2,lapis:4}[equip.head]??26):0));const dv=!mini&&peace>=1;
  const walk=!mini&&(mood==="feliz"||mood==="ok");
- return `<svg viewBox="${vb}" role="img" aria-label="Porquinho ${mood}" class="m-${mood} ${walk?"walking":""}" style="--hy:${Math.round(cy-ry-29-(equip.head?({laco:6,fone:2,lapis:4}[equip.head]??26):0))}">${mini?"":envSVG(env,dry,peace)}<g class="pig-walk">${coins}${peace>=7&&!mini?`<ellipse class="glow" cx="${cx}" cy="${cy+6}" rx="${rx+34}" ry="${ry+30}" fill="#FFF3B0"/>`:""}<g class="pig-bob"><g class="pig-breathe">${p}</g></g>${heart}${!mini&&peace>=1?doveSVG():""}</g></svg>`}
+ return `<svg viewBox="${vb}" role="img" aria-label="Porquinho ${mood}" class="m-${mood} ${walk?"walking":""}" >${mini?"":envSVG(env,dry,peace)}<g class="pig-walk">${coins}${peace>=7&&!mini?`<ellipse class="glow" cx="${cx}" cy="${cy+6}" rx="${rx+34}" ry="${ry+30}" fill="#FFF3B0"/>`:""}<g class="pig-bob"><g class="pig-breathe">${p}</g>${dv?dovePerch(hy):""}</g>${heart}</g>${dv?doveGround()+doveFly(hy,walk):""}</svg>`}
 function accThumb(id){const pos={head:[0,30],face:[0,20],neck:[0,20]};const a=ACCESSORIES.find(x=>x.id===id);return `<svg viewBox="-80 -60 160 100">${accSVG(id,0,a.slot==="head"?20:0,a.slot==="head"?.9:1)}</svg>`}
 
 

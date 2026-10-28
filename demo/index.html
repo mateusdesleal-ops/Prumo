@@ -3706,7 +3706,7 @@ function shareCard(){return"";
  <div class="row wrap" style="gap:8px"><button class="btn sm" data-act="shareAll">Liberar tudo</button><button class="btn line sm" data-act="shareYes">Liberar o que marquei</button><button class="btn ghost sm" data-act="shareNo">Agora não</button></div></div>`}
 function shareToggle(){if(!SB_ON||!Store.cloud)return"";const on=shareAny(shareAreas());
  return `<details class="small" style="padding:4px 2px"><summary class="muted" style="cursor:pointer">Privacidade</summary><div class="stack-s" style="padding-top:8px;gap:6px">
- <label class="check"><input type="checkbox" id="shOne" ${on?"checked":""}><span class="small">Permitir que a Prumo veja meus registros para me mandar dicas personalizadas</span></label>
+ <label class="check"><input type="checkbox" id="shOne" ${on?"checked":""}><span class="small">Permita que a Prumo me envie dicas personalizadas com base em meu perfil</span></label>
  <span class="tiny muted">Nada é repassado a ninguém. <a href="privacidade.html" target="_blank" rel="noopener">Saiba mais</a>.</span></div></details>`}
 function shareApply(a){const was=shareAny(shareAreas());S.profile.shareAreas=a;S.profile.shareAdmin=shareAny(a);if(S.profile.shareAdmin&&!was)S.profile.shareAt=today();if(!S.profile.shareAdmin)S.profile.shareAt=null;S.profile.shareAsked=1;commit()}
 function shareRead(cls){const a={};document.querySelectorAll("."+cls).forEach(c=>a[c.dataset.k]=c.checked);return a}

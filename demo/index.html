@@ -3560,10 +3560,11 @@ async function connectWithUser(uid){
  Store.db=db;ME.uid=uid;
  let snap;try{snap=await db.doc(appPath()).get()}catch(e){toast("Sem conexão. Usando os dados salvos neste aparelho.");render();return}
  Store.cloud=true;Store.localOnly=false;
+ const shareOn=()=>{const a={};SHARE_AREAS.forEach(([k])=>a[k]=true);S.profile.shareAreas=a;S.profile.shareAdmin=true;S.profile.shareAt=today();S.profile.shareAsked=1;S.profile.shareSource="cadastro"};
  if(snap.exists){S=hydrate(snap.data())}
- else if(localS.profile.created){S=localS;await db.doc(appPath()).set(clone(S)).catch(()=>{});
+ else if(localS.profile.created){S=localS;shareOn();await db.doc(appPath()).set(clone(S)).catch(()=>{});
   for(const k in localFin){await db.doc(`data/users/${uid}/fin-${k}`).set(stripNulls(localFin[k])).catch(()=>{})}}
- else{S=defaultState();UI.onb=-1}
+ else{S=defaultState();shareOn();UI.onb=-1}
  subscribePersonal();if(S.profile.household)subscribeHousehold();applyTheme();render();loadMessages();
 }
 const localModeChosen=()=>{try{return localStorage.getItem("prumo.localMode")==="1"}catch(e){return false}};
@@ -3581,6 +3582,7 @@ function viewAuth(){const m=AUTH.mode;
  ${m!=="esqueci"?`<label class="field"><span>Senha</span><input id="a_pass" type="password" autocomplete="${m==="criar"?"new-password":"current-password"}" placeholder="${m==="criar"?"Pelo menos 8 caracteres":"Sua senha"}"></label>`:""}
  ${AUTH.msg?`<div class="banner ${AUTH.ok?"info":"bad"}">${esc(AUTH.msg)}</div>`:""}
  <button class="btn block" data-act="authGo" ${AUTH.busy?"disabled":""}>${m==="entrar"?"Entrar":m==="criar"?"Criar minha conta":"Enviar link para trocar a senha"}</button>
+ ${m==="criar"?`<p class="tiny muted" style="text-align:center;margin-top:-4px">Ao criar a conta, você permite que o criador do Prumo veja seus registros para mandar dicas personalizadas. Dá para desligar em Perfil &gt; Privacidade. <a href="privacidade.html" target="_blank" rel="noopener">Privacidade</a></p>`:""}
  ${m==="entrar"?`<button class="btn ghost sm" data-act="authMode" data-v="esqueci" style="align-self:center">Esqueci minha senha</button>`:m==="esqueci"?`<button class="btn ghost sm" data-act="authMode" data-v="entrar" style="align-self:center">Voltar</button>`:""}
  <button class="card stack" data-act="howVideo" style="text-align:left;gap:10px;padding:12px"><div style="position:relative;border-radius:14px;overflow:hidden;aspect-ratio:16/10;background:#2B1E24"><img src="como-funciona.jpg" alt="" style="width:100%;height:100%;object-fit:cover;object-position:top;opacity:.85"><span style="position:absolute;inset:0;display:grid;place-items:center"><span style="width:58px;height:58px;border-radius:50%;background:var(--pig-deep);color:#fff;display:grid;place-items:center;box-shadow:0 6px 20px rgba(0,0,0,.3)">${I.play.replace('<svg','<svg width="26" height="26"')}</span></span></div>
   <div class="stack-s" style="gap:2px"><b>Ainda não conhece? Veja como funciona</b><span class="small muted">Um vídeo de 1 minuto com tudo o que o Prumo faz. O Prumo é gratuito.</span></div></button>
@@ -3697,23 +3699,22 @@ const SHARE_TXT="O responsável pelo Prumo poderá ver seu nome, idade, motivo e
 function shareAreas(){return S.profile.shareAreas||{}}
 function shareAny(a){return SHARE_AREAS.some(([k])=>a[k])}
 function shareChecks(a,pref){return `<div class="stack-s">${SHARE_AREAS.map(([k,n,d])=>`<label class="check"><input type="checkbox" class="${pref}" data-k="${k}" ${a[k]?"checked":""}><span><b>${n}</b> <span class="tiny muted">${d}</span></span></label>`).join("")}</div>`}
-function shareCard(){if(!SB_ON||!Store.cloud||S.profile.shareAsked||!S.profile.created||S.profile.created===today())return"";
+function shareCard(){return"";
  return `<div class="card stack"><div class="label" style="color:var(--pig-deep)">Dicas feitas para você</div><p class="small">Quer receber mensagens e dicas pensadas para o seu momento? Escolha o que o Prumo pode ver para te ajudar.</p>
  ${shareChecks(UI.shareTmp||{fin:true,saude:true,estudo:true,rotina:true,fe:true},"shTmp")}
  <p class="tiny muted">${SHARE_TXT}</p>
  <div class="row wrap" style="gap:8px"><button class="btn sm" data-act="shareAll">Liberar tudo</button><button class="btn line sm" data-act="shareYes">Liberar o que marquei</button><button class="btn ghost sm" data-act="shareNo">Agora não</button></div></div>`}
-function shareToggle(){if(!SB_ON||!Store.cloud)return"";const a=shareAreas();const on=shareAny(a);
- return `<div class="card stack"><div class="row between"><b>Dicas personalizadas</b><span class="pill ${on?"good":"info"}">${on?"ligadas":"desligadas"}</span></div><p class="tiny muted">${SHARE_TXT}</p>
- ${shareChecks(a,"shPro")}
- <div class="row wrap" style="gap:8px"><button class="btn line sm" data-act="shareSetAll" data-v="1">Liberar tudo</button><button class="btn ghost sm" data-act="shareSetAll" data-v="0">Não compartilhar nada</button></div>
- ${on&&S.profile.shareAt?`<span class="tiny muted">Autorizado em ${parseDate(S.profile.shareAt).toLocaleDateString("pt-BR")}.</span>`:""}</div>`}
+function shareToggle(){if(!SB_ON||!Store.cloud)return"";const on=shareAny(shareAreas());
+ return `<details class="small" style="padding:4px 2px"><summary class="muted" style="cursor:pointer">Privacidade</summary><div class="stack-s" style="padding-top:8px;gap:6px">
+ <label class="check"><input type="checkbox" id="shOne" ${on?"checked":""}><span class="small">Permitir que o criador do Prumo veja meus registros para me mandar dicas personalizadas</span></label>
+ <span class="tiny muted">Nada é repassado a ninguém. <a href="privacidade.html" target="_blank" rel="noopener">Saiba mais</a>.</span></div></details>`}
 function shareApply(a){const was=shareAny(shareAreas());S.profile.shareAreas=a;S.profile.shareAdmin=shareAny(a);if(S.profile.shareAdmin&&!was)S.profile.shareAt=today();if(!S.profile.shareAdmin)S.profile.shareAt=null;S.profile.shareAsked=1;commit()}
 function shareRead(cls){const a={};document.querySelectorAll("."+cls).forEach(c=>a[c.dataset.k]=c.checked);return a}
 A.shareAll=()=>{const a={};SHARE_AREAS.forEach(([k])=>a[k]=true);shareApply(a);toast("Obrigado! Você pode mudar isso quando quiser em Perfil.")};
 A.shareYes=()=>{const a=shareRead("shTmp");if(!shareAny(a)){A.shareNo();return}shareApply(a);toast("Obrigado! Você pode mudar isso quando quiser em Perfil.")};
 A.shareNo=()=>{S.profile.shareAsked=1;commit();toast("Tudo bem. Se mudar de ideia, está em Perfil.")};
 A.shareSetAll=el=>{const a={};SHARE_AREAS.forEach(([k])=>a[k]=el.dataset.v==="1");shareApply(a);toast(el.dataset.v==="1"?"Tudo liberado para as dicas personalizadas.":"Nada é compartilhado. Seu perfil fica privado.")};
-document.addEventListener("change",ev=>{const t=ev.target;if(!t||!t.classList)return;if(t.classList.contains("shPro")){shareApply(shareRead("shPro"));toast(shareAny(shareAreas())?"Preferência salva.":"Nada é compartilhado. Seu perfil fica privado.")}if(t.classList.contains("shTmp"))UI.shareTmp=shareRead("shTmp")});
+document.addEventListener("change",ev=>{const t=ev.target;if(t&&t.id==="shOne"){const a={};SHARE_AREAS.forEach(([k])=>a[k]=t.checked);shareApply(a);toast(t.checked?"Dicas personalizadas ligadas.":"Dicas personalizadas desligadas. Seus registros ficam só com você.");return}if(!t||!t.classList)return;if(t.classList.contains("shPro")){shareApply(shareRead("shPro"));toast(shareAny(shareAreas())?"Preferência salva.":"Nada é compartilhado. Seu perfil fica privado.")}if(t.classList.contains("shTmp"))UI.shareTmp=shareRead("shTmp")});
 
 /* ---------- Perfil de um usuário no painel (só com autorização) ---------- */
 A.admOpen=async el=>{ADM.sel=el.dataset.v;ADM.detail=null;ADM.detErr=null;ADM.msgs=[];window.scrollTo(0,0);render();admLoadMsgs(ADM.sel).then(()=>render());

@@ -733,7 +733,7 @@ function reschedView(t){const dl=daysLate(t);const n=+t.resched||0;
  <div class="banner warn"><span><b>Remarque só se a data realmente mudou:</b> um compromisso adiado, alguém que pediu outro prazo, um imprevisto. Mudar a data só para ${petLow()} não perder um acessório não ajuda você a se organizar. Se a tarefa ficou para trás, tudo bem: concluir ou admitir o atraso também faz parte.</span></div>
  ${n>=2?`<div class="banner info"><span>Esta tarefa já foi remarcada ${n} vezes. Que tal dividir em partes menores, pedir ajuda ou reavaliar se ela ainda é necessária?</span></div>`:""}
  <div class="field"><span>Nova data</span><div class="chips">${[["Hoje",0],["Amanhã",1],["Em 3 dias",3],["Próxima semana",7]].map(([l,d])=>`<button type="button" class="chip" data-act="rsPick" data-v="${addDays(today(),d)}">${l}</button>`).join("")}</div><input id="rs_date" type="date" min="${today()}" value="${addDays(today(),1)}"></div>
- <label class="field"><span>Por que a data mudou?</span><select id="rs_reason"><option value="">Escolha um motivo</option>${RESCHED_REASONS.map(([id,n])=>`<option value="${id}">${n}</option>`).join("")}</select></label>
+ <label class="field"><span>Por que a data mudou? (opcional)</span><select id="rs_reason"><option value="">Escolha um motivo</option>${RESCHED_REASONS.map(([id,n])=>`<option value="${id}">${n}</option>`).join("")}</select></label>
  <button class="btn block" data-act="saveResched" data-v="${t.id}">Confirmar nova data</button>
  <button class="btn ghost" data-act="taskMoveClose" data-v="${t.id}">Na verdade, já fiz</button></div>`)}
 function applyResched(t,to,reason){const lb=taskDecay().lost;t.reschedLog=t.reschedLog||[];t.reschedLog.push({from:t.date,to,reason:reason||"",at:today()});t.resched=(+t.resched||0)+1;t.date=to;setTimeout(()=>taskLostToast(lb),0)}
@@ -2500,8 +2500,8 @@ const A={
  agendaSub:el=>{UI.agendaSub=el.dataset.v;render()},
  reschedTask:el=>{const t=S.tasks.items[el.dataset.v];if(t)reschedView(t)},
  rsPick:el=>{$("#rs_date").value=el.dataset.v;document.querySelectorAll('[data-act="rsPick"]').forEach(c=>c.classList.toggle("on",c===el))},
- saveResched:el=>{const t=S.tasks.items[el.dataset.v];const to=v("rs_date");const reason=v("rs_reason");if(!to){toast("Escolha a nova data.");return}if(to<today()){toast("A nova data precisa ser hoje ou depois.");return}if(!reason){toast("Conte por que a data mudou.");return}
-  applyResched(t,to,reason);commit();closeModal();toast(`Tarefa remarcada para ${parseDate(to).toLocaleDateString("pt-BR")}.`)},
+ saveResched:el=>{const t=S.tasks.items[el.dataset.v];const to=v("rs_date");const reason=v("rs_reason");if(!to){toast("Escolha a nova data.");return}if(to<today()){toast("A nova data precisa ser hoje ou depois.");return}
+  applyResched(t,to,reason||"sem_motivo");commit();closeModal();toast(`Tarefa remarcada para ${parseDate(to).toLocaleDateString("pt-BR")}.`)},
  taskMoveClose:el=>{closeModal();moveTask(el.dataset.v,"done")},
  goTasksLate:()=>{UI.tab="agenda";UI.agendaSub="tasks";UI.taskFilter="atrasadas";window.scrollTo(0,0);render()},
  goTasks:()=>{UI.tab="agenda";UI.agendaSub="tasks";window.scrollTo(0,0);render()},
@@ -4022,7 +4022,7 @@ async function teamsLoad(){
   if(TEAM){const t=TEAMS.find(x=>x.id===TEAM.id);if(!t){teamExit();toast("Você não faz mais parte dessa equipe.")}
    else{const ch=JSON.stringify(t.features)!==JSON.stringify(TEAM.features);TEAM=t;if(ch)teamSubscribe()}}
   else{const last=lsTeam();if(last&&TEAMS.find(x=>x.id===last))teamEnter(last,true)}
-  teamCounts();render()}catch(e){console.warn(e);if(TEAMS===null)TEAMS=[]}
+  teamCounts();render();setTimeout(teamInvitePopup,400)}catch(e){console.warn(e);if(TEAMS===null)TEAMS=[]}
  tLoading=false}
 async function teamCounts(){if(Store.demo||!TEAMS)return;for(const t of TEAMS){if(!(t.features&&t.features.tasks))continue;
  try{const s=await Store.db.doc(`teams/${t.id}/agenda`).get();const items=s.exists&&s.data().tasks&&s.data().tasks.items||{};
@@ -4223,6 +4223,21 @@ A.goProjMine=()=>{UI.tab="agenda";UI.agendaSub="proj";UI.projOpen=null;UI.projF=
 if(typeof startDemo==="function"){const _sd=startDemo;startDemo=function(){_sd();try{const D=n=>addDays(today(),n);PJ().items.pv={id:"pv",name:"Viagem com a família",goal:"Uma semana na praia em janeiro, sem dívida.",due:D(70),status:"doing",color:"#2F8F6B",created:Date.now()-4e8};
  [["Definir destino e datas","done",D(-10),[]],["Juntar R$ 3.000 na reserva","doing",D(45),[["R$ 1.000",true],["R$ 2.000",true],["R$ 3.000",false]]],["Reservar a pousada","todo",D(20),[]],["Organizar as malas","todo",D(68),[]]]
  .forEach(([title,status,date,subs],i)=>{const tid="pv"+i;S.tasks.items[tid]={id:tid,title,proj:"pv",order:i+1,status,date,kind:"pessoal",prio:"media",cal:true,remind:30,subs:subs.map(([t,done])=>({t,done})),created:Date.now()-i*1e5,doneAt:status==="done"?Date.now()-3e8:null}});render()}catch(e){console.warn(e)}}}
+
+/* convite novo: abre no centro da tela para a pessoa não deixar passar */
+const INV_SEEN=new Set();
+function teamInvitePopup(){if(!TINV||!TINV.length||UI.needAuth||!S.profile.created)return;
+ const i=TINV.find(x=>!INV_SEEN.has(x.team_id));if(!i)return;if($("#modal").innerHTML){setTimeout(teamInvitePopup,3000);return}
+ INV_SEEN.add(i.team_id);
+ openModal("Convite para equipe",`<div class="stack" style="align-items:center;text-align:center;gap:12px">
+ <div style="width:96px">${pigSVG({score:85,mood:"feliz",equip:{},env:0,mini:true})}</div>
+ <p style="font-size:17px"><b>${esc(i.from||"Alguém")}</b> te convidou para a equipe</p>
+ <h2 style="margin:0;color:var(--money)">${esc(i.name)}</h2>
+ <p class="small muted">Na equipe vocês dividem o que o criador escolheu: agenda, tarefas, finanças, projetos, vaquinha ou desafios. O seu Prumo pessoal continua só seu.</p>
+ <button class="btn block" data-act="teamAccept" data-v="${i.team_id}">Entrar na equipe</button>
+ <div class="row" style="gap:8px;width:100%"><button class="btn ghost grow" data-act="closeModal">Depois</button><button class="btn ghost grow" data-act="teamDecline" data-v="${i.team_id}">Recusar</button></div></div>`);
+ const sc=document.querySelector("#modal .scrim");if(sc)sc.classList.add("center")}
+document.head.insertAdjacentHTML("beforeend",`<style>#modal .scrim.center{align-items:center;padding:16px}#modal .scrim.center .sheet{border-radius:22px;max-width:420px}#modal .scrim.center .grab{display:none}</style>`);
 
 /* ============================================================
    Apoios por Pix: a pessoa avisa que doou e o administrador confirma.

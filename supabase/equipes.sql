@@ -270,3 +270,33 @@ returns boolean language sql stable security definer set search_path = public as
         when split_part(p_path, '/', 3) = 'fin' then public.team_feat(t.features, 'fin')
         else false end);
 $$;
+
+-- Módulo Desafios (check-ins com foto, estilo GymRats)
+create or replace function public.team_clean_features(p jsonb)
+returns jsonb language sql immutable set search_path = public as $$
+  select jsonb_build_object('agenda', public.team_feat(p, 'agenda'), 'tasks', public.team_feat(p, 'tasks'),
+    'fin', public.team_feat(p, 'fin'), 'quotes', public.team_feat(p, 'quotes'), 'vaq', public.team_feat(p, 'vaq'),
+    'proj', public.team_feat(p, 'proj'), 'desafios', public.team_feat(p, 'desafios'));
+$$;
+create or replace function public.team_can(p_path text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.teams t join public.team_members m on m.team_id = t.id and m.uid = auth.uid() and m.active
+    where t.id::text = split_part(p_path, '/', 2) and not t.archived
+      and case
+        when split_part(p_path, '/', 3) = 'agenda' then public.team_feat(t.features, 'agenda') or public.team_feat(t.features, 'tasks') or public.team_feat(t.features, 'proj')
+        when split_part(p_path, '/', 3) = 'chal' then public.team_feat(t.features, 'desafios')
+        when split_part(p_path, '/', 3) = 'fin' and split_part(p_path, '/', 4) = 'quotes' then public.team_feat(t.features, 'quotes')
+        when split_part(p_path, '/', 3) = 'fin' and split_part(p_path, '/', 4) = 'vaq' then public.team_feat(t.features, 'vaq')
+        when split_part(p_path, '/', 3) = 'fin' then public.team_feat(t.features, 'fin')
+        else false end);
+$$;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('checkins', 'checkins', false, 300000, array['image/jpeg', 'image/webp']) on conflict (id) do nothing;
+create policy "desafios: ver fotos da equipe" on storage.objects for select to authenticated
+  using (bucket_id = 'checkins' and public.team_can('teams/' || (storage.foldername(name))[1] || '/chal'));
+create policy "desafios: enviar minha foto" on storage.objects for insert to authenticated
+  with check (bucket_id = 'checkins' and public.team_can('teams/' || (storage.foldername(name))[1] || '/chal')
+              and (storage.foldername(name))[3] = (select auth.uid())::text);
+create policy "desafios: apagar minha foto" on storage.objects for delete to authenticated
+  using (bucket_id = 'checkins' and (storage.foldername(name))[3] = (select auth.uid())::text);

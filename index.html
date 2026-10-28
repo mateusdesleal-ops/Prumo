@@ -539,10 +539,11 @@ const appPath=()=>`data/users/${ME.uid}/app`;
    O Prumo pessoal continua igual. Quando a pessoa entra numa equipe, as partes compartilhadas
    (agenda/tarefas e finanças/orçamentos) passam a mostrar os dados da equipe. */
 let TEAM=null,PERS=null;const TFIN={},TD={},TOBJ=new WeakSet();
-const TFEATS=[["agenda","Calendário","Compromissos da equipe, com lembretes"],["tasks","Tarefas","Quadro de tarefas com responsável"],["fin","Finanças","Entradas, gastos, cartões, contas fixas e dívidas (com vaquinha)"],["quotes","Orçamentos","Orçamentos da equipe enviados por link ou PDF"],["vaq","Vaquinha","Dividir despesas e ver quem já pagou a sua parte"],["proj","Projetos","Projetos com etapas, prazos e um responsável por etapa"]];
+const TFEATS=[["agenda","Calendário","Compromissos da equipe, com lembretes"],["tasks","Tarefas","Quadro de tarefas com responsável"],["fin","Finanças","Entradas, gastos, cartões, contas fixas e dívidas (com vaquinha)"],["quotes","Orçamentos","Orçamentos da equipe enviados por link ou PDF"],["vaq","Vaquinha","Dividir despesas e ver quem já pagou a sua parte"],["proj","Projetos","Projetos com etapas, prazos e um responsável por etapa"],["desafios","Desafios","Desafios em grupo com check-in diário, fotos e ranking"]];
 const teamHas=f=>!!(TEAM&&TEAM.features&&TEAM.features[f]);
 const TPARTS=[{keys:["agenda","tasks","projects"],path:"agenda",on:()=>teamHas("agenda")||teamHas("tasks")||teamHas("proj"),def:()=>({agenda:{events:{}},tasks:{items:{},doneTotal:0},projects:{items:{}}})},
- {keys:["quotes"],path:"fin/quotes",on:()=>teamHas("quotes"),def:()=>({quotes:{items:{},cfg:{},tpl:{},seq:0}})}];
+ {keys:["quotes"],path:"fin/quotes",on:()=>teamHas("quotes"),def:()=>({quotes:{items:{},cfg:{},tpl:{},seq:0}})},
+ {keys:["challenges"],path:"chal",on:()=>teamHas("desafios"),def:()=>({challenges:{items:{}}})}];
 const teamPart=p=>!!(TEAM&&p.on()&&TD[p.path]);
 const teamAg=()=>!!((teamHas("agenda")||teamHas("tasks")||teamHas("proj"))&&TD.agenda);
 function teamSwap(){
@@ -1885,18 +1886,18 @@ function render(){
  $("#tabs").hidden=false;
  renderTabs();
  syncSubs();
- if(TEAM){if(!["home","profile","admin"].includes(UI.tab)&&!(UI.tab==="fin"&&(teamHas("fin")||teamHas("quotes")))&&!(UI.tab==="agenda"&&teamAg())&&!(UI.tab==="vaq"&&teamHas("vaq")))UI.tab="home";
+ if(TEAM){if(!["home","profile","admin"].includes(UI.tab)&&!(UI.tab==="fin"&&(teamHas("fin")||teamHas("quotes")))&&!(UI.tab==="agenda"&&teamAg())&&!(UI.tab==="vaq"&&teamHas("vaq"))&&!(UI.tab==="chal"&&teamHas("desafios")))UI.tab="home";
   if(UI.tab==="fin"&&!teamHas("fin"))UI.fin="orc";}
  if(UI.tab==="agenda"){const subs=AG_SUBS();if(subs.length&&!subs.some(x=>x[0]===(UI.agendaSub||"cal")))UI.agendaSub=subs[0][0]}
  document.body.classList.toggle("team-env",!!TEAM);
  if(UI.tab!=="fin")UI.finOpen=false;
- const views={home:()=>TEAM&&typeof viewTeamHome==="function"?viewTeamHome():viewHome(),vaq:()=>typeof viewVaq==="function"?viewVaq():viewHome(),fin:()=>finLocked()?finLockView():viewFin(),study:viewStudy,ex:viewEx,agenda:viewAgenda,prayer:viewPrayer,learn:viewLearn,pig:viewPig,profile:viewProfile,admin:viewAdmin};
+ const views={home:()=>TEAM&&typeof viewTeamHome==="function"?viewTeamHome():viewHome(),vaq:()=>typeof viewVaq==="function"?viewVaq():viewHome(),chal:()=>typeof viewChal==="function"?viewChal():viewHome(),fin:()=>finLocked()?finLockView():viewFin(),study:viewStudy,ex:viewEx,agenda:viewAgenda,prayer:viewPrayer,learn:viewLearn,pig:viewPig,profile:viewProfile,admin:viewAdmin};
  const sy=window.scrollY;
  wardrobePrepare();
  app.innerHTML=header()+envBar()+(views[UI.tab]||views.home)();
  window.scrollTo(0,sy);
  if(UI.wdPending)setTimeout(wardrobePlay,250);
- const fab={home:null,vaq:"addVaq",fin:(TEAM&&!teamHas("fin"))||finLocked()?null:"addExpense",study:"addStudy",ex:UI.ex==="comida"?"addFood":"addEx",agenda:UI.agendaSub==="tasks"?"addTask":UI.agendaSub==="proj"?(UI.projOpen?"projAddStep":"addProject"):"addEvent"}[UI.tab];
+ const fab={home:null,vaq:"addVaq",chal:UI.chalOpen?"chalCheckin":"addChal",fin:(TEAM&&!teamHas("fin"))||finLocked()?null:"addExpense",study:"addStudy",ex:UI.ex==="comida"?"addFood":"addEx",agenda:UI.agendaSub==="tasks"?"addTask":UI.agendaSub==="proj"?(UI.projOpen?"projAddStep":"addProject"):"addEvent"}[UI.tab];
  const f=$("#fab");f.hidden=!fab;f.dataset.act=fab||"";f.innerHTML=I.plus;
  f.setAttribute("aria-label",{fin:"Adicionar gasto",study:"Registrar estudo",ex:UI.ex==="comida"?"Adicionar alimento":"Registrar exercício",agenda:UI.agendaSub==="tasks"?"Nova tarefa":UI.agendaSub==="proj"?(UI.projOpen?"Nova etapa":"Novo projeto"):"Novo compromisso"}[UI.tab]||"Adicionar");
  renderTFull();tickTimer();
@@ -1904,6 +1905,7 @@ function render(){
 function renderTabs(){const t=[["home","Início",I.home],["fin","Finanças",I.money],["study","Estudos",I.book],["ex","Saúde",I.heart.replace('fill="currentColor"','fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"')],["agenda","Agenda",I.cal]];if(S.profile.prayer)t.push(["prayer","Oração",I.candle]);
  if(TEAM){for(let i=t.length-1;i>=0;i--){const id=t[i][0];if(!(id==="home"||(id==="fin"&&(teamHas("fin")||teamHas("quotes")))||(id==="agenda"&&teamAg())))t.splice(i,1)}t[0]=["home",TEAM.name.length>10?"Equipe":esc(TEAM.name),I.people];
   const fi=t.findIndex(x=>x[0]==="fin");if(fi>=0&&!teamHas("fin"))t[fi]=["fin","Orçamentos",I.money];if(teamHas("vaq"))t.splice(fi>=0?fi+1:1,0,["vaq","Vaquinha",I.split||I.people]);
+  if(teamHas("desafios"))t.push(["chal","Desafios",I.flame]);
   const ai=t.findIndex(x=>x[0]==="agenda");if(ai>=0){const sb=AG_SUBS();if(sb.length===1)t[ai]=["agenda",sb[0][1],I.cal]}}
  $("#tabs").innerHTML=`<div class="tabs-in" style="grid-template-columns:repeat(${t.length},1fr)">${t.map(([id,n,ic])=>`<button class="tab ${UI.tab===id||((UI.tab==="pig"||UI.tab==="learn")&&id==="home")?"on":""}" data-act="tab" data-v="${id}" aria-label="${n}">${ic}<span>${n}</span></button>`).join("")}</div>`}
 function logoHTML(px){return `<span role="img" aria-label="Prumo" style="display:inline-block;white-space:nowrap;font-family:var(--f-display);font-weight:600;font-size:${px}px;line-height:1;letter-spacing:-.02em;color:var(--ink)"><span aria-hidden="true">Prum</span><svg aria-hidden="true" viewBox="0 0 100 100" style="display:inline-block;width:.54em;height:.54em;margin-left:.03em;vertical-align:-.01em"><circle cx="50" cy="50" r="50" fill="#F28AA8"/><ellipse cx="35" cy="50" rx="8.5" ry="15" fill="#2B1E24"/><ellipse cx="65" cy="50" rx="8.5" ry="15" fill="#2B1E24"/></svg></span>`}
@@ -4040,6 +4042,7 @@ function teamSubscribe(){TUNSUB.forEach(u=>{try{u()}catch(e){}});TUNSUB=[];
  TPARTS.forEach(p=>{if(p.on()){TD[p.path]=p.def();TBASE[p.path]=clone(TD[p.path])}});
  if(Store.demo){demoTeamData();return}
  if(TD.agenda)TUNSUB.push(Store.db.doc(`teams/${id}/agenda`).onSnapshot(s=>{if(tPending||!TEAM||TEAM.id!==id)return;teamApply("agenda",s.exists?s.data():{});render()},e=>console.warn(e)));
+ if(TD.chal)TUNSUB.push(Store.db.doc(`teams/${id}/chal`).onSnapshot(s=>{if(tPending||!TEAM||TEAM.id!==id)return;teamApply("chal",s.exists?s.data():{});render()},e=>console.warn(e)));
  if(teamHas("fin")||teamHas("quotes")||teamHas("vaq"))TUNSUB.push(Store.db.collection(`teams/${id}/fin`).onSnapshot(qs=>{if(!TEAM||TEAM.id!==id)return;
   for(const d of qs.docs){if(d.id==="quotes"){if(!tPending)teamApply("fin/quotes",d.data())}else if(!d.metadata.hasPendingWrites)TFIN[d.id]=stripNulls(clone(d.data()))}render()},e=>console.warn(e)));
 }
@@ -4049,7 +4052,7 @@ function teamSaveParts(){if(!TEAM)return;tPending=1;clearTimeout(TTIMER);const i
    try{await ref.update(patch)}catch(e){if(e&&e.code==="invalid_argument")await ref.set(stripNulls(cur));else throw e}}}
   catch(e){console.warn(e);toast("Não consegui salvar na equipe. Confira a internet.")}
   tPending=0;if(Store.demo||!Store.cloud||!TEAM||TEAM.id!==id)return;
-  try{if(TD.agenda){const s=await Store.db.doc(`teams/${id}/agenda`).get();if(!tPending&&TEAM&&TEAM.id===id){teamApply("agenda",s.exists?s.data():{});render()}}}catch(e){}},600)}
+  try{for(const pth of ["agenda","chal"]){if(!TD[pth])continue;const s=await Store.db.doc(`teams/${id}/${pth}`).get();if(!tPending&&TEAM&&TEAM.id===id){teamApply(pth,s.exists?s.data():{})}}render()}catch(e){}},600)}
 
 /* vaquinha: documento próprio (teams/<id>/fin/vaq) */
 const VQ=()=>{TFIN.vaq=TFIN.vaq||{};TFIN.vaq.items=TFIN.vaq.items||{};return TFIN.vaq};
@@ -4273,6 +4276,145 @@ function supAdminCard(){if(!SUP.adm){setTimeout(supAdmLoad,0);return `<div class
  :`<p class="small muted">Nenhum aviso esperando confirmação.</p>`}
  ${d.recent.length?`<details><summary class="small" style="cursor:pointer">Últimas decisões</summary><div class="list">${d.recent.map(c=>`<div class="item"><span class="grow small">${esc(c.email)} · ${brl(+c.amount)}</span><span class="tiny ${c.status==="confirmado"?"":"muted"}">${c.status==="confirmado"?"confirmado até "+parseDate(c.valid_until).toLocaleDateString("pt-BR"):"recusado"}</span></div>`).join("")}</div></details>`:""}
  <p class="tiny muted">Ao confirmar, o selo e os acessórios ficam ativos por 1 mês (doação livre ou mensal) ou 1 ano (anual), somando ao tempo que a pessoa já tinha. Ela recebe uma mensagem automática nos dois casos.</p></div>`}
+
+/* ============================================================
+   Desafios da equipe (estilo GymRats): check-in diário com foto, ranking e mural.
+   Os dados ficam em teams/<id>/chal e as fotos no Storage (bucket "checkins"),
+   reduzidas no aparelho antes de enviar (até ~720 px, JPEG leve).
+   ============================================================ */
+const CH_AUTO=[["none","Cada um marca o seu check-in"],["ex","Treino registrado em Saúde"],["study","Estudo registrado"],["food","Refeições anotadas no dia"],["fin","Gastos anotados no dia"],["prayer","Oração feita no dia"]];
+const CH_PRESETS=[["30 dias de treino","ex",30,"Treinou, fez check-in. Vale academia, caminhada, corrida, futebol."],["Sem delivery","none",30,"Um dia sem pedir comida por aplicativo vale ponto."],["Ler todo dia","study",21,"Pelo menos 10 minutos de leitura ou estudo."],["Anotar todos os gastos","fin",30,"Anotou os gastos do dia no Prumo, ganhou ponto."],["Beber água","none",14,"Bateu a meta de água do dia."]];
+const CH_REACT=["👏","🔥","💪"];
+const CHP=()=>{S.challenges=S.challenges||{};S.challenges.items=S.challenges.items||{};return S.challenges};
+const chEnd=c=>addDays(c.start,(+c.days||30)-1);
+const chActive=c=>today()>=c.start&&today()<=chEnd(c);
+const chDays=c=>{const out=[];for(let d=c.start;d<=chEnd(c)&&d<=today();d=addDays(d,1))out.push(d);return out};
+function chPoints(c,u){const ck=(c.checkins||{})[u]||{};return Object.keys(ck).filter(d=>ck[d]&&d>=c.start&&d<=chEnd(c)).length}
+function chStreak(c,u){const ck=(c.checkins||{})[u]||{};let n=0,d=today();if(!ck[d])d=addDays(d,-1);while(ck[d]&&d>=c.start){n++;d=addDays(d,-1)}return n}
+function chRank(c){return teamMembers().map(m=>({u:m.uid,p:chPoints(c,m.uid),s:chStreak(c,m.uid),today:!!((c.checkins||{})[m.uid]||{})[today()]})).sort((a,b)=>b.p-a.p||b.s-a.s)}
+/* atividade pessoal do dia (para o check-in automático) */
+function chPersonalDid(kind,day){const T=TEAM;try{TEAM=null;return withPersonal(()=>{
+ if(kind==="ex")return vals(S.ex.logs).some(l=>l.date===day);
+ if(kind==="study")return (typeof studyMin==="function"?studyMin(day):0)>0;
+ if(kind==="food")return vals(S.food.logs).some(l=>l.date===day);
+ if(kind==="fin")return typeof finActivity==="function"&&!!finActivity(day);
+ if(kind==="prayer"){const l=S.prayer.log[day];return !!(l&&Object.values(l).some(Boolean))}
+ return false})}catch(e){return false}finally{TEAM=T}}
+let chAutoBusy=false;
+function chAutoCheck(){if(chAutoBusy||!TEAM||!teamHas("desafios")||!TD.chal)return;let changed=false;const d=today();
+ for(const c of vals(CHP().items)){if(!chActive(c)||!c.auto||c.auto==="none")continue;const mine=((c.checkins||{})[ME.uid]||{});if(mine[d])continue;
+  if(chPersonalDid(c.auto,d)){c.checkins=c.checkins||{};c.checkins[ME.uid]=c.checkins[ME.uid]||{};c.checkins[ME.uid][d]={t:Date.now(),auto:1,note:(CH_AUTO.find(x=>x[0]===c.auto)||["",""])[1]};changed=true}}
+ if(changed){chAutoBusy=true;setTimeout(()=>{chAutoBusy=false},2000);commit();toast("Check-in automático feito no desafio. Boa!")}}
+
+/* ---------- fotos ---------- */
+const PH={url:{},pending:new Set()};
+async function chShrink(file){let bmp;try{bmp=await createImageBitmap(file,{imageOrientation:"from-image"})}catch(e){bmp=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=URL.createObjectURL(file)})}
+ const W=bmp.width,H=bmp.height,m=720,sc=Math.min(1,m/Math.max(W,H));const cv=document.createElement("canvas");cv.width=Math.round(W*sc);cv.height=Math.round(H*sc);cv.getContext("2d").drawImage(bmp,0,0,cv.width,cv.height);
+ let q=.6,blob=null;for(let k=0;k<5;k++){blob=await new Promise(r=>cv.toBlob(r,"image/jpeg",q));if(blob.size<=110000)break;q-=.1}
+ if(blob.size>280000){const c2=document.createElement("canvas");c2.width=Math.round(cv.width*.7);c2.height=Math.round(cv.height*.7);c2.getContext("2d").drawImage(cv,0,0,c2.width,c2.height);blob=await new Promise(r=>c2.toBlob(r,"image/jpeg",.5))}
+ return blob}
+function chPhotoTag(ck){if(ck.photoData)return `<img src="${ck.photoData}" alt="Foto do check-in" class="chph">`;if(!ck.photo)return"";const u=PH.url[ck.photo];
+ return `<img ${u?`src="${u}"`:""} data-ph="${esc(ck.photo)}" alt="Foto do check-in" class="chph" loading="lazy">`}
+async function chLoadPhotos(){if(Store.demo||!sb)return;const need=[...document.querySelectorAll("img[data-ph]:not([src])")].map(i=>i.dataset.ph).filter(p=>!PH.url[p]&&!PH.pending.has(p));if(!need.length)return;
+ need.forEach(p=>PH.pending.add(p));try{const {data,error}=await sb.storage.from("checkins").createSignedUrls(need,6*3600);if(error)throw error;(data||[]).forEach(x=>{if(x.signedUrl)PH.url[x.path]=x.signedUrl})}catch(e){console.warn(e)}
+ need.forEach(p=>PH.pending.delete(p));document.querySelectorAll("img[data-ph]:not([src])").forEach(i=>{const u=PH.url[i.dataset.ph];if(u)i.src=u})}
+{const _rc=render;render=function(){_rc();if(TEAM&&teamHas("desafios")){setTimeout(chLoadPhotos,0);if(UI.tab==="chal"||UI.tab==="home")setTimeout(chAutoCheck,50)}}}
+
+/* ---------- telas ---------- */
+function chCard(c){const r=chRank(c);const me=r.find(x=>x.u===ME.uid)||{p:0,today:false};const end=chEnd(c);const left=Math.max(0,(parseDate(end)-parseDate(today()))/864e5);const act=chActive(c);
+ return `<button class="card stack" style="text-align:left;gap:8px" data-act="chalOpen" data-v="${c.id}"><div class="row between"><b style="font-size:16px">${esc(c.name)}</b><span class="pill ${act?"good":today()<c.start?"info":""}" style="padding:1px 8px">${act?`faltam ${Math.round(left)+1} dia${left?"s":""}`:today()<c.start?"começa "+ddmm(c.start):"terminou"}</span></div>
+ <div class="row" style="gap:6px;flex-wrap:wrap">${r.slice(0,3).map((x,i)=>`<span class="chip" style="cursor:default">${i===0&&x.p?"👑 ":""}<span class="avatar">${teamInitials(x.u)}</span>${x.p}</span>`).join("")}</div>
+ ${act?`<span class="small">${me.today?"✅ Você já fez o check-in de hoje.":"Seu check-in de hoje ainda está pendente."} ${me.p} ponto${me.p===1?"":"s"}.</span>`:""}</button>`}
+function viewChal(){if(!TEAM||!teamHas("desafios")){UI.tab="home";return viewHome()}if(UI.chalOpen&&CHP().items[UI.chalOpen])return chDetail(CHP().items[UI.chalOpen]);UI.chalOpen=null;
+ const all=vals(CHP().items).sort((a,b)=>(b.start||"").localeCompare(a.start||""));const act=all.filter(c=>today()<=chEnd(c)),old=all.filter(c=>today()>chEnd(c));
+ return `<div class="stack"><h1 style="margin-top:4px">Desafios</h1>
+ <div class="card row" style="gap:12px"><span style="width:64px;flex:none">${pigSVG({score:85,mood:"feliz",equip:{head:"coroa"},env:0,mini:true})}</span><div class="stack-s" style="gap:2px"><b>Junto fica mais fácil</b><span class="small muted">Criem um desafio, façam o check-in todo dia com uma foto e vejam quem está mandando bem. Cada dia cumprido vale 1 ponto.</span></div></div>
+ ${act.length?act.map(chCard).join(""):`<div class="card empty">Nenhum desafio em andamento. Que tal começar um?</div>`}
+ <button class="btn line" data-act="addChal">${I.plus.replace('<svg','<svg width="16" height="16"')} Novo desafio</button>
+ ${old.length?`<details><summary class="small muted" style="cursor:pointer">Desafios encerrados (${old.length})</summary><div class="stack" style="margin-top:8px">${old.map(chCard).join("")}</div></details>`:""}</div>`}
+function chDetail(c){const r=chRank(c);const me=r.find(x=>x.u===ME.uid)||{};const act=chActive(c);const allToday=act&&r.length>1&&r.every(x=>x.today);
+ const feed=[];for(const [u,days] of Object.entries(c.checkins||{}))for(const [d,ck] of Object.entries(days||{}))if(ck)feed.push({u,d,ck});feed.sort((a,b)=>(b.ck.t||0)-(a.ck.t||0));
+ const canEdit=c.by===ME.uid||iOwn();
+ return `<div class="stack"><button class="btn ghost sm" data-act="chalBack" style="align-self:flex-start;margin-top:4px">${I.left.replace('<svg','<svg width="16" height="16"')} Desafios</button>
+ <div class="card stack" style="gap:8px"><div class="row between"><h2 style="margin:0">${esc(c.name)}</h2>${canEdit?`<button class="btn ghost sm" data-act="chalEdit" data-v="${c.id}">Editar</button>`:""}</div>
+  ${c.desc?`<p class="small">${esc(c.desc)}</p>`:""}
+  <span class="tiny muted">${ddmm(c.start)} a ${ddmm(chEnd(c))} · ${c.auto&&c.auto!=="none"?`check-in automático: ${(CH_AUTO.find(x=>x[0]===c.auto)||["",""])[1].toLowerCase()}`:"cada um marca o seu check-in"}</span>
+  ${c.prize?`<span class="small">🏆 Prêmio: <b>${esc(c.prize)}</b></span>`:""}
+  ${act?(me.today?`<div class="banner info"><span>✅ Check-in de hoje feito! ${me.s>1?`Sequência de ${me.s} dias.`:""}</span></div>`:`<button class="btn block" data-act="chalCheckin">📸 Fazer meu check-in de hoje</button>`):today()<c.start?`<div class="banner info"><span>O desafio começa em ${dayLabel(c.start)}.</span></div>`:`<div class="banner info"><span>Desafio encerrado. ${r[0]&&r[0].p?`Campeão: <b>${esc(nm(r[0].u))}</b> com ${r[0].p} pontos!`:""}</span></div>`}
+ </div>
+ ${allToday?`<div class="card row" style="gap:10px"><span style="width:56px;flex:none">${pigSVG({score:95,mood:"feliz",equip:{},env:0,mini:true})}</span><span class="small"><b>Todo mundo cumpriu hoje!</b> O porquinho está orgulhoso da equipe.</span></div>`:""}
+ <div class="card stack"><div class="label">Ranking</div><div class="list">${r.map((x,i)=>`<div class="item"><b class="num" style="width:22px">${i+1}</b><span class="avatar">${teamInitials(x.u)}</span><span class="grow">${i===0&&x.p?"👑 ":""}${esc(nm(x.u))}${x.today?" <span class='tiny' title='Fez hoje'>✅</span>":""}</span><span class="tiny muted">${x.s>1?`🔥 ${x.s} · `:""}</span><b class="num">${x.p} pt${x.p===1?"":"s"}</b></div>`).join("")}</div></div>
+ <div class="section"><div class="label">Mural</div>
+ ${feed.length?feed.slice(0,UI.chFeedN||15).map(f=>{const rs=f.ck.r||{};return `<div class="card stack" style="gap:8px;padding:12px">
+  <div class="row between"><span class="row" style="gap:6px"><span class="avatar">${teamInitials(f.u)}</span><b class="small">${esc(nm(f.u))}</b></span><span class="tiny muted">${f.d===today()?"hoje":dayLabel(f.d)}${f.ck.auto?" · automático":""}</span></div>
+  ${chPhotoTag(f.ck)}${f.ck.note?`<p class="small">${esc(f.ck.note)}</p>`:""}
+  <div class="row" style="gap:6px">${CH_REACT.map(e=>{const n=Object.values(rs).filter(x=>x===e).length;const mineE=rs[ME.uid]===e;return `<button class="chip ${mineE?"on":""}" data-act="chalReact" data-c="${c.id}" data-u="${f.u}" data-d="${f.d}" data-e="${e}" style="padding:4px 10px">${e}${n?` ${n}`:""}</button>`}).join("")}
+  ${f.u===ME.uid?`<button class="chip" data-act="chalUndo" data-c="${c.id}" data-d="${f.d}" style="padding:4px 10px;margin-left:auto">Apagar</button>`:""}</div></div>`}).join("")+(feed.length>(UI.chFeedN||15)?`<button class="btn ghost" data-act="chalMore">Ver mais check-ins</button>`:"")
+ :`<div class="card empty">Ninguém fez check-in ainda. Seja o primeiro!</div>`}</div></div>`}
+function chForm(c){c=c||{start:today(),days:30,auto:"none"};const isEdit=!!c.id;
+ openModal(isEdit?"Editar desafio":"Novo desafio",`<div class="stack">
+ ${!isEdit?`<div class="field"><span>Ideias</span><div class="chips" style="flex-wrap:wrap">${CH_PRESETS.map((p,i)=>`<button type="button" class="chip" data-act="chalPreset" data-v="${i}">${p[0]}</button>`).join("")}</div></div>`:""}
+ <label class="field"><span>Nome do desafio</span><input id="ch_n" maxlength="50" value="${esc(c.name||"")}" placeholder="Ex.: 30 dias de treino"></label>
+ <label class="field"><span>Regra (opcional)</span><textarea id="ch_d" maxlength="240" placeholder="O que vale para ganhar o ponto do dia?">${esc(c.desc||"")}</textarea></label>
+ <div class="grid2"><label class="field"><span>Começa em</span><input id="ch_s" type="date" value="${c.start}"></label><label class="field"><span>Duração (dias)</span><input id="ch_days" type="number" min="3" max="120" value="${c.days||30}"></label></div>
+ <label class="field"><span>Check-in</span><select id="ch_a">${CH_AUTO.map(([k,n])=>`<option value="${k}" ${c.auto===k?"selected":""}>${n}</option>`).join("")}</select><span class="tiny muted">No automático, quem registrar a atividade no próprio Prumo ganha o check-in sozinho. Dá para pôr foto mesmo assim.</span></label>
+ <label class="field"><span>Prêmio (opcional)</span><input id="ch_p" maxlength="80" value="${esc(c.prize||"")}" placeholder="Ex.: quem perder paga o açaí"></label>
+ <button class="btn block" data-act="chalSave" data-v="${c.id||""}">${isEdit?"Salvar":"Criar desafio"}</button>
+ ${isEdit?`<button class="btn danger" data-act="askDel">Apagar desafio</button>${confirmBox("chalDel","Apagar o desafio e todos os check-ins dele?")}`:""}</div>`)}
+function chCheckinForm(){const c=CHP().items[UI.chalOpen];if(!c)return;UI.chFile=null;
+ const days=[today(),addDays(today(),-1)].filter(d=>d>=c.start&&d<=chEnd(c)&&!(((c.checkins||{})[ME.uid]||{})[d]));
+ if(!days.length){toast("Seu check-in de hoje já está feito.");return}
+ openModal("Check-in",`<div class="stack">
+ <div class="field"><span>Dia</span><div class="chips">${days.map((d,i)=>`<button type="button" class="chip ${i===0?"on":""}" data-act="chDay" data-v="${d}">${d===today()?"Hoje":"Ontem"}</button>`).join("")}</div></div>
+ <label class="chpick" for="ch_file"><span id="ch_prev" class="stack-s" style="align-items:center;gap:4px">📸<b class="small">Tirar ou escolher foto</b><span class="tiny muted">opcional</span></span></label><input type="file" id="ch_file" accept="image/*" hidden>
+ <label class="field"><span>Comentário (opcional)</span><input id="ch_note" maxlength="140" placeholder="Ex.: perna hoje, 5 km de caminhada"></label>
+ <button class="btn block" data-act="chalCheckSave">Fazer check-in</button></div>`,()=>{UI.chDay=days[0]})}
+Object.assign(A,{
+ addChal:()=>chForm(),
+ chalOpen:el=>{UI.chalOpen=el.dataset.v;render();window.scrollTo(0,0)},
+ chalBack:()=>{UI.chalOpen=null;render();window.scrollTo(0,0)},
+ chalEdit:el=>chForm(CHP().items[el.dataset.v]),
+ chalPreset:el=>{const p=CH_PRESETS[+el.dataset.v];$("#ch_n").value=p[0];$("#ch_a").value=p[1];$("#ch_days").value=p[2];$("#ch_d").value=p[3]},
+ chalSave:el=>{const name=v("ch_n").trim();if(!name){toast("Dê um nome ao desafio.");return}const id=el.dataset.v||rid();const old=CHP().items[id]||{};
+  CHP().items[id]={...old,id,name,desc:v("ch_d").trim(),start:v("ch_s")||today(),days:clamp(+v("ch_days")||30,3,120),auto:v("ch_a")||"none",prize:v("ch_p").trim(),by:old.by||ME.uid,created:old.created||Date.now(),checkins:old.checkins||{}};
+  UI.chalOpen=id;closeModal();commit();toast(old.id?"Desafio salvo.":"Desafio criado! Chame a equipe para o primeiro check-in.")},
+ chalDelYes:()=>{const id=document.querySelector('[data-act="chalSave"]').dataset.v;const c=CHP().items[id];
+  if(c&&!Store.demo&&sb){const mine=Object.values((c.checkins||{})[ME.uid]||{}).map(x=>x&&x.photo).filter(Boolean);if(mine.length)sb.storage.from("checkins").remove(mine).catch(()=>{})}
+  delete CHP().items[id];UI.chalOpen=null;closeModal();commit();toast("Desafio apagado.")},
+ chalCheckin:()=>chCheckinForm(),
+ chDay:el=>{UI.chDay=el.dataset.v;document.querySelectorAll('[data-act="chDay"]').forEach(b=>b.classList.toggle("on",b===el))},
+ chalCheckSave:async el=>{const c=CHP().items[UI.chalOpen];if(!c)return;const d=UI.chDay||today();el.disabled=true;el.textContent="Enviando…";
+  const ck={t:Date.now(),note:v("ch_note").trim()};
+  try{if(UI.chFile){const blob=await chShrink(UI.chFile);
+    if(Store.demo||!sb){ck.photoData=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(blob)})}
+    else{const path=`${TEAM.id}/${c.id}/${ME.uid}/${d}-${rid()}.jpg`;const {error}=await sb.storage.from("checkins").upload(path,blob,{contentType:"image/jpeg",upsert:false,cacheControl:"31536000"});if(error)throw error;ck.photo=path;PH.url[path]=URL.createObjectURL(blob)}}}
+  catch(e){console.warn(e);el.disabled=false;el.textContent="Fazer check-in";toast("Não consegui enviar a foto. Confira a internet ou tente sem foto.");return}
+  c.checkins=c.checkins||{};c.checkins[ME.uid]=c.checkins[ME.uid]||{};c.checkins[ME.uid][d]=ck;closeModal();commit();markActive();
+  const r=chRank(c);toast(r.every(x=>x.today)&&r.length>1?"Check-in feito! Todo mundo cumpriu hoje! 🎉":"Check-in feito! +1 ponto.")},
+ chalReact:el=>{const c=CHP().items[el.dataset.c];if(!c)return;const ck=((c.checkins||{})[el.dataset.u]||{})[el.dataset.d];if(!ck)return;ck.r=ck.r||{};ck.r[ME.uid]=ck.r[ME.uid]===el.dataset.e?null:el.dataset.e;if(ck.r[ME.uid]===null)delete ck.r[ME.uid];commit()},
+ chalUndo:el=>{const c=CHP().items[el.dataset.c];if(!c)return;const ck=((c.checkins||{})[ME.uid]||{})[el.dataset.d];if(!ck)return;
+  if(ck.photo&&!Store.demo&&sb)sb.storage.from("checkins").remove([ck.photo]).catch(()=>{});delete c.checkins[ME.uid][el.dataset.d];commit();toast("Check-in apagado.")},
+ chalMore:()=>{UI.chFeedN=(UI.chFeedN||15)+15;render()},
+ goChal:()=>{UI.tab="chal";UI.chalOpen=null;render();window.scrollTo(0,0)},
+});
+document.addEventListener("change",ev=>{const t=ev.target;if(t&&t.id==="ch_file"&&t.files&&t.files[0]){UI.chFile=t.files[0];const u=URL.createObjectURL(t.files[0]);const p=$("#ch_prev");if(p)p.innerHTML=`<img src="${u}" alt="" style="max-height:200px;max-width:100%;border-radius:12px"><span class="tiny muted">Toque para trocar</span>`}});
+document.head.insertAdjacentHTML("beforeend",`<style>.chph{width:100%;max-height:420px;object-fit:cover;border-radius:14px;background:var(--surface2);min-height:120px;display:block}
+.chpick{display:grid;place-items:center;min-height:120px;border:2px dashed var(--line);border-radius:16px;cursor:pointer;font-size:28px;padding:12px;text-align:center}</style>`);
+
+/* cartão na tela da equipe */
+function chTeamCard(){if(!teamHas("desafios"))return"";const act=vals(CHP().items).filter(chActive);if(!act.length)return `<button class="card row between" style="text-align:left" data-act="goChal"><b>Desafios</b><span class="tiny muted">Criar um desafio</span></button>`;
+ return `<div class="card stack"><div class="row between"><div class="label">Desafios</div><button class="btn ghost sm" data-act="goChal">Abrir</button></div>${act.slice(0,3).map(c=>{const r=chRank(c);const me=r.find(x=>x.u===ME.uid)||{};return `<button class="row between" style="border:0;background:none;padding:4px 0;text-align:left" data-act="chalOpen" data-v="${c.id}"><span class="small"><b>${esc(c.name)}</b><br><span class="tiny muted">${r[0]&&r[0].p?`👑 ${esc(nm(r[0].u))} lidera com ${r[0].p}`:"ninguém pontuou ainda"}</span></span><span class="small">${me.today?"✅":"⏳"}</span></button>`}).join("")}</div>`}
+{const _vt=viewTeamHome;viewTeamHome=function(){return _vt().replace('<button class="btn ghost" data-act="teamExit">Voltar ao meu Prumo</button></div>',chTeamCard()+'<button class="btn ghost" data-act="teamExit">Voltar ao meu Prumo</button></div>')}}
+
+/* demonstração */
+{const _dtd=demoTeamData;demoTeamData=function(){_dtd();const D=n=>addDays(today(),n);
+ const ph=(e,a,b)=>"data:image/svg+xml;utf8,"+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><rect width="400" height="260" fill="url(#g)"/><text x="200" y="160" font-size="110" text-anchor="middle">${e}</text></svg>`);
+ const ck={demo:{},m_ana:{},m_lucas:{}};
+ for(let i=11;i>=1;i--){const d=D(-i);if(i%4)ck.demo[d]={t:Date.now()-i*864e5,note:i===2?"Treino de perna, sofri mas fui!":"",photoData:i%3===0?ph("🏋️","#F7A8BE","#E5739A"):undefined};if(i%3)ck.m_ana[d]={t:Date.now()-i*864e5+3600e3,note:i===1?"5 km no parque":"",photoData:i%2?ph("🏃‍♀️","#9AD0F5","#3F7FD9"):undefined,r:{demo:"🔥"}};if(i%5===0||i<4)ck.m_lucas[d]={t:Date.now()-i*864e5+7200e3,photoData:i===2?ph("⚽","#B5E3A1","#2F8F6B"):undefined}}
+ ck.m_ana[today()]={t:Date.now()-3600e3,note:"Bora equipe!",photoData:ph("💪","#FFD98A","#E0A23B"),r:{m_lucas:"👏"}};
+ TD.chal={challenges:{items:{c1:{id:"c1",name:"30 dias de treino",desc:"Treinou, fez check-in. Vale academia, caminhada, corrida e futebol.",start:D(-11),days:30,auto:"ex",prize:"Quem ficar em último paga o açaí",by:"m_ana",created:Date.now()-11*864e5,checkins:ck}}}};
+ TBASE.chal=clone(TD.chal)}}
+{const _dt=demoTeams;demoTeams=function(){_dt();if(TEAMS&&TEAMS[0])TEAMS[0].features.desafios=true}}
 
 /* início */
 (function boot(){

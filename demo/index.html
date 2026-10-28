@@ -279,6 +279,7 @@ body.team-env .envbtn.cur{border-color:var(--money);background:color-mix(in srgb
 .pjdot{width:34px;height:34px;border-radius:50%;border:2.5px solid var(--line);background:var(--surface);display:grid;place-items:center;font-weight:800;font-size:13px;flex:none;z-index:1;color:var(--muted)}
 .tray{position:sticky;bottom:calc(-22px - env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1.5px solid var(--line);margin:4px -16px calc(-22px - env(safe-area-inset-bottom,0px));padding:12px 16px calc(14px + env(safe-area-inset-bottom,0px));z-index:3;box-shadow:0 -8px 20px rgba(0,0,0,.06)}
 .tray.pop{animation:trayPop .35s ease}@keyframes trayPop{0%{transform:translateY(0)}40%{transform:translateY(-4px)}100%{transform:none}}
+.supdot{position:absolute;right:-3px;bottom:-3px;width:18px;height:18px;border-radius:50%;background:var(--pig-deep);color:#fff;display:grid;place-items:center;border:2px solid var(--bg);pointer-events:none}
 .calleg{width:14px;height:14px;border-radius:5px;display:inline-block}.calleg.has{background:color-mix(in srgb,var(--pig) 30%,transparent)}.calleg.today{box-shadow:inset 0 0 0 2px var(--pig-deep)}
 
 /* timer */
@@ -1910,7 +1911,7 @@ function logoHTML(px){return `<span role="img" aria-label="Prumo" style="display
 function header(){const st=streak();const first=(S.profile.name||"").split(" ")[0];
  return `<div class="top"><div class="grow"><div class="brand" style="flex-direction:column;align-items:flex-start;gap:2px">${logoHTML(24)}<span style="font-family:var(--f-body);font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em">Vida em ordem</span></div></div>
  <span class="streak" title="Dias seguidos usando o app, com 1 dia de folga por semana">${I.flame}<span class="num">${st}</span><span class="small muted">${st===1?"dia":"dias"}</span></span>
- <button class="iconbtn" data-act="tab" data-v="profile" aria-label="Perfil" style="${S.profile.photo?"padding:0;overflow:hidden;border-radius:50%":""}">${S.profile.photo?`<img src="${S.profile.photo}" alt="" style="width:40px;height:40px;object-fit:cover;display:block">`:I.user}</button></div>`}
+ <span style="position:relative;display:inline-flex"><button class="iconbtn" data-act="tab" data-v="profile" aria-label="Perfil" style="${S.profile.photo?"padding:0;overflow:hidden;border-radius:50%":""}">${S.profile.photo?`<img src="${S.profile.photo}" alt="" style="width:40px;height:40px;object-fit:cover;display:block">`:I.user}</button>${S.profile.supporter?`<span class="supdot" title="Apoiador do Prumo" aria-label="Apoiador">${I.heart.replace('<svg','<svg width="10" height="10"')}</span>`:""}</span></div>`}
 
 /* ---------- Início ---------- */
 function viewHome(){
@@ -2201,7 +2202,7 @@ function viewProfile(){const p=S.profile;
 
 
 /* ---------- Doação voluntária por Pix ---------- */
-const PIX=Object.assign({key:"mateuslealpsi@gmail.com",name:"Mateus Leal",city:"BRASIL"},((window.PRUMO_CONFIG||{}).pix)||{});
+const PIX=Object.assign({key:"c11a4124-00b2-47c8-80c0-025e668cd9e7",name:"Mateus Leal",city:"BRASIL"},((window.PRUMO_CONFIG||{}).pix)||{});
 /* No app da App Store a Apple não permite doações fora dela, então o botão some lá */
 const canDonate=()=>!(window.Capacitor&&window.Capacitor.getPlatform&&window.Capacitor.getPlatform()==="ios");
 function crc16(str){let c=0xFFFF;for(let i=0;i<str.length;i++){c^=str.charCodeAt(i)<<8;for(let j=0;j<8;j++)c=(c&0x8000)?((c<<1)^0x1021)&0xFFFF:(c<<1)&0xFFFF}return c.toString(16).toUpperCase().padStart(4,"0")}
@@ -2209,7 +2210,7 @@ function pixPayload(amount){const f=(id,v)=>id+String(v.length).padStart(2,"0")+
  const acc=f("00","BR.GOV.BCB.PIX")+f("01",PIX.key.trim())+f("02","Doacao Prumo");
  const body=f("00","01")+f("26",acc)+f("52","0000")+f("53","986")+(amount?f("54",amount.toFixed(2)):"")+f("58","BR")+f("59",clean(PIX.name,25))+f("60",clean(PIX.city||"BRASIL",15))+f("62",f("05","***"))+"6304";
  return body+crc16(body)}
-const DON_PLANS=[["livre","Doação livre",0,"Você escolhe o valor no app do banco."],["mensal","Apoiador mensal",2,"R$ 2 por mês. Faça um Pix por mês, quando lembrar."],["anual","Apoiador anual",20,"R$ 20 por ano, um único Pix."]];
+const DON_PLANS=[["livre","Doação livre",0,"Você escolhe o valor no app do banco."],["mensal","Apoiador mensal",5,"R$ 5 por mês. Faça um Pix por mês, quando lembrar."],["anual","Apoiador anual",20,"R$ 20 por ano, um único Pix."]];
 function donateView(){const ok=!!PIX.key;const plan=UI.donPlan||"livre";const pl=DON_PLANS.find(x=>x[0]===plan);const sup=S.profile.supporter;
  openModal("Apoie o Prumo",`<div class="stack prose">
  <p>O Prumo é gratuito e vai continuar gratuito para todos. Ele <b>não existe para dar lucro</b>.</p>
@@ -2218,13 +2219,14 @@ function donateView(){const ok=!!PIX.key;const plan=UI.donPlan||"livre";const pl
   <p class="small">Conta de desenvolvedor da Apple, para o app existir na App Store (US$ 99 por ano)</p>
   <p class="small">Servidor e banco de dados</p><p class="small">Domínio e manutenção do app</p>
   <p class="small muted">Todo valor recebido vai para a manutenção. Nada é usado para gerar lucro.</p></div>
- <p class="small muted">Contribuir é totalmente opcional. Quem apoia e quem não apoia tem acesso a tudo, do mesmo jeito. Apoiadores ganham só um agradecimento: um selo no perfil e dois acessórios para o porquinho.</p>
- ${sup?`<div class="banner info">${I.heart.replace('<svg','<svg width="18" height="18" style="flex:none;color:var(--pig-deep)"')}<span>Você é Apoiador ${sup.plan==="anual"?"anual":sup.plan==="mensal"?"mensal":""} do Prumo desde ${parseDate(sup.since).toLocaleDateString("pt-BR")}. Obrigado!</span></div>`:""}
+ <p class="small muted">Contribuir é totalmente opcional. Quem apoia e quem não apoia tem acesso a tudo, do mesmo jeito. Como agradecimento, apoiadores ganham o <b>selo de Apoiador</b> no perfil e <b>dois acessórios especiais</b> para o porquinho: cartola e medalha. Depois do Pix, é só avisar pelo botão abaixo. Assim que o Pix for confirmado, o selo aparece.</p>
+ ${typeof supBanner==="function"?supBanner():""}
+ ${sup?`<div class="banner info">${I.heart.replace('<svg','<svg width="18" height="18" style="flex:none;color:var(--pig-deep)"')}<span>Você é Apoiador ${sup.plan==="anual"?"anual":sup.plan==="mensal"?"mensal":""} do Prumo desde ${parseDate(sup.since).toLocaleDateString("pt-BR")}${sup.until?`, com o selo ativo até ${parseDate(sup.until).toLocaleDateString("pt-BR")}`:""}. Obrigado!</span></div>`:""}
  <div class="stack-s">${DON_PLANS.map(([id,n,v,d])=>`<button class="card stack" style="text-align:left;gap:2px;padding:12px 14px;${plan===id?"border:2px solid var(--money)":""}" data-act="donPlan" data-v="${id}" aria-pressed="${plan===id}"><div class="row between"><b>${n}</b><b class="num">${v?brl(v):"Qualquer valor"}</b></div><span class="small muted">${d}</span></button>`).join("")}</div>
  ${ok?`<div class="field"><span>Chave Pix${PIX.name?" · "+esc(PIX.name):""}</span><div class="code" style="font-size:16px;letter-spacing:.02em;word-break:break-all">${esc(PIX.key)}</div></div>
   <div class="grid2"><button class="btn money" data-act="copyPixCode">Copiar Pix copia e cola</button><button class="btn ghost" data-act="copyPixKey">Copiar chave</button></div>
   <p class="tiny muted">No app do seu banco, escolha Pix e depois Pix copia e cola. ${pl[2]?`O valor de ${brl(pl[2])} já vem preenchido.`:"Cole o código e digite o valor que quiser."} Ou use Pagar com chave e cole a chave acima.</p>
-  ${pl[2]&&!sup?`<button class="btn line" data-act="donDone" data-v="${plan}">Já fiz o Pix, quero ser Apoiador</button>`:""}`
+  <button class="btn line" data-act="donDone" data-v="${plan}">Já fiz o Pix, avisar</button>`
  :`<div class="banner warn">A chave Pix ainda não foi configurada.</div>`}
  ${typeof sponsorsSection==="function"&&typeof SB_ON!=="undefined"&&(SB_ON||Store.demo)?sponsorsSection():""}
  <p class="small" style="text-align:center">Obrigado por ajudar o Prumo a continuar de pé.</p></div>`)}
@@ -3680,6 +3682,7 @@ function viewAdmin(){if(!UI.isAdmin)return `<div class="card empty">Acesso restr
  return `<div class="stack"><div class="row between" style="margin-top:4px"><h1>Painel do administrador</h1><button class="iconbtn" data-act="tab" data-v="profile" aria-label="Voltar">${I.left}</button></div>
  <div class="banner info"><span class="small">Você vê números gerais e a lista de contas. Finanças, saúde, orações e os demais registros de cada pessoa continuam privados, como diz a política de privacidade.</span></div>
  <div class="row wrap" style="gap:8px"><button class="btn line sm" data-act="admReload" ${ADM.loading?"disabled":""}>${ADM.loading?"Atualizando…":"Atualizar números"}</button><button class="btn sm" data-act="openDemo">Abrir demonstração</button></div>
+ ${typeof supAdminCard==="function"?supAdminCard():""}
  ${body}</div>`}
 A.goAdmin=()=>{UI.tab="admin";window.scrollTo(0,0);ADM.stats=null;ADM.sel=null;render()};
 A.admReload=()=>admLoad();
@@ -4217,6 +4220,59 @@ A.goProjMine=()=>{UI.tab="agenda";UI.agendaSub="proj";UI.projOpen=null;UI.projF=
 if(typeof startDemo==="function"){const _sd=startDemo;startDemo=function(){_sd();try{const D=n=>addDays(today(),n);PJ().items.pv={id:"pv",name:"Viagem com a família",goal:"Uma semana na praia em janeiro, sem dívida.",due:D(70),status:"doing",color:"#2F8F6B",created:Date.now()-4e8};
  [["Definir destino e datas","done",D(-10),[]],["Juntar R$ 3.000 na reserva","doing",D(45),[["R$ 1.000",true],["R$ 2.000",true],["R$ 3.000",false]]],["Reservar a pousada","todo",D(20),[]],["Organizar as malas","todo",D(68),[]]]
  .forEach(([title,status,date,subs],i)=>{const tid="pv"+i;S.tasks.items[tid]={id:tid,title,proj:"pv",order:i+1,status,date,kind:"pessoal",prio:"media",cal:true,remind:30,subs:subs.map(([t,done])=>({t,done})),created:Date.now()-i*1e5,doneAt:status==="done"?Date.now()-3e8:null}});render()}catch(e){console.warn(e)}}}
+
+/* ============================================================
+   Apoios por Pix: a pessoa avisa que doou e o administrador confirma.
+   O selo de Apoiador e os acessórios só ficam ativos depois da confirmação.
+   ============================================================ */
+const SUP={data:null,loading:false,adm:null};
+async function supLoad(){if(!sb||!Store.cloud||SUP.loading)return;SUP.loading=true;
+ try{const {data,error}=await sb.rpc("my_support");if(error)throw error;SUP.data=data||{};
+  const a=SUP.data.active;const cur=S.profile.supporter;
+  if(a){const nx={plan:a.plan,since:a.since,until:a.until,ok:1};if(!cur||cur.until!==nx.until||!cur.ok){S.profile.supporter=nx;saveApp();render()}}
+  else if(cur){delete S.profile.supporter;saveApp();render()}}
+ catch(e){console.warn(e)}SUP.loading=false}
+{const _rs=render;render=function(){_rs();if(Store.cloud&&!SUP.data&&!SUP.loading)setTimeout(supLoad,0)}}
+setInterval(()=>{if(Store.cloud&&!document.hidden)supLoad()},5*60000);
+
+function supBanner(){if(!Store.cloud||!SUP.data)return"";const d=SUP.data;let h="";
+ if(d.pending&&d.pending.length)h+=`<div class="banner warn"><span>Recebemos seu aviso de ${d.pending.map(x=>brl(+x.amount)).join(" e ")}. Assim que o Pix for confirmado, o selo de Apoiador aparece no seu perfil.</span></div>`;
+ if(d.rejected&&!(d.pending&&d.pending.length))h+=`<div class="banner bad"><span>Não encontramos o Pix de ${brl(+d.rejected.amount)} que você avisou. Se você enviou, avise de novo com o valor, a data e o nome de quem pagou.</span></div>`;
+ return h}
+
+function supClaimForm(plan){const pl=DON_PLANS.find(x=>x[0]===plan)||DON_PLANS[0];
+ openModal("Avisar que fiz o Pix",`<div class="stack">
+ <p class="small muted">Com essas informações eu encontro o seu Pix no extrato. Assim que for confirmado, você recebe uma mensagem do porquinho e o selo de Apoiador aparece.</p>
+ <label class="field"><span>Valor que você enviou</span><input id="sc_v" inputmode="decimal" value="${pl[2]?String(pl[2]).replace(".",","):""}" placeholder="0,00"></label>
+ <label class="field"><span>Nome de quem pagou (como aparece no Pix)</span><input id="sc_n" maxlength="80" value="${esc(S.profile.name||"")}"></label>
+ <label class="field"><span>Dia do Pix</span><input id="sc_d" type="date" value="${today()}" max="${today()}"></label>
+ <button class="btn block" data-act="supSend" data-v="${plan}">Enviar aviso</button></div>`)}
+
+Object.assign(A,{
+ donDone:el=>{const plan=el.dataset.v||"livre";
+  if(Store.demo){toast("Na demonstração isso não é salvo.");return}
+  if(!sb||!Store.cloud){toast("Para receber o selo de Apoiador, entre com a sua conta.");return}
+  supClaimForm(plan)},
+ supSend:async el=>{const v0=parseMoney(v("sc_v"));if(!v0||v0<1){toast("Informe o valor que você enviou.");return}const nm=v("sc_n").trim();if(!nm){toast("Informe o nome de quem pagou.");return}
+  el.disabled=true;try{const {error}=await sb.rpc("support_claim",{p_amount:v0,p_plan:el.dataset.v||"livre",p_payer:nm,p_paid_on:v("sc_d")||today()});if(error)throw error;
+   closeModal();SUP.data=null;await supLoad();toast("Aviso enviado. Obrigado! Assim que o Pix for confirmado, seu selo aparece.",5000)}
+  catch(e){el.disabled=false;toast(/limite/.test(String(e&&e.message))?"Você já tem avisos esperando confirmação.":"Não consegui enviar agora. Confira a internet.")}},
+ /* painel do administrador */
+ supAdmLoad:()=>supAdmLoad(),
+ supDecide:async el=>{const ok=el.dataset.ok==="1";el.disabled=true;try{const {error}=await sb.rpc("admin_support_decide",{p_id:el.dataset.v,p_ok:ok});if(error)throw error;toast(ok?"Apoio confirmado. A pessoa recebeu uma mensagem de agradecimento.":"Aviso recusado. A pessoa recebeu uma mensagem.");await supAdmLoad()}catch(e){el.disabled=false;toast("Não deu certo: "+((e&&e.message)||"erro"))}},
+});
+async function supAdmLoad(){if(SUP.admLoading)return;SUP.admLoading=true;try{const {data,error}=await sb.rpc("admin_support_list");if(error)throw error;SUP.adm=data}catch(e){SUP.adm={err:(e&&e.message)||"erro"}}SUP.admLoading=false;render()}
+function supAdminCard(){if(!SUP.adm){setTimeout(supAdmLoad,0);return `<div class="card empty">Carregando apoios…</div>`}const d=SUP.adm;
+ if(d.err)return `<div class="banner bad"><span>Não consegui carregar os apoios: ${esc(d.err)}</span></div>`;
+ const pl={livre:"Doação livre",mensal:"Mensal",anual:"Anual"};
+ return `<div class="card stack"><div class="row between"><div class="label">Apoios por Pix</div><button class="btn ghost sm" data-act="supAdmLoad">Atualizar</button></div>
+ <div class="grid2"><div class="stack-s"><span class="tiny muted">Apoiadores ativos</span><b class="num" style="font-size:22px">${d.active||0}</b></div><div class="stack-s"><span class="tiny muted">Confirmado neste mês</span><b class="num" style="font-size:22px">${brl(+d.total_month||0)}</b></div></div>
+ ${d.pending.length?`<div class="label" style="margin-top:4px">Para conferir no extrato (${d.pending.length})</div>${d.pending.map(c=>`<div class="card flat stack" style="gap:6px;padding:12px"><div class="row between"><b class="num" style="font-size:18px">${brl(+c.amount)}</b><span class="pill info" style="padding:1px 8px">${pl[c.plan]||c.plan}</span></div>
+  <span class="small">Pago por <b>${esc(c.payer||"—")}</b> em ${c.paid_on?parseDate(c.paid_on).toLocaleDateString("pt-BR"):"—"}</span><span class="tiny muted">${esc(c.email)} · avisou em ${admDate(c.created_at,true)}</span>
+  <div class="row" style="gap:6px"><button class="btn money sm" data-act="supDecide" data-v="${c.id}" data-ok="1">Recebi, confirmar</button><button class="btn ghost sm" data-act="supDecide" data-v="${c.id}" data-ok="0">Não encontrei</button></div></div>`).join("")}`
+ :`<p class="small muted">Nenhum aviso esperando confirmação.</p>`}
+ ${d.recent.length?`<details><summary class="small" style="cursor:pointer">Últimas decisões</summary><div class="list">${d.recent.map(c=>`<div class="item"><span class="grow small">${esc(c.email)} · ${brl(+c.amount)}</span><span class="tiny ${c.status==="confirmado"?"":"muted"}">${c.status==="confirmado"?"confirmado até "+parseDate(c.valid_until).toLocaleDateString("pt-BR"):"recusado"}</span></div>`).join("")}</div></details>`:""}
+ <p class="tiny muted">Ao confirmar, o selo e os acessórios ficam ativos por 1 mês (doação livre ou mensal) ou 1 ano (anual), somando ao tempo que a pessoa já tinha. Ela recebe uma mensagem automática nos dois casos.</p></div>`}
 
 /* início */
 (function boot(){

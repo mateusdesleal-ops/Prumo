@@ -11,7 +11,7 @@ window.PRUMO_CONFIG = {
 
   // Doações voluntárias por Pix (aparecem em Perfil > Apoie o Prumo)
   pix: {
-    key: "mateuslealpsi@gmail.com",
+    key: "c11a4124-00b2-47c8-80c0-025e668cd9e7",
     name: "Mateus Leal",   // nome mostrado no código Pix (até 25 letras)
     city: "BRASIL"         // troque pela sua cidade, sem acentos
   }

@@ -263,6 +263,8 @@ body.team-env .envbtn.cur{border-color:var(--money);background:color-mix(in srgb
 .pjsteps{padding:6px 14px}.pjstep{display:flex;gap:12px;align-items:center;padding:10px 0;position:relative}
 .pjstep+.pjstep::before{content:"";position:absolute;left:16px;top:-12px;height:24px;border-left:2px dashed var(--line)}
 .pjdot{width:34px;height:34px;border-radius:50%;border:2.5px solid var(--line);background:var(--surface);display:grid;place-items:center;font-weight:800;font-size:13px;flex:none;z-index:1;color:var(--muted)}
+.tray{position:sticky;bottom:calc(-22px - env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1.5px solid var(--line);margin:4px -16px calc(-22px - env(safe-area-inset-bottom,0px));padding:12px 16px calc(14px + env(safe-area-inset-bottom,0px));z-index:3;box-shadow:0 -8px 20px rgba(0,0,0,.06)}
+.tray.pop{animation:trayPop .35s ease}@keyframes trayPop{0%{transform:translateY(0)}40%{transform:translateY(-4px)}100%{transform:none}}
 .calleg{width:14px;height:14px;border-radius:5px;display:inline-block}.calleg.has{background:color-mix(in srgb,var(--pig) 30%,transparent)}.calleg.today{box-shadow:inset 0 0 0 2px var(--pig-deep)}
 
 /* timer */
@@ -1042,10 +1044,23 @@ function foodRecents(){const seen=new Set(),out=[];vals(S.food.logs).sort((a,b)=
 function foodRow(f){return `<button class="item" style="width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;padding-inline:0" data-act="pickFood" data-v="${esc(f.id)}"><i class="dot" style="background:${(NOVA[f.nova]||NOVA.n).c}"></i><div class="grow stack-s" style="gap:1px"><p><b>${esc(f.n)}</b></p><p class="tiny muted">${showKcal()&&f.kcal!=null?f.kcal+" kcal · ":""}${esc(f.por||"1 porção")}</p></div><span class="iconbtn" style="width:34px;height:34px;border-radius:50%;border:1.5px solid var(--line);background:none">${I.plus.replace('<svg','<svg width="16" height="16"')}</span></button>`}
 function findFood(id){if(id.startsWith("r:")){const l=S.food.logs[id.slice(2)];return l?{id,n:l.n,por:l.por,kcal:l.kcal,nova:l.nova,g:l.g,p:l.p,c:l.c,f:l.f,fib:l.fib}:null}if(id.startsWith("c:")){const c=S.food.custom[id.slice(2)];return c?{id,...c}:null}return FOODS.find(f=>f.id===id)||null}
 function foodSheet(meal,tab){UI.foodMeal=meal||UI.foodMeal||defaultMeal();UI.foodTab=tab||"buscar";
- openModal("Adicionar alimento",`<div class="stack">
+ const dKey=(UI.foodDay&&UI.tab==="ex"?UI.foodDay:today());if(!UI.tray||UI.trayDay!==dKey)UI.tray=[];UI.trayDay=dKey;
+ openModal("Montar refeição",`<div class="stack">
  <div class="chips">${MEALS.map(([id,n])=>`<button class="chip ${UI.foodMeal===id?"on":""}" data-act="foodMeal" data-v="${id}">${n}</button>`).join("")}</div>
  <div class="subtabs">${[["buscar","Buscar"],["rapido","Adicionar rápido"],["meus","Meus alimentos"]].map(([id,n])=>`<button class="${UI.foodTab===id?"on":""}" data-act="foodTab" data-v="${id}">${n}</button>`).join("")}</div>
- <div id="foodBody"></div></div>`,()=>renderFoodBody())}
+ <div id="foodBody"></div>
+ <div id="tray" class="tray"></div></div>`,()=>{renderFoodBody();renderTray()})}
+/* prato em montagem: vários alimentos de uma vez, salvos juntos */
+function trayAdd(f,q){const it=UI.tray.find(x=>x.f.id===f.id&&x.f.n===f.n);if(it)it.q=Math.round((it.q+(q||1))*100)/100;else UI.tray.push({f,q:q||1});renderTray();
+ const el=$("#tray");if(el){el.classList.remove("pop");void el.offsetWidth;el.classList.add("pop")}}
+function renderTray(){const b=$("#tray");if(!b)return;const t=UI.tray||[];const mealN=MEALS.find(m=>m[0]===UI.foodMeal)[1];
+ if(!t.length){b.innerHTML=`<div class="tiny muted" style="text-align:center;padding:6px 0">Toque nos alimentos para montar o prato. Depois é só salvar tudo de uma vez.</div>`;return}
+ const kc=t.reduce((s,x)=>s+(x.f.kcal!=null?x.f.kcal*x.q:0),0);
+ b.innerHTML=`<div class="stack-s" style="gap:6px"><div class="row between"><b class="small">Seu prato · ${t.length} ${t.length===1?"item":"itens"}</b>${showKcal()&&kc?`<span class="tiny muted num">${Math.round(kc)} kcal</span>`:""}</div>
+ <div class="stack-s" style="gap:4px;max-height:34vh;overflow:auto">${t.map((x,i)=>`<div class="row" style="gap:6px"><i class="dot" style="background:${(NOVA[x.f.nova]||NOVA.n).c};flex:none"></i><span class="grow small" style="min-width:0"><b>${esc(x.f.n)}</b> <span class="tiny muted">${esc(x.f.por||"1 porção")}</span></span>
+  <button type="button" class="iconbtn" style="width:30px;height:30px" data-act="trayQ" data-i="${i}" data-d="-0.5" aria-label="Menos">−</button><span class="num small" style="min-width:30px;text-align:center">${String(x.q).replace(".",",")}</span><button type="button" class="iconbtn" style="width:30px;height:30px" data-act="trayQ" data-i="${i}" data-d="0.5" aria-label="Mais">+</button>
+  <button type="button" class="iconbtn" style="width:30px;height:30px" data-act="trayDel" data-i="${i}" aria-label="Tirar do prato">${I.trash.replace('<svg','<svg width="14" height="14"')}</button></div>`).join("")}</div>
+ <button class="btn block" data-act="traySave">Salvar ${esc(mealN.toLowerCase())} (${t.length} ${t.length===1?"item":"itens"})</button></div>`}
 function defaultMeal(){const h=new Date().getHours();return h<10?"cafe":h<15?"almoco":h<18?"lanche":h<22?"jantar":"outros"}
 function renderFoodBody(){const b=$("#foodBody");if(!b)return;const t=UI.foodTab;
  if(t==="buscar"){b.innerHTML=`<div class="stack"><input id="fq" type="search" placeholder="Buscar alimento" autocomplete="off"><div id="fres" class="list"></div><p class="tiny muted">Valores aproximados com base na Tabela TACO (Unicamp). Não achou? Use Adicionar rápido.</p></div>`;
@@ -1055,9 +1070,9 @@ function renderFoodBody(){const b=$("#foodBody");if(!b)return;const t=UI.foodTab
  else if(t==="rapido"){b.innerHTML=`<div class="stack"><label class="field"><span>O que você comeu?</span><input id="qn" placeholder="Ex.: marmita de frango"></label>
   <label class="field"><span>Calorias (opcional)</span><input id="qk" type="number" inputmode="numeric" min="0" placeholder="kcal"></label>
   ${novaPicker("qnova","n")}<label class="check"><input type="checkbox" id="qfv"><span class="small">É fruta, verdura ou legume</span></label>
-  <button class="btn block" data-act="quickFood">Adicionar</button></div>`}
+  <button class="btn block line" data-act="quickFood">Pôr no prato</button></div>`}
  else{const cs=vals(S.food.custom).sort((a,b)=>a.n.localeCompare(b.n));
-  b.innerHTML=`<div class="stack">${cs.length?`<div class="list">${cs.map(c=>foodRow({...c,id:"c:"+c.id})).join("")}</div>`:`<div class="empty">Crie alimentos e receitas que você come sempre, como o seu café da manhã de todo dia.</div>`}
+  b.innerHTML=`<div class="stack">${cs.length?`<div class="list">${cs.map(c=>`<div class="row" style="gap:6px"><div class="grow" style="min-width:0">${foodRow({...c,id:"c:"+c.id})}</div><button type="button" class="iconbtn" style="width:32px;height:32px;flex:none" data-act="delCustomFood" data-v="${c.id}" aria-label="Apagar ${esc(c.n)} de Meus alimentos">${I.trash.replace('<svg','<svg width="14" height="14"')}</button></div>`).join("")}</div>`:`<div class="empty">Crie alimentos e receitas que você come sempre, como o seu café da manhã de todo dia.</div>`}
   <div class="card flat stack"><b>Criar alimento ou receita</b>
   <label class="field"><span>Nome</span><input id="cn" placeholder="Ex.: vitamina de banana"></label>
   <div class="grid2"><label class="field"><span>Porção</span><input id="cp" placeholder="1 copo (300 ml)"></label><label class="field"><span>Calorias</span><input id="ck" type="number" inputmode="numeric" placeholder="kcal"></label></div>
@@ -2344,12 +2359,17 @@ const A={
  foodDay:el=>{const n=addDays(UI.foodDay||today(),+el.dataset.v);if(n<=today()){UI.foodDay=n;render()}},
  water:el=>{const d=UI.tab==="ex"?(UI.foodDay||today()):today();const c=Math.max(0,(+S.food.water[d]||0)+(+el.dataset.v));S.food.water[d]=c;if(+el.dataset.v>0)markActive(d);commit();if(UI.tab!=="ex")toast(`${c} de ${waterGoal()} copos de água hoje.`)},
  addFood:el=>{if(UI.tab!=="ex")UI.foodDay=today();foodSheet(el&&el.dataset&&el.dataset.v||null)},
- foodMeal:el=>{UI.foodMeal=el.dataset.v;document.querySelectorAll('[data-act="foodMeal"]').forEach(c=>c.classList.toggle("on",c===el));const b=document.querySelector('[data-act="addPicked"]');if(b)b.textContent="Adicionar em "+MEALS.find(m=>m[0]===UI.foodMeal)[1].toLowerCase()},
+ foodMeal:el=>{UI.foodMeal=el.dataset.v;document.querySelectorAll('[data-act="foodMeal"]').forEach(c=>c.classList.toggle("on",c===el));renderTray();const b=document.querySelector('[data-act="addPicked"]');if(b)b.textContent="Adicionar em "+MEALS.find(m=>m[0]===UI.foodMeal)[1].toLowerCase()},
  foodTab:el=>{UI.foodTab=el.dataset.v;document.querySelectorAll('[data-act="foodTab"]').forEach(c=>c.classList.toggle("on",c.dataset.v===UI.foodTab&&c.closest(".subtabs")));renderFoodBody()},
- pickFood:el=>{const f=findFood(el.dataset.v);if(f)pickFoodView(f)},
+ pickFood:el=>{const f=findFood(el.dataset.v);if(!f)return;trayAdd(f,1);const q=$("#fq");if(q&&q.value){q.value="";q.dispatchEvent(new Event("input"));q.focus()}},
+ trayQ:el=>{const x=UI.tray[+el.dataset.i];if(!x)return;x.q=Math.max(0.5,Math.round((x.q+(+el.dataset.d))*100)/100);renderTray()},
+ trayDel:el=>{UI.tray.splice(+el.dataset.i,1);renderTray()},
+ traySave:()=>{const t=UI.tray||[];if(!t.length)return;const mealN=MEALS.find(m=>m[0]===UI.foodMeal)[1];const day=UI.foodDay&&UI.tab==="ex"?UI.foodDay:today();
+  t.forEach((x,i)=>{const f=x.f;const id=rid();S.food.logs[id]={id,date:day,t:Date.now()+i,meal:UI.foodMeal,n:f.n,por:f.por||"1 porção",kcal:f.kcal!=null?+f.kcal:null,nova:f.nova||"n",g:f.g||"",qty:x.q,p:+f.p||0,c:+f.c||0,f:+f.f||0,fib:+f.fib||0}});
+  markActive(day);UI.tray=[];closeModal();commit();toast(`${mealN} salvo com ${t.length} ${t.length===1?"alimento":"alimentos"}.`)},
  foodQty:el=>{const q=$("#fqty");q.value=el.dataset.v;q.dispatchEvent(new Event("input"))},
  addPicked:()=>{const q=parseFloat(String(v("fqty")).replace(",","."))||1;const f=UI.foodPick;if(!f)return;addFoodLog(f,q);closeModal();toast(`${f.n} adicionado.`)},
- quickFood:()=>{const n=v("qn").trim();if(!n){toast("Diga o que você comeu.");return}const k=v("qk");addFoodLog({n,por:"1 porção",kcal:k===""?null:+k,nova:v("qnova"),g:$("#qfv").checked?"v":""},1);closeModal();toast(`${n} adicionado.`)},
+ quickFood:()=>{const n=v("qn").trim();if(!n){toast("Diga o que você comeu.");return}const k=v("qk");trayAdd({id:"q:"+rid(),n,por:"1 porção",kcal:k===""?null:+k,nova:v("qnova"),g:$("#qfv").checked?"v":""},1);$("#qn").value="";$("#qk").value="";$("#qfv").checked=false;$("#qn").focus();toast(`${n} foi para o prato.`)},
  saveCustomFood:()=>{const n=v("cn").trim();if(!n){toast("Dê um nome ao alimento.");return}const id=rid();const k=v("ck");S.food.custom[id]={id,n,por:v("cp").trim()||"1 porção",kcal:k===""?null:+k,nova:v("cnova"),g:$("#cfv").checked?"v":"",p:parseMoney(v("cpp")),c:parseMoney(v("cpc")),f:parseMoney(v("cpf"))};commit();renderFoodBody();toast("Salvo em Meus alimentos.")},
  delCustomFood:el=>{delete S.food.custom[el.dataset.v];commit();UI.foodTab="meus";renderFoodBody()},
  editFood:el=>{const l=S.food.logs[el.dataset.v];if(l)editFoodForm(l)},

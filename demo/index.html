@@ -473,7 +473,28 @@ const ACCESSORIES=[
  {id:"faixa",n:"Medalha de campeão",slot:"neck",cost:0,tasks:50},
  {id:"cartola",n:"Cartola de apoiador",slot:"head",cost:0,supporter:true},
  {id:"medalha",n:"Medalha de apoiador",slot:"neck",cost:0,supporter:true},
+ {id:"festa",n:"Chapéu de festa",slot:"head",cost:40},
+ {id:"palha",n:"Chapéu de palha",slot:"head",cost:50},
+ {id:"gorro",n:"Gorro com pompom",slot:"head",cost:60},
+ {id:"flores",n:"Coroa de flores",slot:"head",cost:80},
+ {id:"chef",n:"Chapéu de chef",slot:"head",cost:90},
+ {id:"cowboy",n:"Chapéu de cowboy",slot:"head",cost:110},
+ {id:"bigode",n:"Bigode",slot:"face",cost:40},
+ {id:"monoculo",n:"Monóculo",slot:"face",cost:60},
+ {id:"coracao",n:"Óculos de coração",slot:"face",cost:70},
+ {id:"bandana",n:"Bandana",slot:"neck",cost:40},
+ {id:"gravatona",n:"Gravata",slot:"neck",cost:50},
+ {id:"perolas",n:"Colar de pérolas",slot:"neck",cost:90},
+ {id:"camiseta",n:"Camiseta",slot:"body",cost:50},
+ {id:"pijama",n:"Pijama listrado",slot:"body",cost:60},
+ {id:"avental",n:"Avental",slot:"body",cost:70},
+ {id:"futebol",n:"Camisa de futebol",slot:"body",cost:80},
+ {id:"moletom",n:"Moletom do Prumo",slot:"body",cost:90},
+ {id:"vestido",n:"Vestido de bolinhas",slot:"body",cost:100},
+ {id:"capa",n:"Capa de herói",slot:"body",cost:130},
+ {id:"smoking",n:"Smoking",slot:"body",cost:150},
 ];
+const ACC_SLOTS=[["body","Roupinhas"],["head","Cabeça"],["face","Rosto"],["neck","Pescoço"]];
 const ENV_LEVELS=[
  {min:0,n:"Chão de terra"},{min:60,n:"Grama verdinha"},{min:180,n:"Uma árvore"},{min:400,n:"Jardim florido"},
  {min:800,n:"Sol e nuvens"},{min:1500,n:"Laguinho"},{min:3000,n:"Casinha com cerca"},
@@ -891,8 +912,23 @@ function accSVG(id,x,y,s){ // desenha acessório na posição (x,y) com escala s
   case"faixa":return g(`<g transform="translate(0 2)"><path d="M-13 -2 L-4 13 L3 13 L-5 -2 Z" fill="#E23D6D"/><path d="M13 -2 L4 13 L-3 13 L5 -2 Z" fill="#C42A57"/><circle cx="0" cy="22" r="12" fill="#F2C230" stroke="#C99A12" stroke-width="2.6"/><circle cx="0" cy="22" r="8" fill="none" stroke="#E0AE1E" stroke-width="1.3"/><path d="M0 15.2 l2.1 4.3 4.7 .6 -3.5 3.2 .9 4.6 -4.2 -2.3 -4.2 2.3 .9 -4.6 -3.5 -3.2 4.7 -.6z" fill="#fff"/></g>`);
   case"cartola":return g(`<rect x="-30" y="-8" width="60" height="10" rx="4" fill="#2B1E24"/><rect x="-20" y="-50" width="40" height="44" rx="4" fill="#2B1E24"/><rect x="-20" y="-18" width="40" height="8" fill="#F2C230"/><circle cx="12" cy="-14" r="3" fill="#E23D6D"/>`);
   case"medalha":return g(`<path d="M-14 -8 L0 14 L14 -8" fill="none" stroke="#3C6FD1" stroke-width="6" stroke-linejoin="round"/><circle cx="0" cy="22" r="12" fill="#F2C230" stroke="#C99A12" stroke-width="3"/><path d="M0 15 l2.2 4.6 5 .6 -3.7 3.4 1 5 -4.5 -2.5 -4.5 2.5 1 -5 -3.7 -3.4 5 -.6z" fill="#fff"/>`);
+  case"festa":return g(`<path d="M-22 2 L0 -54 L22 2 Z" fill="#8E5CF6"/><path d="M-15 -16 L15 -16 M-9 -32 L9 -32 M-18 -6 L18 -6" stroke="#F2C230" stroke-width="4"/><circle cx="0" cy="-56" r="7" fill="#E23D6D"/>`);
+  case"palha":return g(`<ellipse cx="0" cy="0" rx="64" ry="12" fill="#E7C46A" stroke="#C9A24A" stroke-width="2"/><path d="M-32 0 Q-32 -36 0 -36 Q32 -36 32 0 Z" fill="#EBCB72" stroke="#C9A24A" stroke-width="2"/><path d="M-32 -6 Q0 2 32 -6 L32 -1 Q0 7 -32 -1 Z" fill="#E23D6D"/>`);
+  case"gorro":return g(`<path d="M-40 4 Q-40 -46 0 -46 Q40 -46 40 4 Z" fill="#3C6FD1"/><rect x="-44" y="-6" width="88" height="16" rx="7" fill="#F5F5F5"/><path d="M-30 -20 L-30 -38 M-15 -24 L-15 -44 M0 -26 L0 -46 M15 -24 L15 -44 M30 -20 L30 -38" stroke="#2E57B0" stroke-width="3"/><circle cx="0" cy="-52" r="11" fill="#F5F5F5"/>`);
+  case"flores":return g(`${[-44,-26,-8,10,28,44].map((x,i)=>`<circle cx="${x}" cy="${-Math.abs(x)*.12}" r="9" fill="${["#F28AB0","#F2C230","#B57EDC","#F28AB0","#7FC8F8","#F2C230"][i]}"/><circle cx="${x}" cy="${-Math.abs(x)*.12}" r="3.4" fill="#fff"/>`).join("")}<path d="M-52 4 Q0 -6 52 4" stroke="#4FB15A" stroke-width="3" fill="none"/>`);
+  case"chef":return g(`<rect x="-26" y="-14" width="52" height="18" rx="3" fill="#fff" stroke="#B9B9B9" stroke-width="2"/><circle cx="-18" cy="-28" r="16" fill="#fff" stroke="#C4C4C4" stroke-width="2"/><circle cx="0" cy="-38" r="18" fill="#fff" stroke="#C4C4C4" stroke-width="2"/><circle cx="18" cy="-28" r="16" fill="#fff" stroke="#C4C4C4" stroke-width="2"/><rect x="-24" y="-20" width="48" height="10" fill="#fff"/>`);
+  case"cowboy":return g(`<path d="M-66 0 Q-60 -14 -40 -6 Q0 6 40 -6 Q60 -14 66 0 Q40 14 0 12 Q-40 14 -66 0 Z" fill="#8B5A2B"/><path d="M-30 -4 Q-34 -44 -10 -40 Q0 -30 10 -40 Q34 -44 30 -4 Q0 4 -30 -4 Z" fill="#9C6634"/><path d="M-30 -10 Q0 -2 30 -10 L30 -4 Q0 4 -30 -4 Z" fill="#5A3A1C"/>`);
+  case"bigode":return g(`<path d="M0 30 Q-10 22 -22 26 Q-34 30 -40 22 Q-38 38 -22 38 Q-8 38 0 32 Q8 38 22 38 Q38 38 40 22 Q34 30 22 26 Q10 22 0 30 Z" fill="#4A3426"/>`);
+  case"monoculo":return g(`<circle cx="26" cy="0" r="15" fill="rgba(255,255,255,.3)" stroke="#C99A12" stroke-width="4"/><path d="M38 10 Q46 30 36 48" stroke="#C99A12" stroke-width="2" fill="none"/>`);
+  case"coracao":return g(`${[-26,26].map(x=>`<path d="M${x} 12 L${x-16} -2 Q${x-22} -14 ${x-10} -16 Q${x-3} -16 ${x} -9 Q${x+3} -16 ${x+10} -16 Q${x+22} -14 ${x+16} -2 Z" fill="rgba(226,61,109,.75)" stroke="#B8244F" stroke-width="3"/>`).join("")}<path d="M-10 -6 Q0 -10 10 -6" stroke="#B8244F" stroke-width="3" fill="none"/>`);
+  case"bandana":return g(`<path d="M-46 -6 Q0 10 46 -6 L40 6 Q20 14 0 30 Q-20 14 -40 6 Z" fill="#D63B3B"/><circle cx="-14" cy="6" r="2.5" fill="#fff"/><circle cx="8" cy="12" r="2.5" fill="#fff"/><circle cx="0" cy="20" r="2.5" fill="#fff"/><circle cx="22" cy="2" r="2.5" fill="#fff"/>`);
+  case"gravatona":return g(`<path d="M-7 -6 L7 -6 L5 2 L-5 2 Z" fill="#1C347A"/><path d="M-5 2 L5 2 L10 34 L0 44 L-10 34 Z" fill="#2E4FA8"/><path d="M-7 14 L8 8 M-8 26 L9 20" stroke="#F2C230" stroke-width="3"/>`);
+  case"perolas":return g(`${Array.from({length:11},(_,i)=>{const a=Math.PI*(.15+.7*i/10);return `<circle cx="${(-Math.cos(a)*46).toFixed(1)}" cy="${(Math.sin(a)*16-8).toFixed(1)}" r="5" fill="#FBF6EE" stroke="#B8A88E" stroke-width="1.6"/>`}).join("")}`);
   case"coroa":return g(`<path d="M-34 6 L-38 -30 L-18 -12 L0 -38 L18 -12 L38 -30 L34 6 Z" fill="#F2C230" stroke="#C99A12" stroke-width="3" stroke-linejoin="round"/><circle cx="0" cy="-4" r="5" fill="#E23D6D"/><circle cx="-20" cy="-2" r="4" fill="#3C6FD1"/><circle cx="20" cy="-2" r="4" fill="#3C6FD1"/>`);
- }return""}
+ }
+ const BC={camiseta:"#3C6FD1",pijama:"#AFC8F0",avental:"#FAFAFA",futebol:"#F2C230",moletom:"#2F8F6B",vestido:"#F06292",capa:"#D63B3B",smoking:"#2B2B33"};
+ if(BC[id])return g(`<path d="M-14 -22 L-34 -12 L-28 2 L-20 -2 L-20 26 L20 26 L20 -2 L28 2 L34 -12 L14 -22 Q0 -12 -14 -22 Z" fill="${BC[id]}" stroke="rgba(0,0,0,.22)" stroke-width="2"/>`);
+ return""}
 function envSVG(lv,dry,peace){
  let s=`<defs><linearGradient id="sky" x1="0" x2="0" y1="0" y2="1"><stop offset="0" style="stop-color:var(--sky2)"/><stop offset="1" style="stop-color:var(--sky)"/></linearGradient></defs><rect x="-500" width="1320" height="240" fill="url(#sky)"/>`;
  if(lv>=4)s+=`<circle cx="270" cy="44" r="20" fill="#F7C948" opacity=".95"/><g fill="#fff" opacity=".85"><ellipse cx="80" cy="44" rx="26" ry="10"/><ellipse cx="98" cy="38" rx="18" ry="10"/><ellipse cx="200" cy="30" rx="20" ry="8"/></g>`;
@@ -930,6 +966,8 @@ function pigSVG(o){
  const body="#F7A8BE", shade="#EC8CA8", snout="#F48CAA", dark="#2B1E24";
  const sad=mood==="triste"||mood==="preocupado";
  let p="";
+ // capa de herói (atrás do corpo)
+ if(equip.body==="capa")p+=`<path d="M${cx-rx*.7} ${cy+ry*.35} Q${cx-rx*1.22} ${cy+ry*.7} ${cx-rx*1.12} ${cy+ry+2} Q${cx} ${cy+ry+12} ${cx+rx*1.12} ${cy+ry+2} Q${cx+rx*1.22} ${cy+ry*.7} ${cx+rx*.7} ${cy+ry*.35} Z" fill="#D63B3B" stroke="#A82A2A" stroke-width="3"/>`;
  // sombra
  p+=`<ellipse cx="${cx}" cy="${cy+ry+6}" rx="${rx*.9}" ry="7" fill="rgba(0,0,0,.14)"/>`;
  // pernas
@@ -947,6 +985,9 @@ function pigSVG(o){
  <g fill="#F4E6C8" stroke="#C9A96E" stroke-width="2"><path d="M${cx-rx*.32} ${cy-ry+6} q-6 -22 -18 -24 q8 12 6 26z"/><path d="M${cx+rx*.32} ${cy-ry+6} q6 -22 18 -24 q-8 12 -6 26z"/></g>`}
  // fenda de cofrinho
  p+=`<rect x="${cx-16}" y="${cy-ry+9}" width="32" height="6" rx="3" fill="#C9627F"/>`;
+ // roupinhas (por cima da barriga)
+ if(equip.body&&equip.body!=="capa")p+=bodySVG(equip.body,cx,cy,rx,ry);
+ if(equip.body==="capa")p+=`<path d="M${cx-rx*.72} ${cy+ry*.42} Q${cx} ${cy+ry*.98} ${cx+rx*.72} ${cy+ry*.42}" stroke="#D63B3B" stroke-width="7" fill="none" stroke-linecap="round"/><circle cx="${cx}" cy="${cy+ry*.82}" r="6" fill="#F2C230" stroke="#C99A12" stroke-width="2"/>`;
  // bochechas
  p+=`<ellipse cx="${cx-rx*.55}" cy="${cy+10}" rx="11" ry="7" fill="#F27198" opacity="${mood==="feliz"?.55:.3}"/><ellipse cx="${cx+rx*.55}" cy="${cy+10}" rx="11" ry="7" fill="#F27198" opacity="${mood==="feliz"?.55:.3}"/>`;
  // olhos
@@ -979,7 +1020,24 @@ function pigSVG(o){
  const hy=Math.round(cy-ry-29-(equip.head?({laco:6,fone:2,lapis:4}[equip.head]??26):0));const dv=!mini&&peace>=1;
  const walk=!mini&&(mood==="feliz"||mood==="ok");
  return `<svg viewBox="${vb}" role="img" aria-label="Porquinho ${mood}" class="m-${mood} ${walk?"walking":""}" >${mini?"":envSVG(env,dry,peace)}<g class="pig-walk">${coins}${peace>=7&&!mini?`<ellipse class="glow" cx="${cx}" cy="${cy+6}" rx="${rx+34}" ry="${ry+30}" fill="#FFF3B0"/>`:""}<g class="pig-bob"><g class="pig-breathe">${p}</g>${dv?dovePerch(hy):""}</g>${heart}</g>${dv?doveGround()+doveFly(hy,walk):""}</svg>`}
-function accThumb(id){const pos={head:[0,30],face:[0,20],neck:[0,20]};const a=ACCESSORIES.find(x=>x.id===id);return `<svg viewBox="-80 -60 160 100">${accSVG(id,0,a.slot==="head"?20:0,a.slot==="head"?.9:1)}</svg>`}
+function bodySVG(id,cx,cy,rx,ry){const cid="cl"+Math.random().toString(36).slice(2,7);const top=cy+ry*.5,nb=cy+48;const L=cx-rx-4,W=rx*2+8,B=cy+ry+4,H=B-top;
+ const neck=`M${L} ${top} L${cx-26} ${top} Q${cx} ${nb+6} ${cx+26} ${top} L${L+W} ${top} L${L+W} ${B} L${L} ${B} Z`;
+ const clip=`<clipPath id="${cid}a"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/></clipPath><clipPath id="${cid}b"><path d="${neck}"/></clipPath>`;
+ const rim=(c,w=4)=>`<path d="M${cx-26} ${top} Q${cx} ${nb+6} ${cx+26} ${top}" stroke="${c}" stroke-width="${w}" fill="none"/>`;
+ const full=f=>`<rect x="${L}" y="${top-2}" width="${W}" height="${H+2}" fill="${f}"/>`;
+ const lx=cx+rx*.52,ly=cy+ry*.72;let c="";
+ switch(id){
+  case"camiseta":c=full("#3C6FD1")+`<rect x="${L}" y="${cy+ry*.8}" width="${W}" height="5" fill="#fff" opacity=".85"/>`+rim("#2E57B0");break;
+  case"pijama":c=full("#AFC8F0")+Array.from({length:12},(_,i)=>`<rect x="${L+i*W/12}" y="${top-2}" width="${W/24}" height="${H+2}" fill="#7FA2E0"/>`).join("")+rim("#7FA2E0")+`<circle cx="${cx}" cy="${nb+9}" r="2.4" fill="#fff"/>`;break;
+  case"avental":c=`<rect x="${cx-rx*.62}" y="${top-2}" width="${rx*1.24}" height="${H+2}" rx="6" fill="#FAFAFA" stroke="#DADADA" stroke-width="2"/><rect x="${lx-30}" y="${ly-2}" width="16" height="10" rx="3" fill="none" stroke="#E23D6D" stroke-width="2"/>`+rim("#E23D6D",3);break;
+  case"futebol":c=full("#F2C230")+`<path d="M${cx-26} ${top} L${cx} ${nb+8} L${cx+26} ${top}" stroke="#1F8A4C" stroke-width="5" fill="none"/><text x="${lx}" y="${ly+8}" text-anchor="middle" font-size="12" font-weight="800" font-family="Arial,sans-serif" fill="#1F8A4C">10</text>`;break;
+  case"moletom":c=full("#2F8F6B")+rim("#267558",6)+`<circle cx="${lx}" cy="${ly+3}" r="7" fill="#F5F5F5"/><text x="${lx}" y="${ly+7}" text-anchor="middle" font-size="10" font-weight="800" font-family="Arial,sans-serif" fill="#2F8F6B">P</text><path d="M${cx-14} ${nb+4} l-2 9 M${cx+14} ${nb+4} l2 9" stroke="#F5F5F5" stroke-width="2.5" stroke-linecap="round"/>`;break;
+  case"vestido":c=full("#F06292")+[[-.75,.68],[-.45,.85],[-.15,.97],[.15,.97],[.45,.85],[.75,.68],[-.6,.55],[.6,.55],[-.88,.86],[.88,.86]].map(([a,b])=>`<circle cx="${cx+a*rx}" cy="${cy+b*ry}" r="3.4" fill="#fff"/>`).join("")+rim("#fff",2.5);break;
+  case"smoking":c=full("#2B2B33")+`<path d="M${cx-26} ${top} Q${cx} ${nb+6} ${cx+26} ${top} L${cx+14} ${B} L${cx-14} ${B} Z" fill="#fff"/><path d="M${cx-26} ${top} L${cx-6} ${B} M${cx+26} ${top} L${cx+6} ${B}" stroke="#44444F" stroke-width="3"/><circle cx="${cx}" cy="${nb+12}" r="1.8" fill="#2B2B33"/>`;break;
+ }
+ const bow=id==="smoking"?`<path d="M${cx} ${nb+3} L${cx-11} ${nb-3} L${cx-11} ${nb+9} Z M${cx} ${nb+3} L${cx+11} ${nb-3} L${cx+11} ${nb+9} Z" fill="#B8244F"/><circle cx="${cx}" cy="${nb+3}" r="2.5" fill="#8E1A3C"/>`:"";
+ return clip+`<g clip-path="url(#${cid}a)"><g clip-path="url(#${cid}b)">${c}</g></g>`+bow}
+function accThumb(id){const a0=ACCESSORIES.find(x=>x.id===id);if(a0&&a0.slot==="body")return pigSVG({score:72,mood:"feliz",equip:{body:id},env:0,mini:true}).replace(/viewBox="[^"]*"/,'viewBox="86 118 148 110"');const pos={head:[0,30],face:[0,20],neck:[0,20]};const a=ACCESSORIES.find(x=>x.id===id);return `<svg viewBox="-80 -60 160 100">${accSVG(id,0,a.slot==="head"?20:0,a.slot==="head"?.9:1)}</svg>`}
 
 
 /* ============================================================
@@ -1994,8 +2052,8 @@ function viewPig(){
   <p class="tiny muted">Tarefas concluídas liberam acessórios especiais: ${TASK_REWARDS.map(r=>`${r.n.toLowerCase()} (${r.tasks})`).join(", ")}. Você já concluiu ${+S.tasks.doneTotal||0}. Se uma tarefa ficar atrasada ${TASK_LATE_DAYS} dias ou mais, um desses acessórios é guardado até você concluir, remarcar ou apagar a tarefa.</p>
   <p class="small muted">Ganhe pontos estudando: 1 ponto a cada 5 minutos, 1 a cada 10 páginas, 10 por lição lida e 30 por livro terminado.</p>
   ${studyWarning()}${sd.lost?`<p class="small" style="color:var(--bad)">O porquinho guardou ${sd.lost} ${sd.lost===1?"acessório":"acessórios"} por ficar sem estudar. Estude mais ${RECOVER_MIN-sd.pool} minutos para recuperar o próximo.</p>`:""}
-  <div class="closet">${ACCESSORIES.map(a=>{const owned=!!S.pet.owned[a.id];const tlost=taskDecay().lostIds.has(a.id);if(owned&&(sd.lostIds.has(a.id)||tlost))return `<button class="locked" data-act="acc" data-v="${a.id}" style="border-style:dashed;border-color:var(--bad)">${accThumb(a.id)}<span>${a.n}</span><span class="tiny" style="color:var(--bad)">${tlost?"Guardado: tarefa atrasada":"Guardado"}</span></button>`;const on=S.pet.equip[a.slot]===a.id;const canBuy=a.supporter?!!S.profile.supporter:a.tasks?(+S.tasks.doneTotal||0)>=a.tasks:a.streak?bestStreak()>=a.streak:pts.avail>=a.cost;
-   return `<button class="${on?"on":""} ${!owned&&!canBuy?"locked":""}" data-act="acc" data-v="${a.id}" aria-pressed="${on}">${accThumb(a.id)}<span>${a.n}</span><span class="tiny muted">${owned?(on?"Usando":"Vestir"):a.supporter?"Apoiadores":a.tasks?`${a.tasks} tarefas`:a.streak?`Sequência de ${a.streak} dias`:a.cost+" pts"}</span></button>`}).join("")}</div></div>
+  ${ACC_SLOTS.map(([slot,sn])=>`<div class="tiny muted" style="font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin:12px 0 6px">${sn}</div><div class="closet">${ACCESSORIES.filter(a=>a.slot===slot).map(a=>{const owned=!!S.pet.owned[a.id];const tlost=taskDecay().lostIds.has(a.id);if(owned&&(sd.lostIds.has(a.id)||tlost))return `<button class="locked" data-act="acc" data-v="${a.id}" style="border-style:dashed;border-color:var(--bad)">${accThumb(a.id)}<span>${a.n}</span><span class="tiny" style="color:var(--bad)">${tlost?"Guardado: tarefa atrasada":"Guardado"}</span></button>`;const on=S.pet.equip[a.slot]===a.id;const canBuy=a.supporter?!!S.profile.supporter:a.tasks?(+S.tasks.doneTotal||0)>=a.tasks:a.streak?bestStreak()>=a.streak:pts.avail>=a.cost;
+   return `<button class="${on?"on":""} ${!owned&&!canBuy?"locked":""}" data-act="acc" data-v="${a.id}" aria-pressed="${on}">${accThumb(a.id)}<span>${a.n}</span><span class="tiny muted">${owned?(on?"Usando":"Vestir"):a.supporter?"Apoiadores":a.tasks?`${a.tasks} tarefas`:a.streak?`Sequência de ${a.streak} dias`:a.cost+" pts"}</span></button>`}).join("")}</div>`).join("")}</div>
  <div class="section"><div class="label">Ambiente</div>${envWarning()}
   <div class="card stack"><div class="row between"><b>${ENV_LEVELS[lv].n}</b><span class="small muted num">${exm} min de exercício</span></div>
   <div class="envsteps">${ENV_LEVELS.map((e,i)=>`<i class="${i<=lv?"on":i<=es.unlocked?"lost":""}"></i>`).join("")}</div>

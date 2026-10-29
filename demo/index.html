@@ -4434,7 +4434,7 @@ function chPersonalDid(kind,day){const T=TEAM;try{TEAM=null;return withPersonal(
  return false})}catch(e){return false}finally{TEAM=T}}
 let chAutoBusy=false;
 function chAutoCheck(){if(chAutoBusy||!TEAM||!teamHas("desafios")||!TD.chal)return;let changed=false;const d=today();
- for(const c of vals(CHP().items)){if(!chActive(c)||!c.auto||c.auto==="none")continue;const mine=((c.checkins||{})[ME.uid]||{});if(mine[d]||(((c.skip||{})[ME.uid]||{})[d]))continue;
+ for(const c of vals(CHP().items)){if(!chActive(c)||!c.auto||c.auto==="none"||chPhotoReq(c))continue;const mine=((c.checkins||{})[ME.uid]||{});if(mine[d]||(((c.skip||{})[ME.uid]||{})[d]))continue;
   if(chPersonalDid(c.auto,d)){c.checkins=c.checkins||{};c.checkins[ME.uid]=c.checkins[ME.uid]||{};c.checkins[ME.uid][d]={t:Date.now(),auto:1,note:(CH_AUTO.find(x=>x[0]===c.auto)||["",""])[1]};changed=true}}
  if(changed){chAutoBusy=true;setTimeout(()=>{chAutoBusy=false},2000);commit();toast("Check-in automático feito no desafio. Boa!")}}
 
@@ -4445,7 +4445,26 @@ async function chShrink(file){let bmp;try{bmp=await createImageBitmap(file,{imag
  let q=.6,blob=null;for(let k=0;k<5;k++){blob=await new Promise(r=>cv.toBlob(r,"image/jpeg",q));if(blob.size<=110000)break;q-=.1}
  if(blob.size>280000){const c2=document.createElement("canvas");c2.width=Math.round(cv.width*.7);c2.height=Math.round(cv.height*.7);c2.getContext("2d").drawImage(cv,0,0,c2.width,c2.height);blob=await new Promise(r=>c2.toBlob(r,"image/jpeg",.5))}
  return blob}
-function chPhotoTag(ck){if(ck.photoData)return `<img src="${ck.photoData}" alt="Foto do check-in" class="chph">`;if(!ck.photo)return"";const u=PH.url[ck.photo];
+const CH_PHOTO=[["opt","Opcional"],["req","Obrigatória"],["live","Obrigatória e tirada na hora"]];
+const chPhotoReq=c=>c&&(c.photo==="req"||c.photo==="live");
+const chLive=c=>c&&c.photo==="live";
+/* câmera dentro do app: no desafio "foto na hora" não dá para escolher foto da galeria */
+const CAM={stream:null,facing:"environment"};
+function camStop(){if(CAM.stream){CAM.stream.getTracks().forEach(t=>t.stop());CAM.stream=null}}
+async function camOpen(){const box=$("#ch_cam");if(!box)return;camStop();
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){box.innerHTML=camErr("Este aparelho não deixa o Prumo usar a câmera.");return}
+ box.innerHTML=`<div class="tiny muted" style="text-align:center;padding:30px 0">Abrindo a câmera…</div>`;
+ try{CAM.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:CAM.facing,width:{ideal:1280},height:{ideal:1280}},audio:false})}
+ catch(e){box.innerHTML=camErr(e&&e.name==="NotAllowedError"?"Você não deixou o Prumo usar a câmera. Libere a câmera nas permissões do navegador e tente de novo.":"Não consegui abrir a câmera deste aparelho.");return}
+ if(!$("#ch_cam")){camStop();return}
+ box.innerHTML=`<div class="camwrap"><video id="ch_vid" autoplay playsinline muted></video></div>
+ <div class="row" style="gap:8px;justify-content:center"><button type="button" class="btn ghost sm" data-act="camFlip">🔄 Virar</button><button type="button" class="btn" data-act="camShot">📸 Tirar foto</button></div>`;
+ const vd=$("#ch_vid");vd.srcObject=CAM.stream;vd.style.transform=CAM.facing==="user"?"scaleX(-1)":""}
+const camErr=m=>`<div class="banner warn"><span>${m} Este desafio só aceita foto tirada na hora, pelo Prumo. Se não der por aqui, faça o check-in pelo celular.</span></div><button type="button" class="btn ghost sm" data-act="camOpen" style="align-self:center">Tentar de novo</button>`;
+function camPanel(label){return `<div class="stack-s" style="gap:8px"><div class="tiny muted">📸 ${label}</div><div id="ch_cam" class="stack-s" style="gap:8px"><button type="button" class="chpick" data-act="camOpen" style="width:100%"><span class="stack-s" style="align-items:center;gap:4px">📷<b class="small">Abrir câmera</b><span class="tiny muted">Neste desafio só vale foto tirada agora</span></span></button></div></div>`}
+{const _cm=closeModal;closeModal=function(){camStop();return _cm.apply(this,arguments)}}
+function chPhotoTag(ck){const t=chPhotoTag0(ck);return t&&ck.live?t+`<span class="tiny muted">📸 Foto tirada na hora</span>`:t}
+function chPhotoTag0(ck){if(ck.photoData)return `<img src="${ck.photoData}" alt="Foto do check-in" class="chph">`;if(!ck.photo)return"";const u=PH.url[ck.photo];
  return `<img ${u?`src="${u}"`:""} data-ph="${esc(ck.photo)}" alt="Foto do check-in" class="chph" loading="lazy">`}
 async function chLoadPhotos(){if(Store.demo||!sb)return;const need=[...document.querySelectorAll("img[data-ph]:not([src])")].map(i=>i.dataset.ph).filter(p=>!PH.url[p]&&!PH.pending.has(p));if(!need.length)return;
  need.forEach(p=>PH.pending.add(p));try{const {data,error}=await sb.storage.from("checkins").createSignedUrls(need,6*3600);if(error)throw error;(data||[]).forEach(x=>{if(x.signedUrl)PH.url[x.path]=x.signedUrl})}catch(e){console.warn(e)}
@@ -4471,6 +4490,7 @@ function chDetail(c){const r=chRank(c);const me=r.find(x=>x.u===ME.uid)||{};cons
  <div class="card stack" style="gap:8px"><div class="row between"><h2 style="margin:0">${esc(c.name)}</h2>${canEdit?`<button class="btn ghost sm" data-act="chalEdit" data-v="${c.id}">Editar</button>`:""}</div>
   ${c.desc?`<p class="small" style="white-space:pre-line">${esc(c.desc)}</p>`:""}
   <span class="tiny muted">${ddmm(c.start)} a ${ddmm(chEnd(c))} · ${c.auto&&c.auto!=="none"?`check-in automático: ${(CH_AUTO.find(x=>x[0]===c.auto)||["",""])[1].toLowerCase()}`:"cada um marca o seu check-in"}</span>
+  ${chLive(c)?`<span class="small">📸 Só vale foto tirada na hora, pela câmera do Prumo</span>`:c.photo==="req"?`<span class="small">📸 Check-in só com foto</span>`:""}
   ${c.prize?`<span class="small">🏆 Prêmio: <b>${esc(c.prize)}</b></span>`:""}
   ${act?(me.today?`<div class="banner info"><div class="stack-s" style="gap:6px"><span>✅ Check-in de hoje feito${(((c.checkins||{})[ME.uid]||{})[today()]||{}).auto?" automaticamente":""}! ${me.s>1?`Sequência de ${me.s} dias.`:""}</span><button class="btn line sm" data-act="chalEdit2" data-c="${c.id}" data-d="${today()}" style="align-self:flex-start">${(((c.checkins||{})[ME.uid]||{})[today()]||{}).photo||(((c.checkins||{})[ME.uid]||{})[today()]||{}).photoData?"Editar check-in":"📸 Pôr foto ou comentário"}</button></div></div>`:`<button class="btn block" data-act="chalCheckin">📸 Fazer meu check-in de hoje</button>`):today()<c.start?`<div class="banner info"><span>O desafio começa em ${dayLabel(c.start)}.</span></div>`:`<div class="banner info"><span>Desafio encerrado. ${r[0]&&r[0].p?`Campeão: <b>${esc(nm(r[0].u))}</b> com ${r[0].p} pontos!`:""}</span></div>`}
  </div>
@@ -4483,41 +4503,50 @@ function chDetail(c){const r=chRank(c);const me=r.find(x=>x.u===ME.uid)||{};cons
   <div class="row" style="gap:6px">${CH_REACT.map(e=>{const n=Object.values(rs).filter(x=>x===e).length;const mineE=rs[ME.uid]===e;return `<button class="chip ${mineE?"on":""}" data-act="chalReact" data-c="${c.id}" data-u="${f.u}" data-d="${f.d}" data-e="${e}" style="padding:4px 10px">${e}${n?` ${n}`:""}</button>`}).join("")}
   ${f.u===ME.uid?`<button class="chip" data-act="chalEdit2" data-c="${c.id}" data-d="${f.d}" style="padding:4px 10px;margin-left:auto">Editar</button>`:""}</div></div>`}).join("")+(feed.length>(UI.chFeedN||15)?`<button class="btn ghost" data-act="chalMore">Ver mais check-ins</button>`:"")
  :`<div class="card empty">Ninguém fez check-in ainda. Seja o primeiro!</div>`}</div></div>`}
+function chPhotoHint(k){return k==="live"?"A foto precisa ser tirada na hora, pela câmera do Prumo. Não dá para mandar foto da galeria. O check-in automático fica desligado.":k==="req"?"Sem foto não tem check-in. O check-in automático fica desligado.":"Cada um decide se manda foto."}
+document.addEventListener("change",ev=>{const t=ev.target;if(t&&t.id==="ch_ph"){const a=$("#ch_a"),h=$("#ch_phh");const rq=t.value!=="opt";if(a){a.disabled=rq;if(rq)a.value="none"}if(h)h.textContent=chPhotoHint(t.value)}});
 function chForm(c){c=c||{start:today(),days:30,auto:"none"};const isEdit=!!c.id;
  openModal(isEdit?"Editar desafio":"Novo desafio",`<div class="stack">
  ${!isEdit?`<div class="field"><span>Ideias</span><div class="chips" style="flex-wrap:wrap">${CH_PRESETS.map((p,i)=>`<button type="button" class="chip" data-act="chalPreset" data-v="${i}">${p[0]}</button>`).join("")}</div></div>`:""}
  <label class="field"><span>Nome do desafio</span><input id="ch_n" maxlength="50" value="${esc(c.name||"")}" placeholder="Ex.: 30 dias de treino"></label>
  <label class="field"><span>Regra (opcional)</span><textarea id="ch_d" maxlength="2000" rows="7" style="min-height:150px" placeholder="O que vale para ganhar o ponto do dia? Pode escrever as regras com calma, uma por linha.">${esc(c.desc||"")}</textarea></label>
  <div class="grid2"><label class="field"><span>Começa em</span><input id="ch_s" type="date" value="${c.start}"></label><label class="field"><span>Duração (dias)</span><input id="ch_days" type="number" min="3" max="120" value="${c.days||30}"></label></div>
- <label class="field"><span>Check-in</span><select id="ch_a">${CH_AUTO.map(([k,n])=>`<option value="${k}" ${c.auto===k?"selected":""}>${n}</option>`).join("")}</select><span class="tiny muted">No automático, quem registrar a atividade no próprio Prumo ganha o check-in sozinho. Dá para pôr foto mesmo assim.</span></label>
+ <label class="field"><span>Foto no check-in</span><select id="ch_ph">${CH_PHOTO.map(([k,n])=>`<option value="${k}" ${(c.photo||"opt")===k?"selected":""}>${n}</option>`).join("")}</select><span class="tiny muted" id="ch_phh">${chPhotoHint(c.photo||"opt")}</span></label>
+ <label class="field"><span>Check-in</span><select id="ch_a" ${chPhotoReq(c)?"disabled":""}>${CH_AUTO.map(([k,n])=>`<option value="${k}" ${(chPhotoReq(c)?"none":c.auto)===k?"selected":""}>${n}</option>`).join("")}</select><span class="tiny muted">No automático, quem registrar a atividade no próprio Prumo ganha o check-in sozinho. Dá para pôr foto mesmo assim.</span></label>
  <label class="field"><span>Prêmio (opcional)</span><input id="ch_p" maxlength="80" value="${esc(c.prize||"")}" placeholder="Ex.: quem perder paga o açaí"></label>
  <button class="btn block" data-act="chalSave" data-v="${c.id||""}">${isEdit?"Salvar":"Criar desafio"}</button>
  ${isEdit?`<button class="btn danger" data-act="askDel">Apagar desafio</button>${confirmBox("chalDel","Apagar o desafio e todos os check-ins dele?")}`:""}</div>`)}
-function chEditForm(cid,d){const c=CHP().items[cid];const ck=c&&((c.checkins||{})[ME.uid]||{})[d];if(!ck)return;UI.chalOpen=cid;UI.chFile=null;UI.chDropPhoto=false;UI.chEdit=d;
+function chEditForm(cid,d){const c=CHP().items[cid];const ck=c&&((c.checkins||{})[ME.uid]||{})[d];if(!ck)return;UI.chalOpen=cid;UI.chFile=null;UI.chLive=false;UI.chDropPhoto=false;UI.chEdit=d;
  const ph=ck.photoData||(ck.photo&&PH.url[ck.photo]);
  openModal("Editar check-in",`<div class="stack">
  <p class="small muted">${d===today()?"Check-in de hoje":"Check-in de "+dayLabel(d)}${ck.auto?" · feito automaticamente pelo que você registrou no Prumo":""}.</p>
- <label class="chpick" for="ch_file"><span id="ch_prev" class="stack-s" style="align-items:center;gap:4px">${ph?`<img src="${ph}" alt="" style="max-height:200px;max-width:100%;border-radius:12px"><span class="tiny muted">Toque para trocar a foto</span>`:ck.photo?`📷<b class="small">Foto atual guardada</b><span class="tiny muted">Toque para trocar</span>`:`📸<b class="small">Pôr uma foto</b><span class="tiny muted">opcional</span>`}</span></label><input type="file" id="ch_file" accept="image/*" hidden>
- ${ck.photo||ck.photoData?`<button type="button" class="btn ghost sm" data-act="chDropPhoto" style="align-self:flex-start">Tirar a foto</button>`:""}
+ ${chLive(c)?(ph?`<img src="${ph}" alt="" style="max-height:200px;max-width:100%;border-radius:12px;align-self:center">`:"")+camPanel(ph||ck.photo?"Para trocar, tire uma foto nova agora":"Foto obrigatória, tirada agora"):`<label class="chpick" for="ch_file"><span id="ch_prev" class="stack-s" style="align-items:center;gap:4px">${ph?`<img src="${ph}" alt="" style="max-height:200px;max-width:100%;border-radius:12px"><span class="tiny muted">Toque para trocar a foto</span>`:ck.photo?`📷<b class="small">Foto atual guardada</b><span class="tiny muted">Toque para trocar</span>`:`📸<b class="small">Pôr uma foto</b><span class="tiny muted">opcional</span>`}</span></label><input type="file" id="ch_file" accept="image/*" hidden>`}
+ ${(ck.photo||ck.photoData)&&!chPhotoReq(c)?`<button type="button" class="btn ghost sm" data-act="chDropPhoto" style="align-self:flex-start">Tirar a foto</button>`:""}
  <label class="field"><span>Comentário</span><input id="ch_note" maxlength="140" value="${esc(ck.note||"")}" placeholder="Ex.: perna hoje, 5 km de caminhada"></label>
  <button class="btn block" data-act="chalEditSave">Salvar</button>
  <button class="btn danger sm" data-act="chalUndo" data-c="${cid}" data-d="${d}" style="align-self:center">Apagar este check-in</button></div>`)}
-function chCheckinForm(){const c=CHP().items[UI.chalOpen];if(!c)return;UI.chFile=null;UI.chEdit=null;
+function chCheckinForm(){const c=CHP().items[UI.chalOpen];if(!c)return;UI.chFile=null;UI.chLive=false;UI.chEdit=null;
  const days=[today(),addDays(today(),-1)].filter(d=>d>=c.start&&d<=chEnd(c)&&!(((c.checkins||{})[ME.uid]||{})[d]));
  if(!days.length){toast("Seu check-in de hoje já está feito.");return}
  openModal("Check-in",`<div class="stack">
  <div class="field"><span>Dia</span><div class="chips">${days.map((d,i)=>`<button type="button" class="chip ${i===0?"on":""}" data-act="chDay" data-v="${d}">${d===today()?"Hoje":"Ontem"}</button>`).join("")}</div></div>
- <label class="chpick" for="ch_file"><span id="ch_prev" class="stack-s" style="align-items:center;gap:4px">📸<b class="small">Tirar ou escolher foto</b><span class="tiny muted">opcional</span></span></label><input type="file" id="ch_file" accept="image/*" hidden>
+ ${chLive(c)?camPanel("Foto obrigatória, tirada agora"):`<label class="chpick" for="ch_file"><span id="ch_prev" class="stack-s" style="align-items:center;gap:4px">📸<b class="small">Tirar ou escolher foto</b><span class="tiny muted">${c.photo==="req"?"obrigatória":"opcional"}</span></span></label><input type="file" id="ch_file" accept="image/*" hidden>`}
  <label class="field"><span>Comentário (opcional)</span><input id="ch_note" maxlength="140" placeholder="Ex.: perna hoje, 5 km de caminhada"></label>
  <button class="btn block" data-act="chalCheckSave">Fazer check-in</button></div>`,()=>{UI.chDay=days[0]})}
 Object.assign(A,{
+ camOpen:()=>camOpen(),
+ camFlip:()=>{CAM.facing=CAM.facing==="user"?"environment":"user";camOpen()},
+ camShot:()=>{const vd=$("#ch_vid");if(!vd||!vd.videoWidth){toast("A câmera ainda está abrindo.");return}
+  const cv=document.createElement("canvas");cv.width=vd.videoWidth;cv.height=vd.videoHeight;const x=cv.getContext("2d");if(CAM.facing==="user"){x.translate(cv.width,0);x.scale(-1,1)}x.drawImage(vd,0,0);
+  cv.toBlob(b=>{if(!b){toast("Não consegui tirar a foto.");return}UI.chFile=b;UI.chLive=true;camStop();const box=$("#ch_cam");const u=URL.createObjectURL(b);
+   if(box)box.innerHTML=`<img src="${u}" alt="Foto tirada agora" style="max-height:240px;max-width:100%;border-radius:12px;align-self:center"><button type="button" class="btn ghost sm" data-act="camOpen" style="align-self:center">Tirar outra</button>`},"image/jpeg",.9)},
  addChal:()=>chForm(),
  chalOpen:el=>{UI.chalOpen=el.dataset.v;render();window.scrollTo(0,0)},
  chalBack:()=>{UI.chalOpen=null;render();window.scrollTo(0,0)},
  chalEdit:el=>chForm(CHP().items[el.dataset.v]),
  chalPreset:el=>{const p=CH_PRESETS[+el.dataset.v];$("#ch_n").value=p[0];$("#ch_a").value=p[1];$("#ch_days").value=p[2];$("#ch_d").value=p[3]},
  chalSave:el=>{const name=v("ch_n").trim();if(!name){toast("Dê um nome ao desafio.");return}const id=el.dataset.v||rid();const old=CHP().items[id]||{};
-  CHP().items[id]={...old,id,name,desc:v("ch_d").trim(),start:v("ch_s")||today(),days:clamp(+v("ch_days")||30,3,120),auto:v("ch_a")||"none",prize:v("ch_p").trim(),by:old.by||ME.uid,created:old.created||Date.now(),checkins:old.checkins||{}};
+  CHP().items[id]={...old,id,name,desc:v("ch_d").trim(),start:v("ch_s")||today(),days:clamp(+v("ch_days")||30,3,120),auto:(v("ch_ph")||"opt")!=="opt"?"none":(v("ch_a")||"none"),photo:v("ch_ph")||"opt",prize:v("ch_p").trim(),by:old.by||ME.uid,created:old.created||Date.now(),checkins:old.checkins||{}};
   UI.chalOpen=id;closeModal();commit();toast(old.id?"Desafio salvo.":"Desafio criado! Chame a equipe para o primeiro check-in.")},
  chalDelYes:()=>{const id=document.querySelector('[data-act="chalSave"]').dataset.v;const c=CHP().items[id];
   if(c&&!Store.demo&&sb){const mine=Object.values((c.checkins||{})[ME.uid]||{}).map(x=>x&&x.photo).filter(Boolean);if(mine.length)sb.storage.from("checkins").remove(mine).catch(()=>{})}
@@ -4527,7 +4556,10 @@ Object.assign(A,{
  chalEdit2:el=>chEditForm(el.dataset.c,el.dataset.d),
  chDropPhoto:el=>{UI.chDropPhoto=true;UI.chFile=null;const p=$("#ch_prev");if(p)p.innerHTML=`📸<b class="small">Pôr uma foto</b><span class="tiny muted">a foto atual será retirada</span>`;el.remove()},
  chalEditSave:async el=>{const c=CHP().items[UI.chalOpen];const d=UI.chEdit;const ck=c&&((c.checkins||{})[ME.uid]||{})[d];if(!ck)return;el.disabled=true;el.textContent="Salvando…";
-  const nx={...ck,note:v("ch_note").trim(),edited:Date.now()};const oldPath=ck.photo;
+  const nx={...ck,note:v("ch_note").trim(),edited:Date.now()};
+  if(chLive(c)&&UI.chFile&&!UI.chLive){el.disabled=false;el.textContent="Salvar";toast("Neste desafio só vale foto tirada agora.");return}
+  if(chPhotoReq(c)&&!UI.chFile&&!ck.photo&&!ck.photoData){el.disabled=false;el.textContent="Salvar";toast("Neste desafio o check-in precisa de foto.");return}
+  if(UI.chFile)nx.live=UI.chLive?1:null;const oldPath=ck.photo;
   try{if(UI.chFile){const blob=await chShrink(UI.chFile);delete nx.photo;delete nx.photoData;
     if(Store.demo||!sb){nx.photoData=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(blob)})}
     else{const path=`${TEAM.id}/${c.id}/${ME.uid}/${d}-${rid()}.jpg`;const {error}=await sb.storage.from("checkins").upload(path,blob,{contentType:"image/jpeg",upsert:false,cacheControl:"31536000"});if(error)throw error;nx.photo=path;PH.url[path]=URL.createObjectURL(blob)}}
@@ -4536,8 +4568,10 @@ Object.assign(A,{
   if(oldPath&&oldPath!==nx.photo&&!Store.demo&&sb)sb.storage.from("checkins").remove([oldPath]).catch(()=>{});
   if(nx.photo===undefined)nx.photo=null;if(nx.photoData===undefined)nx.photoData=null;
   c.checkins[ME.uid][d]=nx;closeModal();commit();toast("Check-in atualizado.")},
- chalCheckSave:async el=>{const c=CHP().items[UI.chalOpen];if(!c)return;const d=UI.chDay||today();el.disabled=true;el.textContent="Enviando…";
-  const ck={t:Date.now(),note:v("ch_note").trim()};
+ chalCheckSave:async el=>{const c=CHP().items[UI.chalOpen];if(!c)return;const d=UI.chDay||today();
+  if(chPhotoReq(c)&&!UI.chFile){toast(chLive(c)?"Tire a foto pela câmera para fazer o check-in.":"Neste desafio o check-in precisa de foto.");return}
+  if(chLive(c)&&!UI.chLive){toast("Neste desafio só vale foto tirada agora.");return}el.disabled=true;el.textContent="Enviando…";
+  const ck={t:Date.now(),note:v("ch_note").trim()};if(UI.chFile&&UI.chLive)ck.live=1;
   try{if(UI.chFile){const blob=await chShrink(UI.chFile);
     if(Store.demo||!sb){ck.photoData=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(blob)})}
     else{const path=`${TEAM.id}/${c.id}/${ME.uid}/${d}-${rid()}.jpg`;const {error}=await sb.storage.from("checkins").upload(path,blob,{contentType:"image/jpeg",upsert:false,cacheControl:"31536000"});if(error)throw error;ck.photo=path;PH.url[path]=URL.createObjectURL(blob)}}}
@@ -4550,8 +4584,9 @@ Object.assign(A,{
  chalMore:()=>{UI.chFeedN=(UI.chFeedN||15)+15;render()},
  goChal:()=>{UI.tab="chal";UI.chalOpen=null;render();window.scrollTo(0,0)},
 });
-document.addEventListener("change",ev=>{const t=ev.target;if(t&&t.id==="ch_file"&&t.files&&t.files[0]){UI.chFile=t.files[0];const u=URL.createObjectURL(t.files[0]);const p=$("#ch_prev");if(p)p.innerHTML=`<img src="${u}" alt="" style="max-height:200px;max-width:100%;border-radius:12px"><span class="tiny muted">Toque para trocar</span>`}});
-document.head.insertAdjacentHTML("beforeend",`<style>.chph{width:100%;max-height:420px;object-fit:cover;border-radius:14px;background:var(--surface2);min-height:120px;display:block}
+document.addEventListener("change",ev=>{const t=ev.target;if(t&&t.id==="ch_file"&&t.files&&t.files[0]){UI.chFile=t.files[0];UI.chLive=false;const u=URL.createObjectURL(t.files[0]);const p=$("#ch_prev");if(p)p.innerHTML=`<img src="${u}" alt="" style="max-height:200px;max-width:100%;border-radius:12px"><span class="tiny muted">Toque para trocar</span>`}});
+document.head.insertAdjacentHTML("beforeend",`<style>.camwrap{border-radius:14px;overflow:hidden;background:#111;aspect-ratio:3/4;max-height:52vh;display:flex;align-items:center;justify-content:center}.camwrap video{width:100%;height:100%;object-fit:cover}
+.chph{width:100%;max-height:420px;object-fit:cover;border-radius:14px;background:var(--surface2);min-height:120px;display:block}
 .chpick{display:grid;place-items:center;min-height:120px;border:2px dashed var(--line);border-radius:16px;cursor:pointer;font-size:28px;padding:12px;text-align:center}</style>`);
 
 /* cartão na tela da equipe */

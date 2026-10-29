@@ -186,27 +186,32 @@ textarea{min-height:80px;resize:vertical}
 .kcard.kdone b{text-decoration:line-through;color:var(--muted)}
 .ktitle{border:0;background:none;padding:0;text-align:left;display:flex;flex-direction:column;gap:4px;min-width:0}
 .ktitle b{overflow-wrap:anywhere}
-.dvfly{animation:dvF 120s linear infinite;transform:translate(-90px,40px)}
-.dvperch{opacity:0;animation:dvPerch 120s linear infinite}@keyframes dvPerch{0%,62%{opacity:0}62.1%,71.9%{opacity:1}72%,100%{opacity:0}}
-.dvturn{transform-box:fill-box;transform-origin:center;animation:dvTurn 120s steps(1,end) infinite}
-@keyframes dvTurn{0%{transform:scaleX(1)}45%{transform:scaleX(-1)}84%{transform:scaleX(1)}}
+.dvfly{animation:dvF 180s linear infinite;transform:translate(-300px,40px)}
+.dvroll{transform-box:fill-box;transform-origin:center;animation:dvRoll 180s linear infinite}
+@keyframes dvRoll{0%,81.389%{transform:rotate(0)}83.333%{transform:rotate(-360deg)}83.339%,100%{transform:rotate(0)}}
+.dvperch{opacity:0;animation:dvPerch 180s linear infinite}@keyframes dvPerch{0%,55.556%{opacity:0}55.611%,63.833%{opacity:1}63.889%,100%{opacity:0}}
+.dvturn{transform-box:fill-box;transform-origin:center;animation:dvTurn 180s steps(1,end) infinite}
+@keyframes dvTurn{0%{transform:scaleX(1)}25.556%{transform:scaleX(-1)}30%{transform:scaleX(1)}30.889%{transform:scaleX(-1)}32.778%{transform:scaleX(1)}47.778%{transform:scaleX(-1)}69.444%{transform:scaleX(1)}}
 .dvbob{animation:bob 2.2s ease-in-out infinite}
 .dvwing{transform-box:fill-box;transform-origin:25% 100%;animation:dvFlap .32s ease-in-out infinite}
 @keyframes dvFlap{0%,100%{transform:scaleY(1)}50%{transform:scaleY(-.45)}}
-.dvheart{opacity:0;transform-box:fill-box;transform-origin:center;animation:dvHeart 120s ease-out infinite}
-@keyframes dvHeart{0%,64%{opacity:0;transform:translateY(0) scale(.4)}65%{opacity:1;transform:translateY(-5px) scale(1)}68%{opacity:1;transform:translateY(-14px) scale(1)}69.5%,100%{opacity:0;transform:translateY(-20px) scale(.8)}}
-.dvground{opacity:0;animation:dvGround 120s linear infinite}@keyframes dvGround{0%,20%{opacity:0}20.1%,32.9%{opacity:1}33%,100%{opacity:0}}
-.dvgwalk{transform:translate(268px,233px);animation:dvGWalk 120s ease-in-out infinite}
-@keyframes dvGWalk{0%,22%{transform:translate(268px,233px)}24.5%{transform:translate(288px,233px)}27%{transform:translate(288px,233px)}29.5%{transform:translate(256px,233px)}31%,100%{transform:translate(268px,233px)}}
+.dvheart{opacity:0;transform-box:fill-box;transform-origin:center;animation:dvHeart 180s ease-out infinite}
+@keyframes dvHeart{0%,56.889%{opacity:0;transform:translateY(0) scale(.4)}57.444%{opacity:1;transform:translateY(-5px) scale(1)}59.167%{opacity:1;transform:translateY(-14px) scale(1)}60%,100%{opacity:0;transform:translateY(-20px) scale(.8)}}
+.dvkiss{opacity:0;transform-box:fill-box;transform-origin:center;animation:dvKiss 180s ease-out infinite}.dvkiss.b{animation-name:dvKiss2}
+@keyframes dvKiss{0%,31.222%{opacity:0;transform:translateY(0) scale(.3)}31.556%{opacity:1;transform:translateY(-6px) scale(1)}32.222%{opacity:1;transform:translateY(-16px) scale(1)}32.667%,100%{opacity:0;transform:translateY(-22px) scale(.7)}}
+@keyframes dvKiss2{0%,31.611%{opacity:0;transform:translate(0,0) scale(.3)}31.944%{opacity:1;transform:translate(-6px,-6px) scale(.8)}32.444%{opacity:1;transform:translate(-10px,-15px) scale(.8)}32.889%,100%{opacity:0;transform:translate(-12px,-20px) scale(.6)}}
+.dvground{opacity:0;animation:dvGround 180s linear infinite}@keyframes dvGround{0%,13.333%{opacity:0}13.389%,23.278%{opacity:1}23.333%,100%{opacity:0}}
+.dvgwalk{transform:translate(268px,233px);animation:dvGWalk 180s ease-in-out infinite}
+@keyframes dvGWalk{0%,13.333%{transform:translate(268px,233px)}15.278%{transform:translate(288px,233px)}17.222%{transform:translate(288px,233px)}19.167%{transform:translate(256px,233px)}20.556%{transform:translate(256px,233px)}22.222%,100%{transform:translate(268px,233px)}}
 .dvgstep{animation:dvStep .42s ease-in-out infinite alternate}@keyframes dvStep{from{transform:translateY(0)}to{transform:translateY(-1.2px)}}
-.dvghead{transform-box:fill-box;transform-origin:50% 100%;animation:dvLook 120s ease-in-out infinite}
-@keyframes dvLook{0%,21%{transform:none}21.8%{transform:rotate(-14deg)}22.6%{transform:rotate(12deg)}23.4%,27.2%{transform:none}27.6%{transform:translateY(5px)}28%{transform:none}28.4%{transform:translateY(5px)}28.8%,31.4%{transform:none}31.9%{transform:rotate(10deg)}32.5%,100%{transform:none}}
+.dvghead{transform-box:fill-box;transform-origin:50% 100%;animation:dvLook 180s ease-in-out infinite}
+@keyframes dvLook{0%,13.889%{transform:none}14.167%{transform:rotate(-14deg)}14.722%{transform:rotate(12deg)}15.278%,17.333%{transform:none}17.556%{transform:translateY(5px)}17.833%{transform:none}18.111%{transform:translateY(5px)}18.389%,21.111%{transform:none}21.389%{transform:rotate(10deg)}21.944%,100%{transform:none}}
 .twinkle{transform-box:fill-box;transform-origin:center;animation:twinkle 2.6s ease-in-out infinite}
 .twinkle.b{animation-delay:.9s}.twinkle.c{animation-delay:1.7s}
 @keyframes twinkle{0%,100%{opacity:.25;transform:scale(.7)}50%{opacity:1;transform:scale(1.1)}}
 .glow{animation:glow 4s ease-in-out infinite}
 @keyframes glow{0%,100%{opacity:.35}50%{opacity:.6}}
-@media (prefers-reduced-motion: reduce){.dvfly,.dvturn,.dvbob,.dvfold,.dvwing,.dvheart,.dvperch,.dvground,.dvgwalk,.dvgstep,.dvghead,.twinkle,.glow{animation:none!important}.dvperch,.dvground{display:none}.dvfly{transform:translate(22px,14px)!important}}
+@media (prefers-reduced-motion: reduce){.dvfly,.dvroll,.dvturn,.dvbob,.dvfold,.dvwing,.dvheart,.dvkiss,.dvperch,.dvground,.dvgwalk,.dvgstep,.dvghead,.twinkle,.glow{animation:none!important}.dvperch,.dvground,.dvkiss{display:none}.dvfly{transform:translate(22px,14px)!important}}
 .tfull{display:none}
 @media (orientation: landscape) and (max-height: 600px){
  .tfull:not([hidden]){display:flex;position:fixed;inset:0;z-index:55;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:max(12px,env(safe-area-inset-top,0px)) max(24px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(24px,env(safe-area-inset-left,0px))}
@@ -880,12 +885,12 @@ function accSVG(id,x,y,s){ // desenha acessório na posição (x,y) com escala s
   case"coroa":return g(`<path d="M-34 6 L-38 -30 L-18 -12 L0 -38 L18 -12 L38 -30 L34 6 Z" fill="#F2C230" stroke="#C99A12" stroke-width="3" stroke-linejoin="round"/><circle cx="0" cy="-4" r="5" fill="#E23D6D"/><circle cx="-20" cy="-2" r="4" fill="#3C6FD1"/><circle cx="20" cy="-2" r="4" fill="#3C6FD1"/>`);
  }return""}
 function envSVG(lv,dry,peace){
- let s=`<defs><linearGradient id="sky" x1="0" x2="0" y1="0" y2="1"><stop offset="0" style="stop-color:var(--sky2)"/><stop offset="1" style="stop-color:var(--sky)"/></linearGradient></defs><rect width="320" height="240" fill="url(#sky)"/>`;
+ let s=`<defs><linearGradient id="sky" x1="0" x2="0" y1="0" y2="1"><stop offset="0" style="stop-color:var(--sky2)"/><stop offset="1" style="stop-color:var(--sky)"/></linearGradient></defs><rect x="-500" width="1320" height="240" fill="url(#sky)"/>`;
  if(lv>=4)s+=`<circle cx="270" cy="44" r="20" fill="#F7C948" opacity=".95"/><g fill="#fff" opacity=".85"><ellipse cx="80" cy="44" rx="26" ry="10"/><ellipse cx="98" cy="38" rx="18" ry="10"/><ellipse cx="200" cy="30" rx="20" ry="8"/></g>`;
  if(lv>=6){let f='<g fill="#C99A5B">';for(let x=96;x<=236;x+=20)f+=`<rect x="${x}" y="172" width="7" height="28" rx="2"/>`;s+=f+'<rect x="92" y="178" width="152" height="5" rx="2"/><rect x="92" y="190" width="152" height="5" rx="2"/></g>'}
  if(lv>=6)s+=`<g transform="translate(18 132)"><rect x="0" y="24" width="52" height="40" fill="#E9D3B4"/><path d="M-6 26 L26 0 L58 26 Z" fill="#C8433B"/><rect x="18" y="40" width="14" height="24" fill="#7A4E2D"/><rect x="38" y="32" width="10" height="10" fill="#9FD3F2"/></g>`;
- s+=`<rect y="196" width="320" height="44" fill="var(--ground)"/>`;
- if(lv>=1)s+=`<path d="M0 196 Q80 184 160 192 T320 190 L320 240 L0 240 Z" fill="${dry?"#C7B46A":"var(--grass)"}"/><path d="M0 214 Q90 204 180 212 T320 208 L320 240 L0 240 Z" fill="${dry?"#AE9A52":"var(--grass2)"}" opacity=".7"/>`;
+ s+=`<rect x="-500" y="196" width="1320" height="44" fill="var(--ground)"/>`;
+ if(lv>=1)s+=`<path d="M-500 193 L0 196 Q80 184 160 192 T320 190 L820 192 L820 240 L-500 240 Z" fill="${dry?"#C7B46A":"var(--grass)"}"/><path d="M-500 211 L0 214 Q90 204 180 212 T320 208 L820 210 L820 240 L-500 240 Z" fill="${dry?"#AE9A52":"var(--grass2)"}" opacity=".7"/>`;
  if(lv>=5)s+=`<ellipse cx="268" cy="214" rx="44" ry="11" fill="#5DADE2" opacity=".85"/><ellipse cx="262" cy="211" rx="18" ry="3" fill="#fff" opacity=".5"/>`;
  if(lv>=2)s+=`<g transform="translate(${lv>=6?286:40} 196)"><rect x="-5" y="-40" width="10" height="40" fill="#7A4E2D"/><circle cx="0" cy="-58" r="26" fill="#3E9A4A"/><circle cx="-14" cy="-46" r="16" fill="#4FB15A"/><circle cx="14" cy="-48" r="16" fill="#358A40"/></g>`;
  if(lv>=3)[[70,214,"#F2D53B"],[96,222,"#E23D6D"],[226,224,"#fff"],[240,216,"#B57EDC"],[128,226,"#F2A93B"]].forEach(([x,y,c])=>{s+=`<g transform="translate(${x} ${y})"><path d="M0 0 L0 8" stroke="#2F6330" stroke-width="2"/><circle r="4" fill="${c}"/><circle r="1.6" fill="#F7C948"/></g>`});
@@ -904,12 +909,9 @@ const DOVE_FRONT=`<g class="dvgbody"><path d="M-3 -5 L-3.5 0 M3 -5 L3.5 0 M-5.5 
 /* pombinha (ciclo de 2 min): pousa no chão de frente e passeia; some; às vezes pousa na cabeça do porquinho; às vezes só passa voando.
    Quando está pousada, a pombinha voadora some e aparece uma cópia parada (no chão, ou dentro do desenho do porquinho). */
 const DV_GX=268,DV_GY=233;
-function doveFly(hy,walking){const off=walking?31.22:0;const xl=134+off,nm="dvF"+hy+(walking?"w":"");const gx=DV_GX-26,gy=DV_GY-31;
- const T=(x,y)=>`transform:translate(${x}px,${y}px)`;const o=v=>`;opacity:${v}`;
- const kf=`@keyframes ${nm}{0%{${T(-90,40)}${o(1)}}10%{${T(-90,40)}}15%{${T(120,10)}}19%{${T(gx-30,gy-40)}}20%{${T(gx,gy)}${o(1)}}20.1%{${T(gx,gy)}${o(0)}}32.9%{${T(gx,gy)}${o(0)}}33%{${T(gx,gy)}${o(1)}}36%{${T(320,-10)}}40%{${T(420,20)}}
-52%{${T(420,30)}}56%{${T(250,4)}}60.5%{${T(xl+18,hy-24)}}62%{${T(xl,hy)}${o(1)}}62.1%{${T(xl,hy)}${o(0)}}71.9%{${T(xl,hy)}${o(0)}}72%{${T(xl,hy)}${o(1)}}76%{${T(60,0)}}80%{${T(-100,24)}}
-86%{${T(-100,12)}}95%{${T(420,6)}}95.1%{${T(-90,40)}}100%{${T(-90,40)}${o(1)}}}`;
- return `<style>${kf}</style><g class="dvfly" style="animation-name:${nm}"><g class="dvturn"><g transform="scale(1.15)"><g class="dvbob">${DOVE_BODY}</g></g></g></g>`}
+function doveFly(hy,walking){const w=walking;const xl=134+(w?30.18:0),xt=134+(w?-18.24:0),hx=Math.round(150+(w?-30:0)),hh=118,nm="dvF"+hy+(w?"w":"");const gx=DV_GX-26,gy=DV_GY-31;
+ const kf=`@keyframes ${nm}{0%{transform:translate(-300px,40px);opacity:1}7.778%{transform:translate(-300px,40px)}11.111%{transform:translate(120px,10px)}13%{transform:translate(${gx-30}px,${gy-40}px)}13.333%{transform:translate(${gx}px,${gy}px);opacity:1}13.389%{transform:translate(${gx}px,${gy}px);opacity:0}23.278%{transform:translate(${gx}px,${gy}px);opacity:0}23.333%{transform:translate(${gx}px,${gy}px);opacity:1}25%{transform:translate(270px,110px)}26.389%{transform:translate(240px,30px)}27.778%{transform:translate(120px,20px)}29.167%{transform:translate(50px,90px)}30.556%{transform:translate(100px,150px)}31%{transform:translate(${hx}px,${hh}px)}32.333%{transform:translate(${hx}px,${hh+2}px)}33.333%{transform:translate(300px,40px)}35.556%{transform:translate(620px,20px)}48.889%{transform:translate(620px,30px)}52.778%{transform:translate(250px,4px)}55%{transform:translate(${xl+18}px,${hy-24}px)}55.556%{transform:translate(${xl}px,${hy}px);opacity:1}55.611%{transform:translate(${xl}px,${hy}px);opacity:0}63.833%{transform:translate(${xt}px,${hy}px);opacity:0}63.889%{transform:translate(${xt}px,${hy}px);opacity:1}65.556%{transform:translate(60px,0px)}67.778%{transform:translate(-300px,24px)}77.778%{transform:translate(-300px,12px)}81.111%{transform:translate(90px,30px)}84.444%{transform:translate(230px,20px)}88.889%{transform:translate(620px,6px)}88.944%{transform:translate(-300px,40px)}100%{transform:translate(-300px,40px);opacity:1}}`;
+ return `<style>${kf}</style><g class="dvfly" style="animation-name:${nm}"><g class="dvroll"><g class="dvturn"><g transform="scale(1.15)"><g class="dvbob">${DOVE_BODY}</g></g></g></g></g><g transform="translate(${hx-4} ${hh+6})"><path class="dvkiss" d="M0 0 c-2.5 -4 -8 -1.5 -4.5 3 l4.5 4 l4.5 -4 c3.5 -4.5 -2 -7 -4.5 -3z" fill="#E23D6D"/><path class="dvkiss b" d="M-6 6 c-2 -3 -6 -1 -3.5 2.2 l3.5 3 l3.5 -3 c2.5 -3.2 -1.5 -5.2 -3.5 -2.2z" fill="#F27198"/></g>`}
 const dovePerch=hy=>`<g transform="translate(134 ${hy})"><g class="dvperch"><g transform="scale(1.15)">${DOVE_PERCH}</g></g></g>`;
 const doveGround=()=>`<g class="dvground"><g class="dvgwalk"><g transform="scale(1.25)"><g class="dvgstep">${DOVE_FRONT}</g></g></g></g>`;
 function pigSVG(o){

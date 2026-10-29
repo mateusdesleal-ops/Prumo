@@ -280,6 +280,7 @@ body.team-env .envbtn.cur{border-color:var(--money);background:color-mix(in srgb
 .tray{position:sticky;bottom:calc(-22px - env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1.5px solid var(--line);margin:4px -16px calc(-22px - env(safe-area-inset-bottom,0px));padding:12px 16px calc(14px + env(safe-area-inset-bottom,0px));z-index:3;box-shadow:0 -8px 20px rgba(0,0,0,.06)}
 .tray.pop{animation:trayPop .35s ease}@keyframes trayPop{0%{transform:translateY(0)}40%{transform:translateY(-4px)}100%{transform:none}}
 .supdot{position:absolute;right:-3px;bottom:-3px;width:18px;height:18px;border-radius:50%;background:var(--pig-deep);color:#fff;display:grid;place-items:center;border:2px solid var(--bg);pointer-events:none}
+.avatar:has(.avpig){background:#FBE3EA;overflow:hidden;padding:0}.avatar .avpig{width:118%;height:118%;margin:-9%;display:block}.avatar .avpig *{animation:none!important}
 .calleg{width:14px;height:14px;border-radius:5px;display:inline-block}.calleg.has{background:color-mix(in srgb,var(--pig) 30%,transparent)}.calleg.today{box-shadow:inset 0 0 0 2px var(--pig-deep)}
 
 /* timer */
@@ -554,7 +555,15 @@ function personalS(){if(!PERS||PERS.S!==S)return S;let o=S;TPARTS.forEach(p=>p.k
 function withPersonal(fn){const o=personalS();if(o===S)return fn();const keep={};TPARTS.forEach(p=>p.keys.forEach(k=>{keep[k]=S[k];S[k]=o[k]}));try{return fn()}finally{Object.assign(S,keep)}}
 const teamMembers=()=>TEAM&&TEAM.members||[];
 const teamNick=uid=>{if(uid===ME.uid)return"Você";const m=teamMembers().find(x=>x.uid===uid);return m?(m.nick||(m.email||"").split("@")[0]||"Membro"):"Ex-membro"};
-const teamInitials=uid=>{const n=uid===ME.uid?(S.profile.name||"Eu"):teamNick(uid);return n.split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase()};
+/* nas equipes, no lugar da inicial aparece o porquinho de cada pessoa (com as roupinhas e o humor) */
+let MYPIG=null;
+function myPigSig(){if(MYPIG&&Date.now()-MYPIG.t<4000)return MYPIG.v;let v={pet:false};const T=TEAM;
+ try{TEAM=null;v=withPersonal(()=>{if(!S.profile.pet)return{pet:false};const h=pigHealth();return{pet:true,equip:effectiveEquip(),mood:h.mood,score:Math.round(h.score)}})}catch(e){}finally{TEAM=T}
+ MYPIG={t:Date.now(),v};return v}
+const PIGAV={};
+function pigAvatar(p){const k=JSON.stringify([p.equip||{},p.mood||"feliz",Math.round((p.score||75)/10)]);if(!PIGAV[k])PIGAV[k]=pigSVG({score:p.score||75,mood:p.mood||"feliz",equip:p.equip||{},env:0,mini:true}).replace(/viewBox="[^"]*"/,'viewBox="62 50 196 196"').replace('<svg ','<svg class="avpig" aria-hidden="true" ');return PIGAV[k]}
+const teamInitials=uid=>{const pg=uid===ME.uid?myPigSig():((teamMembers().find(x=>x.uid===uid)||{}).pig);if(pg&&pg.pet)return pigAvatar(pg);
+ const n=uid===ME.uid?(S.profile.name||"Eu"):teamNick(uid);return n.split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase()};
 function envBar(){return typeof teamEnvBar==="function"?teamEnvBar():""}
 const finScope=()=>teamHas("fin")?"t":S.profile.household&&Store.cloud?"h":"p";
 const finDocs=()=>{const sc=finScope();return sc==="t"?TFIN:sc==="h"?HFIN:PFIN};
@@ -4023,7 +4032,7 @@ async function teamsLoad(){
   if(TEAM){const t=TEAMS.find(x=>x.id===TEAM.id);if(!t){teamExit();toast("Você não faz mais parte dessa equipe.")}
    else{const ch=JSON.stringify(t.features)!==JSON.stringify(TEAM.features);TEAM=t;if(ch)teamSubscribe()}}
   else{const last=lsTeam();if(last&&TEAMS.find(x=>x.id===last))teamEnter(last,true)}
-  teamCounts();render();setTimeout(teamInvitePopup,400)}catch(e){console.warn(e);if(TEAMS===null)TEAMS=[]}
+  teamCounts();render();setTimeout(teamInvitePopup,400);setTimeout(teamPushPig,800)}catch(e){console.warn(e);if(TEAMS===null)TEAMS=[]}
  tLoading=false}
 async function teamCounts(){if(Store.demo||!TEAMS)return;for(const t of TEAMS){if(!(t.features&&t.features.tasks))continue;
  try{const s=await Store.db.doc(`teams/${t.id}/agenda`).get();const items=s.exists&&s.data().tasks&&s.data().tasks.items||{};
@@ -4198,7 +4207,7 @@ function vaqDetail(id){const r=VQ().items[id];if(!r)return;const sh=Object.entri
 
 /* ---------- Demonstração: equipe CriaMente3d ---------- */
 function demoTeams(){TEAMS=[{id:"demo-team",name:"CriaMente3d",owner:"demo",features:{agenda:true,tasks:true,fin:true,quotes:true,vaq:true,proj:true},
- members:[{uid:"demo",nick:"José",email:"jose@exemplo.com"},{uid:"m_ana",nick:"Ana",email:"ana@exemplo.com"},{uid:"m_lucas",nick:"Lucas",email:"lucas@exemplo.com"}],invites:["contato@exemplo.com"]}];TINV=[];TCOUNT["demo-team"]=3}
+ members:[{uid:"demo",nick:"José",email:"jose@exemplo.com"},{uid:"m_ana",nick:"Ana",email:"ana@exemplo.com",pig:{pet:true,equip:{head:"laco",face:"oculos"},mood:"feliz",score:88}},{uid:"m_lucas",nick:"Lucas",email:"lucas@exemplo.com",pig:{pet:true,equip:{head:"bone"},mood:"ok",score:60}}],invites:["contato@exemplo.com"]}];TINV=[];TCOUNT["demo-team"]=3}
 function demoTeamData(){const D=n=>addDays(today(),n);const k=mkey();const id=()=>rid();
  const tasks={};[["Imprimir pedido da Loja Arte & Cia",D(0),"demo","trabalho",[["Fatiar o modelo",true],["Imprimir 12 peças",false]]],["Responder orçamentos do Instagram",D(0),"m_ana","trabalho",[]],["Comprar filamento PLA branco",D(1),"m_lucas","pagar",[]],["Fotografar produtos novos",D(2),"demo","trabalho",[]],["Atualizar catálogo no site",D(3),"",  "trabalho",[]],["Revisar contas do mês",D(-1),"m_ana","trabalho",[]]]
   .forEach(([title,date,who,kind,subs],i)=>{const tid="dt"+i;tasks[tid]={id:tid,title,date,time:i===0?"14:00":"",who,by:"demo",kind,prio:i===0?"alta":"media",status:i===1?"doing":"todo",cal:true,remind:30,subs:subs.map(([t,done])=>({t,done})),created:Date.now()-i*1e6,repeat:i===4?"weekly":""}});
@@ -4239,6 +4248,12 @@ function teamInvitePopup(){if(!TINV||!TINV.length||UI.needAuth||!S.profile.creat
  <div class="row" style="gap:8px;width:100%"><button class="btn ghost grow" data-act="closeModal">Depois</button><button class="btn ghost grow" data-act="teamDecline" data-v="${i.team_id}">Recusar</button></div></div>`);
  const sc=document.querySelector("#modal .scrim");if(sc)sc.classList.add("center")}
 document.head.insertAdjacentHTML("beforeend",`<style>#modal .scrim.center{align-items:center;padding:16px}#modal .scrim.center .sheet{border-radius:22px;max-width:420px}#modal .scrim.center .grab{display:none}</style>`);
+
+/* envia o "retrato" do meu porquinho para as minhas equipes (só roupinhas, humor e se usa mascote) */
+async function teamPushPig(){if(Store.demo||!sb||!Store.cloud||!TEAMS||!TEAMS.length)return;MYPIG=null;const sig=myPigSig();
+ const key=JSON.stringify([sig,TEAMS.map(t=>t.id).sort()]);let last=null;try{last=localStorage.getItem("prumo.pigsig")}catch(e){}if(last===key)return;
+ try{const {error}=await sb.rpc("set_my_pig",{p:sig});if(!error)try{localStorage.setItem("prumo.pigsig",key)}catch(e){}}catch(e){}}
+{const _ca=A.acc;if(_ca)A.acc=el=>{_ca(el);MYPIG=null;setTimeout(teamPushPig,1500)}}
 
 /* ============================================================
    Apoios por Pix: a pessoa avisa que doou e o administrador confirma.

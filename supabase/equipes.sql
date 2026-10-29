@@ -300,3 +300,24 @@ create policy "desafios: enviar minha foto" on storage.objects for insert to aut
               and (storage.foldername(name))[3] = (select auth.uid())::text);
 create policy "desafios: apagar minha foto" on storage.objects for delete to authenticated
   using (bucket_id = 'checkins' and (storage.foldername(name))[3] = (select auth.uid())::text);
+
+-- Porquinho de cada membro (só aparência: roupinhas, humor e se usa mascote)
+alter table public.team_members add column if not exists pig jsonb;
+create or replace function public.set_my_pig(p jsonb)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then raise exception 'não autenticado'; end if;
+  if p is not null and octet_length(p::text) > 2000 then raise exception 'grande demais'; end if;
+  update public.team_members set pig = p where uid = auth.uid();
+end $$;
+create or replace function public.my_teams()
+returns jsonb language sql stable security definer set search_path = public, auth as $$
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id', t.id, 'name', t.name, 'owner', t.owner, 'features', t.features,
+    'members', (select coalesce(jsonb_agg(jsonb_build_object('uid', m.uid, 'email', m.email, 'nick', m.nick, 'pig', m.pig) order by m.joined_at), '[]'::jsonb)
+                from public.team_members m where m.team_id = t.id and m.active),
+    'invites', (select coalesce(jsonb_agg(i.email order by i.created_at), '[]'::jsonb) from public.team_invites i where i.team_id = t.id and not i.answered)
+  ) order by t.created_at), '[]'::jsonb)
+  from public.teams t where not t.archived and exists (select 1 from public.team_members m where m.team_id = t.id and m.uid = auth.uid() and m.active);
+$$;
+grant execute on function public.set_my_pig(jsonb) to authenticated;

@@ -1,6 +1,6 @@
 /* Prumo: guarda o app no aparelho para abrir rápido e funcionar sem internet.
    Ao publicar uma versão nova, aumente o número abaixo. */
-const VERSION = "prumo-v63";
+const VERSION = "prumo-v64";
 const SHELL = ["./", "index.html", "config.js", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 
@@ -33,7 +33,21 @@ self.addEventListener("fetch", e => {
     return r;
   })));
 });
+// Avisos das equipes chegando com o app fechado
+self.addEventListener("push", e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (x) { d = { title: "Prumo", body: e.data ? e.data.text() : "" }; }
+  e.waitUntil(self.registration.showNotification(d.title || "Prumo", {
+    body: d.body || "", icon: "icons/icon-192.png", badge: "icons/icon-192.png",
+    tag: d.tag || undefined, renotify: !!d.tag, data: { url: d.url || "./" }
+  }));
+});
 self.addEventListener("notificationclick", e => {
   e.notification.close();
-  e.waitUntil(self.clients.matchAll({ type: "window" }).then(list => list.length ? list[0].focus() : self.clients.openWindow("./")));
+  const target = new URL((e.notification.data && e.notification.data.url) || "./", self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
+    const w = list.find(c => c.url.startsWith(self.registration.scope));
+    if (w) { w.postMessage({ type: "prumo-open", url: target }); return w.focus(); }
+    return self.clients.openWindow(target);
+  }));
 });

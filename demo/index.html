@@ -4470,6 +4470,87 @@ function chTeamCard(){if(!teamHas("desafios"))return"";const act=vals(CHP().item
  TBASE.chal=clone(TD.chal)}}
 {const _dt=demoTeams;demoTeams=function(){_dt();if(TEAMS&&TEAMS[0])TEAMS[0].features.desafios=true}}
 
+/* ============================================================
+   Avisos das equipes: sininho no app + notificação no aparelho (Web Push).
+   O app pede à função "notify" do servidor para avisar outros membros quando:
+   - alguém coloca uma tarefa ou etapa de projeto para você;
+   - alguém cria um desafio ou faz check-in com foto ou comentário.
+   ============================================================ */
+const VAPID_PUB="BMaX7fjNlDu5Ats-nc5lhBHJP21wRZQlE4yFtg2TmcdK2V7ZNpZI08b61s3N-GOxSkwhvJunG6HhT3hkuGVrj1E";
+const NOTIF={list:[],loading:false,t:0};
+const pushOK=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
+const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent);
+const isStandalone=()=>(window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone===true;
+const myNick=()=>(S.profile.name||"").split(" ")[0]||"Alguém";
+function b64u(s){const p="=".repeat((4-s.length%4)%4);const b=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from([...b].map(c=>c.charCodeAt(0)))}
+
+async function pushSubscribe(ask){if(!pushOK()||!sb||!Store.cloud||Store.demo)return false;
+ let perm=Notification.permission;if(perm==="default"&&ask)perm=await Notification.requestPermission();if(perm!=="granted")return false;
+ try{const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();
+  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(VAPID_PUB)});
+  const j=sub.toJSON();const {error}=await sb.from("push_subs").upsert({endpoint:j.endpoint,uid:ME.uid,p256dh:j.keys.p256dh,auth:j.keys.auth},{onConflict:"endpoint"});
+  return !error}catch(e){console.warn(e);return false}}
+A.enableNotif=async()=>{
+ if(isIOS()&&!isStandalone()){openModal("Notificações no iPhone",`<div class="stack"><p>No iPhone, as notificações só funcionam com o Prumo instalado na tela de início:</p><p class="small">1. Toque em <b>Compartilhar</b> (o quadrado com a seta) no Safari.<br>2. Escolha <b>Adicionar à Tela de Início</b>.<br>3. Abra o Prumo pelo ícone novo e toque de novo em <b>Ativar notificações</b>.</p><button class="btn block" data-act="closeModal">Entendi</button></div>`);return}
+ if(!pushOK()){toast("Este navegador não permite notificações. Os avisos continuam aparecendo no sininho do app.");return}
+ const ok=await pushSubscribe(true);
+ toast(ok?"Notificações ativadas! Você vai ser avisado das suas equipes.":Notification.permission==="denied"?"As notificações estão bloqueadas. Libere nas configurações do navegador para este site.":"Não consegui ativar agora. Tente de novo.");render()};
+
+/* ---------- sininho ---------- */
+async function notifLoad(){if(!sb||!Store.cloud||Store.demo||NOTIF.loading)return;NOTIF.loading=true;
+ try{const {data,error}=await sb.from("notifications").select("id,team_id,kind,title,body,url,created_at,read_at").order("created_at",{ascending:false}).limit(30);if(!error){const before=NOTIF.list.filter(x=>!x.read_at).length;NOTIF.list=data||[];NOTIF.t=Date.now();
+  const now=NOTIF.list.filter(x=>!x.read_at).length;if(now!==before)render()}}catch(e){}NOTIF.loading=false}
+setInterval(()=>{if(Store.cloud&&!document.hidden)notifLoad()},60000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&Store.cloud)notifLoad()});
+function notifAgo(s){const m=Math.round((Date.now()-new Date(s))/60000);return m<1?"agora":m<60?`há ${m} min`:m<1440?`há ${Math.round(m/60)} h`:new Date(s).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}
+function notifView(){const L=NOTIF.list;
+ openModal("Avisos",`<div class="stack">${L.length?`<div class="list">${L.map(n=>`<button class="item" style="width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;padding-inline:0;align-items:flex-start" data-act="notifGo" data-v="${n.id}">
+  <span style="width:10px;height:10px;border-radius:50%;margin-top:6px;flex:none;background:${n.read_at?"transparent":"var(--pig-deep)"}"></span>
+  <span class="grow stack-s" style="gap:2px;min-width:0"><b class="small">${esc(n.title)}</b>${n.body?`<span class="small muted">${esc(n.body)}</span>`:""}<span class="tiny muted">${notifAgo(n.created_at)}</span></span></button>`).join("")}</div>`
+  :`<div class="empty">Nenhum aviso por enquanto.</div>`}
+ ${pushOK()&&Notification.permission!=="granted"?`<button class="btn line" data-act="enableNotif">🔔 Receber avisos também com o app fechado</button>`:""}</div>`);
+ if(L.some(x=>!x.read_at)){sb.rpc("mark_notifications_read",{p_ids:null}).then(()=>{L.forEach(x=>{if(!x.read_at)x.read_at=new Date().toISOString()});render()}).catch(()=>{})}}
+A.notifOpen=()=>notifView();
+A.notifGo=el=>{const n=NOTIF.list.find(x=>x.id===el.dataset.v);closeModal();if(!n)return;notifRoute(n.url||"/")};
+function notifRoute(u){try{const q=new URL(u,location.origin).searchParams;const t=q.get("t"),go=q.get("go");if(t)UI.pendTeam={id:t,go:go||"home"}}catch(e){}notifApply()}
+function notifApply(){const p=UI.pendTeam;if(!p)return;if(!TEAMS){if(typeof teamsLoad==="function")teamsLoad();return}
+ UI.pendTeam=null;const tm=TEAMS.find(x=>x.id===p.id);if(!tm){toast("Você não faz mais parte dessa equipe.");return}
+ if(!TEAM||TEAM.id!==tm.id)teamEnter(tm.id,true);
+ if(p.go==="chal"){UI.tab="chal";UI.chalOpen=null}else if(p.go==="tasks"){UI.tab="agenda";UI.agendaSub="tasks";UI.teamWho="eu"}else if(p.go==="proj"){UI.tab="agenda";UI.agendaSub="proj";UI.projOpen=null;UI.projF="minhas"}else UI.tab="home";
+ window.scrollTo(0,0);render()}
+/* link da notificação (?t=equipe&go=aba) */
+try{const q=new URLSearchParams(location.search);if(q.get("t")){UI.pendTeam={id:q.get("t"),go:q.get("go")||"home"};history.replaceState({},"",location.pathname)}}catch(e){}
+if(navigator.serviceWorker)navigator.serviceWorker.addEventListener("message",ev=>{if(ev.data&&ev.data.type==="prumo-open")notifRoute(ev.data.url)});
+
+let pushChecked=false;
+{const _rn=render;render=function(){_rn();try{if(!Store.cloud||Store.demo||UI.needAuth||!S.profile.created)return;
+ if(!NOTIF.t&&!NOTIF.loading)setTimeout(notifLoad,0);
+ if(!pushChecked&&pushOK()&&Notification.permission==="granted"){pushChecked=true;setTimeout(()=>pushSubscribe(false),1500)}
+ if(UI.pendTeam&&TEAMS)setTimeout(notifApply,0);
+ const top=document.querySelector("#app .top");const un=NOTIF.list.filter(x=>!x.read_at).length;
+ if(top&&(NOTIF.list.length||TEAMS&&TEAMS.length)&&!document.getElementById("bellBtn")){const ref=top.querySelector(".streak");const h=`<button id="bellBtn" class="iconbtn" data-act="notifOpen" aria-label="Avisos${un?`: ${un} novos`:""}" style="position:relative">${I.bell}${un?`<span class="supdot" style="background:var(--bad);font-size:10px;font-weight:800;width:18px;height:18px">${un>9?"9+":un}</span>`:""}</button>`;if(ref)ref.insertAdjacentHTML("beforebegin",h);else top.insertAdjacentHTML("beforeend",h)}}catch(e){}}}
+
+/* convite para ativar as notificações (na tela da equipe) */
+{const _vt=viewTeamHome;viewTeamHome=function(){let h=_vt();let off=false;try{off=localStorage.getItem("prumo.pushAsk")==="no"}catch(e){}
+ if(!Store.demo&&pushOK()&&Notification.permission==="default"&&!off)h=h.replace(/(<h1[^>]*>[^<]*<\/h1>)/,`$1<div class="banner info">${I.bell.replace('<svg','<svg width="20" height="20" style="flex:none"')}<div class="stack-s" style="gap:6px"><span>Quer ser avisado quando te passarem uma tarefa ou alguém postar no desafio?</span><div class="row" style="gap:6px"><button class="btn sm" data-act="enableNotif">Ativar notificações</button><button class="btn ghost sm" data-act="pushNo">Agora não</button></div></div></div>`);
+ return h}}
+A.pushNo=()=>{try{localStorage.setItem("prumo.pushAsk","no")}catch(e){}render()};
+
+/* ---------- disparos ---------- */
+function teamNotify(targets,kind,title,body,go){if(Store.demo||!sb||!Store.cloud||!TEAM)return;
+ sb.functions.invoke("notify",{body:{team_id:TEAM.id,targets,kind,title,body,url:`/?t=${TEAM.id}&go=${go}`}}).catch(e=>console.warn(e))}
+{const _st=A.saveTask;A.saveTask=el=>{if(!TEAM||!teamAg())return _st(el);const before={};vals(S.tasks.items).forEach(t=>before[t.id]=t.who||"");_st(el);
+ setTimeout(()=>{vals(S.tasks.items).forEach(t=>{if(t.who&&t.who!==ME.uid&&before[t.id]!==t.who&&t.status!=="done"){const pj=t.proj&&PJ().items[t.proj];
+  teamNotify([t.who],pj?"proj":"task",`${TEAM.name}: ${pj?"etapa":"tarefa"} para você`,`${myNick()} colocou você em "${t.title}"${pj?` (projeto ${pj.name})`:""}${t.date?` · até ${ddmm(t.date)}`:""}`,pj?"proj":"tasks")}})},0)}}
+{const _cs=A.chalCheckSave;A.chalCheckSave=async el=>{const c=CHP().items[UI.chalOpen];const d=UI.chDay||today();const had=!!(c&&((c.checkins||{})[ME.uid]||{})[d]);await _cs(el);
+ const ck=c&&((c.checkins||{})[ME.uid]||{})[d];if(!had&&ck)teamNotify("all","chal",`${TEAM.name} · ${c.name}`,`${myNick()} fez check-in${ck.note?`: ${ck.note}`:""}${ck.photo||ck.photoData?" 📸":""}`,"chal")}}
+{const _ce=A.chalEditSave;A.chalEditSave=async el=>{const c=CHP().items[UI.chalOpen];const d=UI.chEdit;const b=c&&((c.checkins||{})[ME.uid]||{})[d];const hadPh=!!(b&&(b.photo||b.photoData)),hadNote=!!(b&&b.note&&!b.auto);await _ce(el);
+ const a=c&&((c.checkins||{})[ME.uid]||{})[d];if(a&&((!hadPh&&(a.photo||a.photoData))||(!hadNote&&a.note&&a.edited)))teamNotify("all","chal",`${TEAM.name} · ${c.name}`,`${myNick()} ${!hadPh&&(a.photo||a.photoData)?"postou uma foto":"comentou"} no check-in${a.note?`: ${a.note}`:""}`,"chal")}}
+{const _cv=A.chalSave;A.chalSave=el=>{const isNew=!el.dataset.v;const n0=Object.keys(CHP().items).length;_cv(el);if(isNew&&Object.keys(CHP().items).length>n0){const c=CHP().items[UI.chalOpen];if(c)teamNotify("all","chal",`${TEAM.name}: novo desafio`,`${myNick()} criou o desafio "${c.name}". Bora participar?`,"chal")}}}
+
+/* ao sair da conta, este aparelho para de receber os avisos dela */
+{const _so=A.signOut;A.signOut=async()=>{try{if(pushOK()&&sb){const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub){await sb.from("push_subs").delete().eq("endpoint",sub.endpoint);await sub.unsubscribe()}}}catch(e){}return _so()}}
+
 /* início */
 (function boot(){
  const l=lsGet();if(l&&l.S){S=hydrate(l.S);Object.assign(PFIN,l.PFIN||{})}

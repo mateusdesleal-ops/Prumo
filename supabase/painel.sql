@@ -216,3 +216,6 @@ alter policy "dados proprios" on public.docs
   using (path like 'data/users/' || (select auth.uid())::text || '/%')
   with check (path like 'data/users/' || (select auth.uid())::text || '/%' and parent = 'data/users/' || (select auth.uid())::text);
 alter policy "ver meus apoios" on public.support_claims using (uid = (select auth.uid()));
+
+-- Avisos das equipes (sininho + notificações). A função "notify" (Edge Function) cria os avisos e envia o push.
+-- push_subs: aparelhos que aceitaram notificações; notifications: avisos; app_secrets: chaves VAPID (só o servidor lê).

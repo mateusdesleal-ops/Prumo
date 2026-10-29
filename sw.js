@@ -1,6 +1,6 @@
 /* Prumo: guarda o app no aparelho para abrir rápido e funcionar sem internet.
    Ao publicar uma versão nova, aumente o número abaixo. */
-const VERSION = "prumo-v64";
+const VERSION = "prumo-v65";
 const SHELL = ["./", "index.html", "config.js", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 
@@ -37,6 +37,7 @@ self.addEventListener("fetch", e => {
 self.addEventListener("push", e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (x) { d = { title: "Prumo", body: e.data ? e.data.text() : "" }; }
+  self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(l => l.forEach(c => c.postMessage({ type: "prumo-push" })));
   e.waitUntil(self.registration.showNotification(d.title || "Prumo", {
     body: d.body || "", icon: "icons/icon-192.png", badge: "icons/icon-192.png",
     tag: d.tag || undefined, renotify: !!d.tag, data: { url: d.url || "./" }

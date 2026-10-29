@@ -211,6 +211,7 @@ textarea{min-height:80px;resize:vertical}
 @keyframes twinkle{0%,100%{opacity:.25;transform:scale(.7)}50%{opacity:1;transform:scale(1.1)}}
 .glow{animation:glow 4s ease-in-out infinite}
 @keyframes glow{0%,100%{opacity:.35}50%{opacity:.6}}
+.dvfly,.dvroll,.dvturn,.dvperch,.dvheart,.dvkiss,.dvground,.dvgwalk,.dvghead,.walking .pig-walk{animation-delay:var(--dvd,0s)}
 @media (prefers-reduced-motion: reduce){.dvfly,.dvroll,.dvturn,.dvbob,.dvfold,.dvwing,.dvheart,.dvkiss,.dvperch,.dvground,.dvgwalk,.dvgstep,.dvghead,.twinkle,.glow{animation:none!important}.dvperch,.dvground,.dvkiss{display:none}.dvfly{transform:translate(22px,14px)!important}}
 .tfull{display:none}
 @media (orientation: landscape) and (max-height: 600px){
@@ -954,6 +955,8 @@ const DOVE_FRONT=`<g class="dvgbody"><path d="M-3 -5 L-3.5 0 M3 -5 L3.5 0 M-5.5 
 /* pombinha (ciclo de 2 min): pousa no chão de frente e passeia; some; às vezes pousa na cabeça do porquinho; às vezes só passa voando.
    Quando está pousada, a pombinha voadora some e aparece uma cópia parada (no chão, ou dentro do desenho do porquinho). */
 const DV_GX=268,DV_GY=233;
+const DV_T0=Date.now()-Math.random()*180000; /* cada abertura do app começa num ponto diferente do passeio */
+function dvDelay(){return `--dvd:-${(((Date.now()-DV_T0)/1000)%180).toFixed(2)}s`}
 function doveFly(hy,walking){const w=walking;const xl=134+(w?30.18:0),xt=134+(w?-18.24:0),hx=Math.round(150+(w?-30:0)),hh=118,nm="dvF"+hy+(w?"w":"");const gx=DV_GX-26,gy=DV_GY-31;
  const kf=`@keyframes ${nm}{0%{transform:translate(-300px,40px);opacity:1}7.778%{transform:translate(-300px,40px)}11.111%{transform:translate(120px,10px)}13%{transform:translate(${gx-30}px,${gy-40}px)}13.333%{transform:translate(${gx}px,${gy}px);opacity:1}13.389%{transform:translate(${gx}px,${gy}px);opacity:0}23.278%{transform:translate(${gx}px,${gy}px);opacity:0}23.333%{transform:translate(${gx}px,${gy}px);opacity:1}25%{transform:translate(270px,110px)}26.389%{transform:translate(240px,30px)}27.778%{transform:translate(120px,20px)}29.167%{transform:translate(50px,90px)}30.556%{transform:translate(100px,150px)}31%{transform:translate(${hx}px,${hh}px)}32.333%{transform:translate(${hx}px,${hh+2}px)}33.333%{transform:translate(300px,40px)}35.556%{transform:translate(620px,20px)}48.889%{transform:translate(620px,30px)}52.778%{transform:translate(250px,4px)}55%{transform:translate(${xl+18}px,${hy-24}px)}55.556%{transform:translate(${xl}px,${hy}px);opacity:1}55.611%{transform:translate(${xl}px,${hy}px);opacity:0}63.833%{transform:translate(${xt}px,${hy}px);opacity:0}63.889%{transform:translate(${xt}px,${hy}px);opacity:1}65.556%{transform:translate(60px,0px)}67.778%{transform:translate(-300px,24px)}77.778%{transform:translate(-300px,12px)}81.111%{transform:translate(90px,30px)}84.444%{transform:translate(230px,20px)}88.889%{transform:translate(620px,6px)}88.944%{transform:translate(-300px,40px)}100%{transform:translate(-300px,40px);opacity:1}}`;
  return `<style>${kf}</style><g class="dvfly" style="animation-name:${nm}"><g class="dvroll"><g class="dvturn"><g transform="scale(1.15)"><g class="dvbob">${DOVE_BODY}</g></g></g></g></g><g transform="translate(${hx-4} ${hh+6})"><path class="dvkiss" d="M0 0 c-2.5 -4 -8 -1.5 -4.5 3 l4.5 4 l4.5 -4 c3.5 -4.5 -2 -7 -4.5 -3z" fill="#E23D6D"/><path class="dvkiss b" d="M-6 6 c-2 -3 -6 -1 -3.5 2.2 l3.5 3 l3.5 -3 c2.5 -3.2 -1.5 -5.2 -3.5 -2.2z" fill="#F27198"/></g>`}
@@ -1019,7 +1022,7 @@ function pigSVG(o){
  const vb=mini?"60 60 200 170":"0 0 320 240";
  const hy=Math.round(cy-ry-29-(equip.head?({laco:6,fone:2,lapis:4}[equip.head]??26):0));const dv=!mini&&peace>=1;
  const walk=!mini&&(mood==="feliz"||mood==="ok");
- return `<svg viewBox="${vb}" role="img" aria-label="Porquinho ${mood}" class="m-${mood} ${walk?"walking":""}" >${mini?"":envSVG(env,dry,peace)}<g class="pig-walk">${coins}${peace>=7&&!mini?`<ellipse class="glow" cx="${cx}" cy="${cy+6}" rx="${rx+34}" ry="${ry+30}" fill="#FFF3B0"/>`:""}<g class="pig-bob"><g class="pig-breathe">${p}</g>${dv?dovePerch(hy):""}</g>${heart}</g>${dv?doveGround()+doveFly(hy,walk):""}</svg>`}
+ return `<svg viewBox="${vb}" role="img" aria-label="Porquinho ${mood}" class="m-${mood} ${walk?"walking":""}" style="${dvDelay()}">${mini?"":envSVG(env,dry,peace)}<g class="pig-walk">${coins}${peace>=7&&!mini?`<ellipse class="glow" cx="${cx}" cy="${cy+6}" rx="${rx+34}" ry="${ry+30}" fill="#FFF3B0"/>`:""}<g class="pig-bob"><g class="pig-breathe">${p}</g>${dv?dovePerch(hy):""}</g>${heart}</g>${dv?doveGround()+doveFly(hy,walk):""}</svg>`}
 function bodySVG(id,cx,cy,rx,ry){const cid="cl"+Math.random().toString(36).slice(2,7);const top=cy+ry*.5,nb=cy+48;const L=cx-rx-4,W=rx*2+8,B=cy+ry+4,H=B-top;
  const neck=`M${L} ${top} L${cx-26} ${top} Q${cx} ${nb+6} ${cx+26} ${top} L${L+W} ${top} L${L+W} ${B} L${L} ${B} Z`;
  const clip=`<clipPath id="${cid}a"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/></clipPath><clipPath id="${cid}b"><path d="${neck}"/></clipPath>`;

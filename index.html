@@ -298,6 +298,7 @@ body.team-env .envbtn.cur{border-color:var(--money);background:color-mix(in srgb
 .lesson p{margin-bottom:10px}
 .lesson p:last-child{margin-bottom:0}
 .prose{max-width:65ch}
+.trayrow .unsel{width:auto!important;flex:0 1 auto;max-width:180px;min-height:0!important;height:32px!important;padding:2px 26px 2px 10px!important;font-size:13px!important;border-radius:10px!important}.trayrow .unnum{width:52px!important;min-height:0!important;height:32px!important;padding:2px 4px!important;text-align:center;font-size:14px!important;border-radius:10px!important}
 .closet{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
 .closet button{border:1.5px solid var(--line);background:var(--surface);border-radius:14px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;font-weight:700}
 .closet button.on{border-color:var(--pig-deep);background:var(--pig-soft)}
@@ -1126,6 +1127,23 @@ const GUIA_TIPS=[
 const norm=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 const foodLogs=day=>vals(S.food.logs).filter(l=>l.date===day).sort((a,b)=>(a.t||0)-(b.t||0));
 const portionsOf=l=>+l.qty||1;
+/* unidades de cada alimento: porção, a unidade da porção (morango, fatia, colher…) e gramas/ml */
+const UN_ADJ={"média":"médias","médio":"médios","pequena":"pequenas","pequeno":"pequenos","grande":"grandes","inteira":"inteiras","inteiro":"inteiros","cheia":"cheias","rasa":"rasas"};
+function unSing(w){if(/ões$/.test(w))return w.replace(/ões$/,"ão");if(/(r|z|l)es$/.test(w))return w.slice(0,-2);if(/s$/.test(w)&&w.length>3)return w.slice(0,-1);return w}
+function unPlur(w){if(/s$/.test(w))return w;if(/ão$/.test(w))return w.replace(/ão$/,"ões");if(/(r|z)$/.test(w))return w+"es";if(/l$/.test(w))return w.slice(0,-1)+"is";return w+"s"}
+function unForms(noun){const ws=noun.trim().split(/\s+/);const one=[unSing(ws[0]),...ws.slice(1).map(w=>{const k=Object.keys(UN_ADJ).find(a=>UN_ADJ[a]===w);return k||w})].join(" ");
+ const many=[unPlur(unSing(ws[0])),...ws.slice(1).map(w=>UN_ADJ[w]||w)].join(" ");return {one,many}}
+function foodUnits(f){const por=(f.por||"1 porção").trim();const out=[];
+ const m=por.match(/^(\d+(?:[.,]\d+)?)\s+([^()]+?)\s*(?:\((\d+(?:[.,]\d+)?)\s*(g|ml)\)\s*)?$/i);
+ if(!m){out.push({k:"p",per:1,one:"porção",many:"porções",step:.5});return out}
+ const N=parseFloat(m[1].replace(",","."))||1,noun=m[2].trim();const fm=unForms(noun);
+ if(N!==1)out.push({k:"p",per:1,one:"porção",many:"porções",step:.5,hint:por});
+ if(!/^porç/.test(noun))out.push({k:"u",per:N,one:fm.one,many:fm.many,step:N>=2?1:.5});else if(N===1)out.push({k:"p",per:1,one:"porção",many:"porções",step:.5});
+ if(m[3]){const G=parseFloat(m[3].replace(",","."));const un=m[4].toLowerCase();if(G>0)out.push({k:"g",per:G,one:un,many:un,step:G>=100?10:5,g:1})}
+ return out}
+const unFmt=(n)=>String(Math.round(n*100)/100).replace(".",",");
+function unLabel(u,n){return u.g?`${unFmt(n)} ${u.one}`:`${unFmt(n)} ${n>0&&n<=1?u.one:u.many}`}
+function unAmt(f,u,n){const g=foodUnits(f).find(x=>x.g);const q=n/u.per;return unLabel(u,n)+(g&&!u.g?` (${Math.round(q*g.per)} ${g.one})`:"")}
 function foodDay(day){const ls=foodLogs(day);let kcal=0,fv=0,real=0,ultra=0,p=0,c=0,f=0,fib=0;ls.forEach(l=>{const q=portionsOf(l);kcal+=(+l.kcal||0)*q;p+=(+l.p||0)*q;c+=(+l.c||0)*q;f+=(+l.f||0)*q;fib+=(+l.fib||0)*q;if(l.g==="f"||l.g==="v")fv+=q;if(l.nova==="n")real++;if(l.nova==="u")ultra++});return{ls,p,c,f,fib,kcal:Math.round(kcal),fv:Math.round(fv*10)/10,real,ultra,count:ls.length,meals:new Set(ls.map(l=>l.meal)).size}}
 function waterGoal(){const w=+S.profile.weight||0;const ml=w?clamp(Math.round(w*35/250)*250,1500,3500):2000;return Math.round(ml/250)}
 function bmr(){const p=S.profile,c=S.food.cfg;if(!p.weight||!p.height||!p.age||!c.sex)return null;const h=p.height>3?p.height:p.height*100;return Math.round(10*p.weight+6.25*h-5*p.age+(c.sex==="m"?5:-161))}
@@ -1151,7 +1169,7 @@ function foodView(){const d=UI.foodDay||today();const fd=foodDay(d);const mpl=me
  ${d===today()&&mpl.next?suggestionCard(mpl,mpl.next):""}
  ${MEALS.map(([id,n])=>{const ls=fd.ls.filter(l=>l.meal===id);const k=Math.round(ls.reduce((s,l)=>s+(+l.kcal||0)*portionsOf(l),0));
   return `<div class="card" style="padding:12px 16px"><div class="row between"><div class="stack-s" style="gap:0"><b>${n}</b>${showKcal()&&ls.length?`<span class="tiny muted num">${k} kcal</span>`:""}</div><div class="row" style="gap:6px">${!ls.length&&d===today()&&MAIN_MEALS.includes(id)?`<button class="btn ghost sm" data-act="moreSuggest" data-v="${id}">Sugestão</button>`:""}<button class="btn ghost sm" data-act="addFood" data-v="${id}">${I.plus.replace('<svg','<svg width="16" height="16"')} Adicionar</button></div></div>
-   ${ls.length?`<div class="list" style="margin-top:4px">${ls.map(l=>`<button class="item" style="width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;padding-inline:0" data-act="editFood" data-v="${l.id}"><i class="dot" style="background:${(NOVA[l.nova]||NOVA.n).c}" title="${(NOVA[l.nova]||NOVA.n).t}"></i><div class="grow stack-s" style="gap:1px"><p><b>${esc(l.n)}</b></p><p class="tiny muted">${portionsOf(l)!==1?String(portionsOf(l)).replace(".",",")+" × ":""}${esc(l.por||"1 porção")}</p></div>${showKcal()&&l.kcal?`<span class="amount small">${Math.round(l.kcal*portionsOf(l))} kcal</span>`:""}</button>`).join("")}</div>`:""}</div>`}).join("")}
+   ${ls.length?`<div class="list" style="margin-top:4px">${ls.map(l=>`<button class="item" style="width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;padding-inline:0" data-act="editFood" data-v="${l.id}"><i class="dot" style="background:${(NOVA[l.nova]||NOVA.n).c}" title="${(NOVA[l.nova]||NOVA.n).t}"></i><div class="grow stack-s" style="gap:1px"><p><b>${esc(l.n)}</b></p><p class="tiny muted">${l.amt?esc(l.amt):(portionsOf(l)!==1?String(portionsOf(l)).replace(".",",")+" × ":"")+esc(l.por||"1 porção")}</p></div>${showKcal()&&l.kcal?`<span class="amount small">${Math.round(l.kcal*portionsOf(l))} kcal</span>`:""}</button>`).join("")}</div>`:""}</div>`}).join("")}
  ${d===today()?trackLink("food","Aprender sobre alimentação"):""}
  <div class="card flat stack"><div class="label">Guia Alimentar para a População Brasileira</div><p class="small">${esc(tip)}</p></div>
  <div class="row tiny muted wrap" style="gap:12px">${["n","p","u"].map(k=>`<span class="row" style="gap:5px"><i class="dot" style="background:${NOVA[k].c}"></i>${NOVA[k].t}</span>`).join("")}</div>
@@ -1168,16 +1186,22 @@ function foodSheet(meal,tab){UI.foodMeal=meal||UI.foodMeal||defaultMeal();UI.foo
  <div id="foodBody"></div>
  <div id="tray" class="tray"></div></div>`,()=>{renderFoodBody();renderTray()})}
 /* prato em montagem: vários alimentos de uma vez, salvos juntos */
-function trayAdd(f,q){const it=UI.tray.find(x=>x.f.id===f.id&&x.f.n===f.n);if(it)it.q=Math.round((it.q+(q||1))*100)/100;else UI.tray.push({f,q:q||1});renderTray();
+function trayAdd(f,q){const it=UI.tray.find(x=>x.f.id===f.id&&x.f.n===f.n);if(it){const us=foodUnits(f);const u=us[it.u]||us[0];it.n=Math.round((it.n+(u.k==="u"&&u.per>=2?1:u.per))*100)/100;it.q=it.n/u.per}else{const us=foodUnits(f);const j=Math.max(0,us.findIndex(x=>x.k==="u"));const u=us[j];UI.tray.push({f,u:j,n:(q||1)*u.per,q:q||1})}renderTray();
  const el=$("#tray");if(el){el.classList.remove("pop");void el.offsetWidth;el.classList.add("pop")}}
 function renderTray(){const b=$("#tray");if(!b)return;const t=UI.tray||[];const mealN=MEALS.find(m=>m[0]===UI.foodMeal)[1];
  if(!t.length){b.innerHTML=`<div class="tiny muted" style="text-align:center;padding:6px 0">Toque nos alimentos para montar o prato. Depois é só salvar tudo de uma vez.</div>`;return}
  const kc=t.reduce((s,x)=>s+(x.f.kcal!=null?x.f.kcal*x.q:0),0);
- b.innerHTML=`<div class="stack-s" style="gap:6px"><div class="row between"><b class="small">Seu prato · ${t.length} ${t.length===1?"item":"itens"}</b>${showKcal()&&kc?`<span class="tiny muted num">${Math.round(kc)} kcal</span>`:""}</div>
- <div class="stack-s" style="gap:4px;max-height:34vh;overflow:auto">${t.map((x,i)=>`<div class="row" style="gap:6px"><i class="dot" style="background:${(NOVA[x.f.nova]||NOVA.n).c};flex:none"></i><span class="grow small" style="min-width:0"><b>${esc(x.f.n)}</b> <span class="tiny muted">${esc(x.f.por||"1 porção")}</span></span>
-  <button type="button" class="iconbtn" style="width:30px;height:30px" data-act="trayQ" data-i="${i}" data-d="-0.5" aria-label="Menos">−</button><span class="num small" style="min-width:30px;text-align:center">${String(x.q).replace(".",",")}</span><button type="button" class="iconbtn" style="width:30px;height:30px" data-act="trayQ" data-i="${i}" data-d="0.5" aria-label="Mais">+</button>
-  <button type="button" class="iconbtn" style="width:30px;height:30px" data-act="trayDel" data-i="${i}" aria-label="Tirar do prato">${I.trash.replace('<svg','<svg width="14" height="14"')}</button></div>`).join("")}</div>
+ b.innerHTML=`<div class="stack-s" style="gap:6px"><div class="row between"><b class="small">Seu prato · ${t.length} ${t.length===1?"item":"itens"}</b>${showKcal()&&kc?`<span class="tiny muted num" id="trayK">${Math.round(kc)} kcal</span>`:""}</div>
+ <div class="stack-s" style="gap:4px;max-height:34vh;overflow:auto">${t.map((x,i)=>{const us=foodUnits(x.f);const u=us[x.u]||us[0];return `<div class="stack-s trayrow" style="gap:4px"><div class="row" style="gap:6px"><i class="dot" style="background:${(NOVA[x.f.nova]||NOVA.n).c};flex:none"></i><span class="grow small" style="min-width:0"><b>${esc(x.f.n)}</b> <span class="tiny muted">${esc(x.f.por||"1 porção")}</span></span>${showKcal()&&x.f.kcal!=null?`<span class="tiny muted num" data-tray-k="${i}">${Math.round(x.f.kcal*x.q)} kcal</span>`:""}
+  <button type="button" class="iconbtn" style="width:30px;height:30px" data-act="trayDel" data-i="${i}" aria-label="Tirar do prato">${I.trash.replace('<svg','<svg width="14" height="14"')}</button></div>
+  <div class="row" style="gap:6px;padding-left:16px"><button type="button" class="iconbtn" style="width:30px;height:30px" data-act="trayQ" data-i="${i}" data-d="-1" aria-label="Menos">−</button><input class="unnum num" data-tray-n="${i}" inputmode="decimal" value="${unFmt(x.n)}" aria-label="Quantidade de ${esc(x.f.n)}"><button type="button" class="iconbtn" style="width:30px;height:30px" data-act="trayQ" data-i="${i}" data-d="1" aria-label="Mais">+</button>
+  ${us.length>1?`<select class="unsel" data-tray-u="${i}" aria-label="Medida de ${esc(x.f.n)}">${us.map((o,j)=>`<option value="${j}" ${j===(x.u||0)?"selected":""}>${esc(o.many)}</option>`).join("")}</select>`:`<span class="small muted">${esc(x.n>0&&x.n<=1?u.one:u.many)}</span>`}</div></div>`}).join("")}</div>
  <button class="btn block" data-act="traySave">Salvar ${esc(mealN.toLowerCase())} (${t.length} ${t.length===1?"item":"itens"})</button></div>`}
+document.addEventListener("change",ev=>{const e=ev.target;if(!e||!e.dataset)return;
+ if(e.dataset.trayU!=null){const x=UI.tray[+e.dataset.trayU];if(!x)return;const us=foodUnits(x.f);const nu=us[+e.value]||us[0];x.u=+e.value;x.n=Math.round(x.q*nu.per*100)/100;if(nu.k==="u"&&nu.per>=2)x.n=Math.max(1,Math.round(x.n));if(nu.g)x.n=Math.round(x.n);x.q=x.n/nu.per;renderTray()}
+ });
+document.addEventListener("input",ev=>{const e=ev.target;if(!e||!e.dataset||e.dataset.trayN==null)return;const x=UI.tray[+e.dataset.trayN];if(!x)return;const us=foodUnits(x.f);const u=us[x.u]||us[0];const n=parseFloat(String(e.value).replace(",","."));if(!(n>0))return;x.n=n;x.q=n/u.per;
+ if(showKcal()){const k=document.querySelector(`[data-tray-k="${e.dataset.trayN}"]`);if(k&&x.f.kcal!=null)k.textContent=Math.round(x.f.kcal*x.q)+" kcal";const tk=$("#trayK");if(tk)tk.textContent=Math.round(UI.tray.reduce((s,y)=>s+(y.f.kcal!=null?y.f.kcal*y.q:0),0))+" kcal"}});
 function defaultMeal(){const h=new Date().getHours();return h<10?"cafe":h<15?"almoco":h<18?"lanche":h<22?"jantar":"outros"}
 function renderFoodBody(){const b=$("#foodBody");if(!b)return;const t=UI.foodTab;
  if(t==="buscar"){b.innerHTML=`<div class="stack"><input id="fq" type="search" placeholder="Buscar alimento" autocomplete="off"><div id="fres" class="list"></div><p class="tiny muted">Valores aproximados com base na Tabela TACO (Unicamp). Não achou? Use Adicionar rápido.</p></div>`;
@@ -1207,7 +1231,8 @@ function pickFoodView(f){const b=$("#foodBody");if(!b)return;UI.foodPick=f;
  const qi=$("#fqty");qi.addEventListener("input",()=>{const q=parseFloat(String(qi.value).replace(",","."))||0;document.querySelectorAll('[data-act="foodQty"]').forEach(c=>c.classList.toggle("on",+c.dataset.v===q));if(showKcal()&&f.kcal!=null)$("#fkcal").textContent=Math.round(f.kcal*q)+" kcal"})}
 function addFoodLog(f,qty){const id=rid();S.food.logs[id]={id,date:UI.foodDay&&UI.tab==="ex"?UI.foodDay:today(),t:Date.now(),meal:UI.foodMeal,n:f.n,por:f.por||"1 porção",kcal:f.kcal!=null?+f.kcal:null,nova:f.nova||"n",g:f.g||"",qty:qty||1,p:+f.p||0,c:+f.c||0,f:+f.f||0,fib:+f.fib||0};markActive(S.food.logs[id].date);commit()}
 function editFoodForm(l){openModal("Editar alimento",`<div class="stack"><div class="card flat stack"><b>${esc(l.n)}</b><span class="small muted">${esc(l.por)}</span></div>
- <label class="field"><span>Porções</span><input id="eq" type="number" inputmode="decimal" step="0.5" min="0.25" value="${portionsOf(l)}"></label>
+ ${(()=>{const us=foodUnits(l);let j=Math.max(0,us.findIndex(u=>u.k===(l.un||"p")));const u=us[j]||us[0];const n=l.an!=null&&l.un===u.k?l.an:Math.round(portionsOf(l)*u.per*100)/100;
+  return `<div class="grid2"><label class="field"><span>Quantidade</span><input id="eq" inputmode="decimal" value="${unFmt(n)}"></label><label class="field"><span>Medida</span><select id="eu">${us.map((o,k)=>`<option value="${k}" ${k===j?"selected":""}>${esc(o.many)}</option>`).join("")}</select></label></div>`})()}
  <label class="field"><span>Refeição</span><select id="em">${MEALS.map(([id,n])=>`<option value="${id}" ${l.meal===id?"selected":""}>${n}</option>`).join("")}</select></label>
  <button class="btn block" data-act="saveFoodEdit" data-v="${l.id}">Salvar</button><button class="btn danger" data-act="askDel">Apagar</button>${confirmBox("delFood","Apagar este alimento do dia?")}</div>`)}
 function foodPrefsForm(){const c=S.food.cfg;const bm=bmi();
@@ -2483,10 +2508,10 @@ const A={
  foodMeal:el=>{UI.foodMeal=el.dataset.v;document.querySelectorAll('[data-act="foodMeal"]').forEach(c=>c.classList.toggle("on",c===el));renderTray();const b=document.querySelector('[data-act="addPicked"]');if(b)b.textContent="Adicionar em "+MEALS.find(m=>m[0]===UI.foodMeal)[1].toLowerCase()},
  foodTab:el=>{UI.foodTab=el.dataset.v;document.querySelectorAll('[data-act="foodTab"]').forEach(c=>c.classList.toggle("on",c.dataset.v===UI.foodTab&&c.closest(".subtabs")));renderFoodBody()},
  pickFood:el=>{const f=findFood(el.dataset.v);if(!f)return;trayAdd(f,1);const q=$("#fq");if(q&&q.value){q.value="";q.dispatchEvent(new Event("input"));q.focus()}},
- trayQ:el=>{const x=UI.tray[+el.dataset.i];if(!x)return;x.q=Math.max(0.5,Math.round((x.q+(+el.dataset.d))*100)/100);renderTray()},
+ trayQ:el=>{const x=UI.tray[+el.dataset.i];if(!x)return;const us=foodUnits(x.f);const u=us[x.u]||us[0];const st=u.step;x.n=Math.max(st,Math.round((x.n+st*(+el.dataset.d))*100)/100);x.q=x.n/u.per;renderTray()},
  trayDel:el=>{UI.tray.splice(+el.dataset.i,1);renderTray()},
  traySave:()=>{const t=UI.tray||[];if(!t.length)return;const mealN=MEALS.find(m=>m[0]===UI.foodMeal)[1];const day=UI.foodDay&&UI.tab==="ex"?UI.foodDay:today();
-  t.forEach((x,i)=>{const f=x.f;const id=rid();S.food.logs[id]={id,date:day,t:Date.now()+i,meal:UI.foodMeal,n:f.n,por:f.por||"1 porção",kcal:f.kcal!=null?+f.kcal:null,nova:f.nova||"n",g:f.g||"",qty:x.q,p:+f.p||0,c:+f.c||0,f:+f.f||0,fib:+f.fib||0}});
+  t.forEach((x,i)=>{const f=x.f;const id=rid();const us=foodUnits(f);const u=us[x.u]||us[0];S.food.logs[id]={id,date:day,t:Date.now()+i,meal:UI.foodMeal,n:f.n,por:f.por||"1 porção",kcal:f.kcal!=null?+f.kcal:null,nova:f.nova||"n",g:f.g||"",qty:Math.round(x.q*1000)/1000,un:u.k,an:x.n,amt:u.k==="p"&&x.n===1?"":unAmt(f,u,x.n),p:+f.p||0,c:+f.c||0,f:+f.f||0,fib:+f.fib||0}});
   markActive(day);UI.tray=[];closeModal();commit();toast(`${mealN} salvo com ${t.length} ${t.length===1?"alimento":"alimentos"}.`)},
  foodQty:el=>{const q=$("#fqty");q.value=el.dataset.v;q.dispatchEvent(new Event("input"))},
  addPicked:()=>{const q=parseFloat(String(v("fqty")).replace(",","."))||1;const f=UI.foodPick;if(!f)return;addFoodLog(f,q);closeModal();toast(`${f.n} adicionado.`)},
@@ -2494,7 +2519,7 @@ const A={
  saveCustomFood:()=>{const n=v("cn").trim();if(!n){toast("Dê um nome ao alimento.");return}const id=rid();const k=v("ck");S.food.custom[id]={id,n,por:v("cp").trim()||"1 porção",kcal:k===""?null:+k,nova:v("cnova"),g:$("#cfv").checked?"v":"",p:parseMoney(v("cpp")),c:parseMoney(v("cpc")),f:parseMoney(v("cpf"))};commit();renderFoodBody();toast("Salvo em Meus alimentos.")},
  delCustomFood:el=>{delete S.food.custom[el.dataset.v];commit();UI.foodTab="meus";renderFoodBody()},
  editFood:el=>{const l=S.food.logs[el.dataset.v];if(l)editFoodForm(l)},
- saveFoodEdit:el=>{const l=S.food.logs[el.dataset.v];l.qty=parseFloat(String(v("eq")).replace(",","."))||1;l.meal=v("em");commit();closeModal()},
+ saveFoodEdit:el=>{const l=S.food.logs[el.dataset.v];const us=foodUnits(l);const u=us[+v("eu")||0]||us[0];const n=parseFloat(String(v("eq")).replace(",","."))||u.per;l.qty=Math.round(n/u.per*1000)/1000;l.un=u.k;l.an=n;l.amt=u.k==="p"&&n===1?"":unAmt(l,u,n);l.meal=v("em");commit();closeModal()},
  delFoodYes:()=>{const id=document.querySelector('[data-act="saveFoodEdit"]').dataset.v;delete S.food.logs[id];commit();closeModal()},
  foodPrefs:()=>foodPrefsForm(),
  saveFoodPrefs:()=>{const c=S.food.cfg;c.kcal=$("#fp_k").checked;c.sex=v("fp_s")||null;c.goal=v("fp_g");commit();closeModal();toast("Preferências salvas.")},

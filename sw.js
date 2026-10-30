@@ -1,6 +1,6 @@
 /* Prumo: guarda o app no aparelho para abrir rápido e funcionar sem internet.
    Ao publicar uma versão nova, aumente o número abaixo. */
-const VERSION = "prumo-v80";
+const VERSION = "prumo-v81";
 const SHELL = ["./", "index.html", "config.js", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 
@@ -21,7 +21,8 @@ self.addEventListener("fetch", e => {
   if (url.hostname.endsWith("supabase.co") || url.hostname.includes("googleapis.com") && url.pathname.startsWith("/books") || url.hostname === "openlibrary.org") return;
   // Páginas: tenta a internet primeiro para pegar a versão nova
   if (req.mode === "navigate" || url.pathname.endsWith("index.html") || url.pathname.endsWith("config.js")) {
-    e.respondWith(fetch(req).then(r => { const copy = r.clone(); caches.open(VERSION).then(c => c.put(req, copy)); return r; })
+    // "no-cache": confere com o servidor sempre (o GitHub guarda a página por até 10 min)
+    e.respondWith(fetch(req.url, { cache: "no-cache", credentials: "same-origin" }).then(r => { const copy = r.clone(); caches.open(VERSION).then(c => c.put(req, copy)); return r; })
       .catch(() => caches.match(req).then(r => r || caches.match("index.html"))));
     return;
   }

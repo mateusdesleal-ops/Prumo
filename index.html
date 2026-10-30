@@ -5085,6 +5085,13 @@ Object.assign(A,{
  goChal:()=>{UI.tab="chal";UI.chalOpen=null;render();window.scrollTo(0,0)},
 });
 document.addEventListener("change",ev=>{const t=ev.target;if(t&&t.id==="ch_file"&&t.files&&t.files[0]){UI.chFile=t.files[0];UI.chLive=false;const u=URL.createObjectURL(t.files[0]);const p=$("#ch_prev");if(p)p.innerHTML=`<img src="${u}" alt="" style="max-height:200px;max-width:100%;border-radius:12px"><span class="tiny muted">Toque para trocar</span>`}});
+/* tocar na foto abre ela inteira (sem corte) */
+function phOpen(src){if(!src)return;phClose();const d=document.createElement("div");d.className="phbox";d.setAttribute("role","dialog");d.setAttribute("aria-label","Foto do check-in");
+ d.innerHTML=`<img src="${src}" alt="Foto do check-in"><button type="button" class="phx" aria-label="Fechar">×</button>`;d.addEventListener("click",e=>{if(e.target.tagName!=="IMG"||e.target===d.querySelector("img"))phClose()});document.body.appendChild(d);document.body.style.overflow="hidden"}
+function phClose(){const d=document.querySelector(".phbox");if(d){d.remove();if(!$("#modal").innerHTML)document.body.style.overflow=""}}
+document.addEventListener("click",e=>{const i=e.target;if(i&&i.classList&&i.classList.contains("chph")&&i.src){e.preventDefault();e.stopPropagation();phOpen(i.src)}},true);
+document.addEventListener("keydown",e=>{if(e.key==="Escape")phClose()});
+document.head.insertAdjacentHTML("beforeend",`<style>.chph{cursor:zoom-in}.phbox{position:fixed;inset:0;z-index:200;background:rgba(15,10,12,.92);display:flex;align-items:center;justify-content:center;padding:calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));cursor:zoom-out}.phbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.5)}.phx{position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;font-size:28px;line-height:1;cursor:pointer}</style>`);
 document.head.insertAdjacentHTML("beforeend",`<style>.rxpal{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;padding:6px;border-radius:14px;background:var(--surface2)}.rxpal button{border:0;background:none;font-size:22px;width:40px;height:40px;border-radius:10px;cursor:pointer}.rxpal button.on{background:var(--pig-soft)}
 .cmbox{border-top:1px solid var(--line);padding-top:8px}.linkbtn{border:0;background:none;padding:0;color:var(--muted);text-align:left;cursor:pointer}
 .camwrap{border-radius:14px;overflow:hidden;background:#111;aspect-ratio:3/4;max-height:52vh;display:flex;align-items:center;justify-content:center}.camwrap video{width:100%;height:100%;object-fit:cover}

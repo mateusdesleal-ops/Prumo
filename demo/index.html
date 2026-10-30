@@ -4416,7 +4416,7 @@ function supAdminCard(){if(!SUP.adm){setTimeout(supAdmLoad,0);return `<div class
    ============================================================ */
 const CH_AUTO=[["none","Cada um marca o seu check-in"],["ex","Treino registrado em Saúde"],["study","Estudo registrado"],["food","Refeições anotadas no dia"],["fin","Gastos anotados no dia"],["prayer","Oração feita no dia"]];
 const CH_PRESETS=[["30 dias de treino","ex",30,"Treinou, fez check-in. Vale academia, caminhada, corrida, futebol."],["Sem delivery","none",30,"Um dia sem pedir comida por aplicativo vale ponto."],["Ler todo dia","study",21,"Pelo menos 10 minutos de leitura ou estudo."],["Anotar todos os gastos","fin",30,"Anotou os gastos do dia no Prumo, ganhou ponto."],["Beber água","none",14,"Bateu a meta de água do dia."]];
-const CH_REACT=["👏","🔥","💪"];
+const CH_REACT=["👏","🔥","💪","❤️","🙌","😂","😮","🏆","🥵","👑"];
 const CHP=()=>{S.challenges=S.challenges||{};S.challenges.items=S.challenges.items||{};return S.challenges};
 const chEnd=c=>addDays(c.start,(+c.days||30)-1);
 const chActive=c=>today()>=c.start&&today()<=chEnd(c);
@@ -4452,7 +4452,7 @@ function chPendPopup(cid,d){const c=CHP().items[cid];if(!c||!chPend(c,d)||(((c.c
  const sc=document.querySelector("#modal .scrim");if(sc)sc.classList.add("center")}
 
 /* ---------- fotos ---------- */
-const PH={url:{},pending:new Set()};
+const PH={url:{},pending:new Set(),ar:{}};
 async function chShrink(file){let bmp;try{bmp=await createImageBitmap(file,{imageOrientation:"from-image"})}catch(e){bmp=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=URL.createObjectURL(file)})}
  const W=bmp.width,H=bmp.height,m=720,sc=Math.min(1,m/Math.max(W,H));const cv=document.createElement("canvas");cv.width=Math.round(W*sc);cv.height=Math.round(H*sc);cv.getContext("2d").drawImage(bmp,0,0,cv.width,cv.height);
  let q=.6,blob=null;for(let k=0;k<5;k++){blob=await new Promise(r=>cv.toBlob(r,"image/jpeg",q));if(blob.size<=110000)break;q-=.1}
@@ -4477,8 +4477,12 @@ const camErr=m=>`<div class="banner warn"><span>${m} Este desafio só aceita fot
 function camPanel(label){return `<div class="stack-s" style="gap:8px"><div class="tiny muted">📸 ${label}</div><div id="ch_cam" class="stack-s" style="gap:8px"><button type="button" class="chpick" data-act="camOpen" style="width:100%"><span class="stack-s" style="align-items:center;gap:4px">📷<b class="small">Abrir câmera</b><span class="tiny muted">Neste desafio só vale foto tirada agora</span></span></button></div></div>`}
 {const _cm=closeModal;closeModal=function(){camStop();return _cm.apply(this,arguments)}}
 function chPhotoTag(ck){const t=chPhotoTag0(ck);return t&&ck.live?t+`<span class="tiny muted">📸 Foto tirada na hora</span>`:t}
-function chPhotoTag0(ck){if(ck.photoData)return `<img src="${ck.photoData}" alt="Foto do check-in" class="chph">`;if(!ck.photo)return"";const u=PH.url[ck.photo];
- return `<img ${u?`src="${u}"`:""} data-ph="${esc(ck.photo)}" alt="Foto do check-in" class="chph" loading="lazy">`}
+const phKey=ck=>ck.photo||("d"+(ck.t||0)+"_"+String(ck.photoData||"").length);
+const phAR=ck=>{const r=PH.ar[phKey(ck)];return r?` style="aspect-ratio:${r};min-height:0" data-k="${esc(phKey(ck))}"`:` data-k="${esc(phKey(ck))}"`};
+function chPhotoTag0(ck){if(ck.photoData)return `<img src="${ck.photoData}" alt="Foto do check-in" class="chph"${phAR(ck)}>`;if(!ck.photo)return"";const u=PH.url[ck.photo];
+ return `<img ${u?`src="${u}"`:""} data-ph="${esc(ck.photo)}" alt="Foto do check-in" class="chph" loading="lazy"${phAR(ck)}>`}
+/* guarda a proporção de cada foto: quando a tela se redesenha, a foto já ocupa o mesmo espaço e nada pula */
+document.addEventListener("load",ev=>{const i=ev.target;if(i&&i.classList&&i.classList.contains("chph")&&i.naturalWidth&&i.dataset.k){const r=Math.max(i.naturalWidth/i.naturalHeight,.6).toFixed(3);if(!PH.ar[i.dataset.k]){PH.ar[i.dataset.k]=r;i.style.aspectRatio=r;i.style.minHeight="0"}}},true);
 async function chLoadPhotos(){if(Store.demo||!sb)return;const need=[...document.querySelectorAll("img[data-ph]:not([src])")].map(i=>i.dataset.ph).filter(p=>!PH.url[p]&&!PH.pending.has(p));if(!need.length)return;
  need.forEach(p=>PH.pending.add(p));try{const {data,error}=await sb.storage.from("checkins").createSignedUrls(need,6*3600);if(error)throw error;(data||[]).forEach(x=>{if(x.signedUrl)PH.url[x.path]=x.signedUrl})}catch(e){console.warn(e)}
  need.forEach(p=>PH.pending.delete(p));document.querySelectorAll("img[data-ph]:not([src])").forEach(i=>{const u=PH.url[i.dataset.ph];if(u)i.src=u})}
@@ -4513,9 +4517,31 @@ function chDetail(c){const r=chRank(c);const me=r.find(x=>x.u===ME.uid)||{};cons
  ${feed.length?feed.slice(0,UI.chFeedN||15).map(f=>{const rs=f.ck.r||{};return `<div class="card stack" style="gap:8px;padding:12px">
   <div class="row between"><span class="row" style="gap:6px"><span class="avatar">${teamInitials(f.u)}</span><b class="small">${esc(nm(f.u))}</b></span><span class="tiny muted">${f.d===today()?"hoje":dayLabel(f.d)}${f.ck.auto?" · automático":""}</span></div>
   ${chPhotoTag(f.ck)}${f.ck.note?`<p class="small">${esc(f.ck.note)}</p>`:""}
-  <div class="row" style="gap:6px">${CH_REACT.map(e=>{const n=Object.values(rs).filter(x=>x===e).length;const mineE=rs[ME.uid]===e;return `<button class="chip ${mineE?"on":""}" data-act="chalReact" data-c="${c.id}" data-u="${f.u}" data-d="${f.d}" data-e="${e}" style="padding:4px 10px">${e}${n?` ${n}`:""}</button>`}).join("")}
-  ${f.u===ME.uid?`<button class="chip" data-act="chalEdit2" data-c="${c.id}" data-d="${f.d}" style="padding:4px 10px;margin-left:auto">Editar</button>`:""}</div></div>`}).join("")+(feed.length>(UI.chFeedN||15)?`<button class="btn ghost" data-act="chalMore">Ver mais check-ins</button>`:"")
+  <div data-rx="${c.id}|${f.u}|${f.d}">${chRxBar(c,f.u,f.d)}</div>
+  <div data-cm="${c.id}|${f.u}|${f.d}">${chCmBox(c,f.u,f.d)}</div></div>`}).join("")+(feed.length>(UI.chFeedN||15)?`<button class="btn ghost" data-act="chalMore">Ver mais check-ins</button>`:"")
  :`<div class="card empty">Ninguém fez check-in ainda. Seja o primeiro!</div>`}</div></div>`}
+function chRxBar(c,u,d){const ck=((c.checkins||{})[u]||{})[d]||{};const rs=ck.r||{};const k=`${c.id}|${u}|${d}`;const open=UI.chRxOpen===k;
+ const used=CH_REACT.filter(e=>Object.values(rs).includes(e));const ncm=Object.keys(ck.cm||{}).length;
+ return `<div class="row" style="gap:6px;flex-wrap:wrap">${used.map(e=>{const n=Object.values(rs).filter(x=>x===e).length;return `<button type="button" class="chip ${rs[ME.uid]===e?"on":""}" data-act="chalReact" data-c="${c.id}" data-u="${u}" data-d="${d}" data-e="${e}" style="padding:4px 10px">${e} ${n}</button>`}).join("")}
+ <button type="button" class="chip ${open?"on":""}" data-act="chRxMore" data-k="${k}" style="padding:4px 10px" aria-label="Reagir">${used.length?"＋":"😊 Reagir"}</button>
+ <button type="button" class="chip" data-act="chCmOpen" data-k="${k}" style="padding:4px 10px">💬 ${ncm?ncm:"Comentar"}</button>
+ ${u===ME.uid?`<button type="button" class="chip" data-act="chalEdit2" data-c="${c.id}" data-d="${d}" style="padding:4px 10px;margin-left:auto">Editar</button>`:""}</div>
+ ${open?`<div class="rxpal">${CH_REACT.map(e=>`<button type="button" class="${rs[ME.uid]===e?"on":""}" data-act="chalReact" data-c="${c.id}" data-u="${u}" data-d="${d}" data-e="${e}" aria-label="Reagir com ${e}">${e}</button>`).join("")}</div>`:""}`}
+function chCmBox(c,u,d){const ck=((c.checkins||{})[u]||{})[d]||{};const k=`${c.id}|${u}|${d}`;const all=Object.entries(ck.cm||{}).map(([id,x])=>({id,...x})).sort((a,b)=>a.t-b.t);
+ const showAll=UI.chCmAll===k;const list=showAll?all:all.slice(-3);const open=UI.chCmOpen===k;
+ if(!all.length&&!open)return"";
+ return `<div class="stack-s cmbox" style="gap:6px">${all.length>list.length?`<button type="button" class="linkbtn tiny" data-act="chCmAll" data-k="${k}">Ver os ${all.length} comentários</button>`:""}
+ ${list.map(x=>`<div class="row" style="gap:6px;align-items:flex-start"><span class="avatar" style="width:22px;height:22px;font-size:10px;flex:none">${teamInitials(x.u)}</span><div class="grow small" style="min-width:0"><b>${esc(nm(x.u))}</b> <span style="white-space:pre-line;overflow-wrap:anywhere">${esc(x.x)}</span> <span class="tiny muted">${chAgo(x.t)}</span></div>${x.u===ME.uid||iOwn()?`<button type="button" class="iconbtn" style="width:24px;height:24px;flex:none" data-act="chCmDel" data-k="${k}" data-id="${x.id}" aria-label="Apagar comentário">×</button>`:""}</div>`).join("")}
+ ${open?`<div class="row" style="gap:6px"><input class="grow" data-cm-in="${k}" maxlength="300" placeholder="Escreva um comentário" enterkeyhint="send" style="height:38px"><button type="button" class="btn sm" data-act="chCmSend" data-k="${k}">Enviar</button></div>`:""}</div>`}
+function chAgo(t){const m=Math.round((Date.now()-t)/60000);return m<1?"agora":m<60?m+" min":m<1440?Math.round(m/60)+" h":ddmm(new Date(t).toISOString().slice(0,10))}
+function chCkOf(k){const [cid,u,d]=k.split("|");const c=CHP().items[cid];const ck=c&&((c.checkins||{})[u]||{})[d];return {c,u,d,ck}}
+/* atualiza só aquele post (sem redesenhar a tela inteira) e salva */
+function chPatch(k){const {c,u,d}=chCkOf(k);if(!c)return;document.querySelectorAll(`[data-rx="${k}"]`).forEach(e=>e.innerHTML=chRxBar(c,u,d));document.querySelectorAll(`[data-cm="${k}"]`).forEach(e=>e.innerHTML=chCmBox(c,u,d))}
+function chQuietSave(){saveApp()}
+/* se a tela se redesenhar (ex.: alguém reagiu), o comentário que você está digitando continua lá */
+{const _r=render;render=function(){const i=document.querySelector("[data-cm-in]");const st=i?{k:i.dataset.cmIn,v:i.value,f:document.activeElement===i,y:window.scrollY}:null;_r.apply(this,arguments);
+ if(st){const n=document.querySelector(`[data-cm-in="${st.k}"]`);if(n){n.value=st.v;if(st.f)n.focus({preventScroll:true})}}}}
+document.addEventListener("keydown",ev=>{const t=ev.target;if(t&&t.dataset&&t.dataset.cmIn&&ev.key==="Enter"){ev.preventDefault();A.chCmSend({dataset:{k:t.dataset.cmIn}})}});
 function chPhotoHint(k){return k==="live"?"A foto precisa ser tirada na hora, pela câmera do Prumo. Não dá para mandar foto da galeria. No check-in automático, o Prumo avisa a pessoa para tirar a foto e só conta o ponto depois dela.":k==="req"?"Sem foto não tem check-in. No check-in automático, o Prumo avisa a pessoa para mandar a foto e só conta o ponto depois dela.":"Cada um decide se manda foto."}
 document.addEventListener("change",ev=>{const t=ev.target;if(t&&t.id==="ch_ph"){const h=$("#ch_phh");if(h)h.textContent=chPhotoHint(t.value)}});
 function chForm(c){c=c||{start:today(),days:30,auto:"none"};const isEdit=!!c.id;
@@ -4593,14 +4619,24 @@ Object.assign(A,{
   if(chPend(c,d)){ck.auto=1;if(!ck.note)ck.note=(CH_AUTO.find(x=>x[0]===c.auto)||["",""])[1];delete c.pend[ME.uid][d]}
   c.checkins=c.checkins||{};c.checkins[ME.uid]=c.checkins[ME.uid]||{};c.checkins[ME.uid][d]=ck;closeModal();commit();markActive();
   const r=chRank(c);toast(r.every(x=>x.today)&&r.length>1?"Check-in feito! Todo mundo cumpriu hoje! 🎉":"Check-in feito! +1 ponto.")},
- chalReact:el=>{const c=CHP().items[el.dataset.c];if(!c)return;const ck=((c.checkins||{})[el.dataset.u]||{})[el.dataset.d];if(!ck)return;ck.r=ck.r||{};ck.r[ME.uid]=ck.r[ME.uid]===el.dataset.e?null:el.dataset.e;if(ck.r[ME.uid]===null)delete ck.r[ME.uid];commit()},
+ chalReact:el=>{const c=CHP().items[el.dataset.c];if(!c)return;const ck=((c.checkins||{})[el.dataset.u]||{})[el.dataset.d];if(!ck)return;ck.r=ck.r||{};ck.r[ME.uid]=ck.r[ME.uid]===el.dataset.e?null:el.dataset.e;if(ck.r[ME.uid]===null)delete ck.r[ME.uid];
+  UI.chRxOpen=null;chPatch(`${c.id}|${el.dataset.u}|${el.dataset.d}`);chQuietSave()},
+ chRxMore:el=>{const k=el.dataset.k;UI.chRxOpen=UI.chRxOpen===k?null:k;chPatch(k)},
+ chCmOpen:el=>{const k=el.dataset.k;UI.chCmOpen=UI.chCmOpen===k?null:k;chPatch(k);const i=document.querySelector(`[data-cm-in="${k}"]`);if(i)i.focus({preventScroll:true})},
+ chCmAll:el=>{UI.chCmAll=el.dataset.k;chPatch(el.dataset.k)},
+ chCmSend:el=>{const k=el.dataset.k;const i=document.querySelector(`[data-cm-in="${k}"]`);const x=i&&i.value.trim();if(!x)return;const {c,u,ck}=chCkOf(k);if(!ck)return;
+  ck.cm=ck.cm||{};ck.cm[rid()]={u:ME.uid,t:Date.now(),x:x.slice(0,300)};chPatch(k);chQuietSave();const ni=document.querySelector(`[data-cm-in="${k}"]`);if(ni)ni.focus({preventScroll:true});
+  if(u!==ME.uid&&typeof teamNotify==="function")teamNotify([u],"chal",`${TEAM.name} · ${c.name}`,`${myNick()} comentou no seu check-in: ${x.slice(0,80)}`,"chal")},
+ chCmDel:el=>{const k=el.dataset.k;const {ck}=chCkOf(k);if(!ck||!ck.cm)return;delete ck.cm[el.dataset.id];chPatch(k);chQuietSave()},
  chalUndo:el=>{const c=CHP().items[el.dataset.c];if(!c)return;const ck=((c.checkins||{})[ME.uid]||{})[el.dataset.d];if(!ck)return;
   if(ck.photo&&!Store.demo&&sb)sb.storage.from("checkins").remove([ck.photo]).catch(()=>{});delete c.checkins[ME.uid][el.dataset.d];if(ck.auto){c.skip=c.skip||{};c.skip[ME.uid]=c.skip[ME.uid]||{};c.skip[ME.uid][el.dataset.d]=1}closeModal();commit();toast("Check-in apagado.")},
  chalMore:()=>{UI.chFeedN=(UI.chFeedN||15)+15;render()},
  goChal:()=>{UI.tab="chal";UI.chalOpen=null;render();window.scrollTo(0,0)},
 });
 document.addEventListener("change",ev=>{const t=ev.target;if(t&&t.id==="ch_file"&&t.files&&t.files[0]){UI.chFile=t.files[0];UI.chLive=false;const u=URL.createObjectURL(t.files[0]);const p=$("#ch_prev");if(p)p.innerHTML=`<img src="${u}" alt="" style="max-height:200px;max-width:100%;border-radius:12px"><span class="tiny muted">Toque para trocar</span>`}});
-document.head.insertAdjacentHTML("beforeend",`<style>.camwrap{border-radius:14px;overflow:hidden;background:#111;aspect-ratio:3/4;max-height:52vh;display:flex;align-items:center;justify-content:center}.camwrap video{width:100%;height:100%;object-fit:cover}
+document.head.insertAdjacentHTML("beforeend",`<style>.rxpal{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;padding:6px;border-radius:14px;background:var(--surface2)}.rxpal button{border:0;background:none;font-size:22px;width:40px;height:40px;border-radius:10px;cursor:pointer}.rxpal button.on{background:var(--pig-soft)}
+.cmbox{border-top:1px solid var(--line);padding-top:8px}.linkbtn{border:0;background:none;padding:0;color:var(--muted);text-align:left;cursor:pointer}
+.camwrap{border-radius:14px;overflow:hidden;background:#111;aspect-ratio:3/4;max-height:52vh;display:flex;align-items:center;justify-content:center}.camwrap video{width:100%;height:100%;object-fit:cover}
 .chph{width:100%;max-height:420px;object-fit:cover;border-radius:14px;background:var(--surface2);min-height:120px;display:block}
 .chpick{display:grid;place-items:center;min-height:120px;border:2px dashed var(--line);border-radius:16px;cursor:pointer;font-size:28px;padding:12px;text-align:center}</style>`);
 

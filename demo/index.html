@@ -1785,12 +1785,13 @@ function trepMatch(t,day){if(!t.repeat||!t.date||day<t.date)return day===t.date;
 function trepNext(t){let d=t.date||today();const step=x=>{const o=parseDate(t.date||today());if(t.repeat==="monthly"){const c=parseDate(x);const y=c.getFullYear(),m=c.getMonth()+1;const last=new Date(y,m+1,0).getDate();return ymd(new Date(y,m,Math.min(o.getDate(),last)))}let n=addDays(x,1);while(!trepMatch(t,n))n=addDays(n,1);return n};
  d=step(d);while(d<=today()&&(t.date||today())<=today())d=step(d);return d}
 function taskEvents(day){return taskList().filter(t=>t.status!=="done"&&t.cal!==false&&(t.date===day||(t.repeat&&trepMatch(t,day)))).map(t=>({id:"task_"+t.id+(t.date===day?"":"_"+day),taskId:t.id,task:true,title:(t.proj&&PJ().items[t.proj]?PJ().items[t.proj].name+" · ":"")+t.title,date:day,time:t.time||"",remind:t.date===day?+t.remind||0:0,repeat:t.repeat==="daily"||t.repeat==="weekdays"?"daily":"none",place:t.place||""}))}
-function taskForm(t,preset){t=t||Object.assign({kind:UI.taskArea==="trabalho"?"trabalho":"pessoal",prio:"media",status:"todo",cal:true,remind:30},preset||{});const isEdit=!!t.id;UI.taskSubs=clone(t.subs||[]);UI.taskKind=t.kind;UI.tkProj=t.proj||null;UI.tkWho=t.who||(t.id?"":(UI.teamWho&&!["tudo","livre"].includes(UI.teamWho)?(UI.teamWho==="eu"?ME.uid:UI.teamWho):""));
+function taskForm(t,preset){t=t||Object.assign({kind:UI.taskArea==="trabalho"?"trabalho":"pessoal",prio:"media",status:"todo",cal:true,remind:30},preset||{});const isEdit=!!t.id;UI.taskSubs=clone(t.subs||[]);UI.taskKind=t.kind;UI.tkProj=t.proj||null;UI.tkHelp=clone(t.help||[]);UI.tkUpds=clone(t.updates||[]);UI.tkWho=t.who||(t.id?"":(UI.teamWho&&!["tudo","livre"].includes(UI.teamWho)?(UI.teamWho==="eu"?ME.uid:UI.teamWho):""));
  openModal(isEdit?"Editar tarefa":"Nova tarefa",`<div class="stack">
  ${t.proj&&PJ().items[t.proj]?`<div class="row" style="gap:8px"><i class="dot" style="background:${PJ().items[t.proj].color||"var(--pig)"}"></i><span class="small">Etapa do projeto <b>${esc(PJ().items[t.proj].name)}</b></span></div>`:""}
  <label class="field"><span>${t.proj?"Nome da etapa":"O que precisa fazer?"}</span><input id="tk_title" value="${esc(t.title||"")}" placeholder="${t.proj?"Ex.: protótipo, fotos, lançamento":"Ex.: editar o vídeo do casamento"}"></label>
  <div class="field"><span>Tipo</span><div class="chips" style="flex-wrap:wrap">${Object.entries(TASK_KINDS).map(([id,k])=>`<button type="button" class="chip ${t.kind===id?"on":""}" data-act="tkKind" data-v="${id}">${k.n}</button>`).join("")}</div></div>
- ${teamAg()?`<div class="field"><span>Responsável</span><div class="chips" style="flex-wrap:wrap">${[["","Ninguém"],...teamMembers().map(m=>[m.uid,m.uid===ME.uid?"Eu":teamNick(m.uid)])].map(([id,n])=>`<button type="button" class="chip ${(UI.tkWho||"")===id?"on":""}" data-act="tkWho" data-v="${id}">${id?`<span class="avatar">${teamInitials(id)}</span>`:""}${esc(n)}</button>`).join("")}</div>${t.by&&t.by!==ME.uid?`<span class="tiny muted">Criada por ${esc(teamNick(t.by))}.</span>`:""}</div>`:""}
+ ${teamAg()?`<div class="field"><span>Responsável</span><div class="chips" style="flex-wrap:wrap">${[["","Ninguém"],...teamMembers().map(m=>[m.uid,m.uid===ME.uid?"Eu":teamNick(m.uid)])].map(([id,n])=>`<button type="button" class="chip ${(UI.tkWho||"")===id?"on":""}" data-act="tkWho" data-v="${id}">${id?`<span class="avatar">${teamInitials(id)}</span>`:""}${esc(n)}</button>`).join("")}</div>${t.by&&t.by!==ME.uid?`<span class="tiny muted">Criada por ${esc(teamNick(t.by))}.</span>`:""}</div>
+ <div class="field"><span>Apoio (opcional)</span><div class="chips" style="flex-wrap:wrap">${teamMembers().map(m=>[m.uid,m.uid===ME.uid?"Eu":teamNick(m.uid)]).map(([id,n])=>`<button type="button" class="chip ${(UI.tkHelp||[]).includes(id)?"on":""}" data-act="tkHelp" data-v="${id}" aria-pressed="${(UI.tkHelp||[]).includes(id)}"><span class="avatar">${teamInitials(id)}</span>${esc(n)}</button>`).join("")}</div><span class="tiny muted">Pessoas que vão ajudar nesta ${t.proj?"etapa":"tarefa"}. Pode escolher várias.</span></div>`:""}
  <label class="field ${t.kind==="pagar"?"":"hide"}" id="tk_valf"><span>Valor (opcional)</span><input id="tk_val" inputmode="decimal" value="${t.value?String(t.value).replace(".",","):""}" placeholder="0,00"><span class="tiny muted">Ao concluir, o Prumo abre o lançamento do gasto já preenchido.</span></label>
  <label class="field ${t.kind==="ir"||t.kind==="falar"||t.place?"":"hide"}" id="tk_placef"><span>${t.kind==="falar"?"Com quem ou onde":"Onde"}</span><input id="tk_place" value="${esc(t.place||"")}"></label>
  ${t.id&&daysLate(t)>=1?`<div class="banner warn"><span>Esta tarefa está atrasada. Mude a data só se ela realmente mudou: isso conta como remarcação.</span></div>`:""}
@@ -1801,9 +1802,25 @@ function taskForm(t,preset){t=t||Object.assign({kind:UI.taskArea==="trabalho"?"t
  <label class="check"><input type="checkbox" id="tk_cal" ${t.cal!==false?"checked":""}><span class="small">Mostrar no calendário</span></label>
  <div class="field"><span>Subtarefas</span><div id="tk_subs" class="stack-s"></div><div class="row"><input id="tk_newsub" placeholder="Ex.: cortar as cenas" class="grow"><button type="button" class="btn ghost sm" data-act="tkAddSub">Adicionar</button></div></div>
  <label class="field"><span>Anotações</span><textarea id="tk_notes">${esc(t.notes||"")}</textarea></label>
+ ${t.proj?`<div class="card flat stack" style="gap:10px"><div class="label">Andamento</div>
+  <label class="field"><span>Passo atual</span><input id="tk_now" maxlength="200" value="${esc(t.now||"")}" placeholder="O que está sendo feito agora"></label>
+  <label class="field"><span>Próximo passo</span><input id="tk_next" maxlength="200" value="${esc(t.next||"")}" placeholder="O que vem depois"></label>
+  <label class="field"><span>Impedimento</span><input id="tk_block" maxlength="200" value="${esc(t.block||"")}" placeholder="O que está travando (se houver)"></label></div>
+ <div class="field"><span>Atualizações</span><div id="tk_upds" class="stack-s"></div>
+  <div class="row" style="align-items:flex-end"><textarea id="tk_newupd" class="grow" rows="2" maxlength="600" placeholder="Ex.: estoque levantado com o GEMOP, faltam 12 uniformes"></textarea><button type="button" class="btn ghost sm" data-act="tkAddUpd">Registrar</button></div>
+  <span class="tiny muted">Cada atualização fica salva com a data e quem escreveu${teamAg()?". O responsável e o apoio recebem um aviso":""}.</span></div>
+ <div class="card flat stack" style="gap:10px"><div class="label">Encerramento</div>
+  <label class="field"><span>Status final</span><select id="tk_final"><option value="">Ainda não encerrada</option>${Object.entries(STEP_FINAL).map(([k,n])=>`<option value="${k}" ${t.final===k?"selected":""}>${n}</option>`).join("")}</select><span class="tiny muted">Ao escolher um status final, a etapa vai para Feito. Etapas canceladas não contam no progresso do projeto.</span></label>
+  <label class="field"><span>Observações finais</span><textarea id="tk_finalobs" maxlength="1000" placeholder="Resultado, aprendizados, o que ficou pendente">${esc(t.finalObs||"")}</textarea></label></div>`:""}
  ${isEdit?`<label class="field"><span>Coluna</span><select id="tk_status">${TCOLS.map(([id,n])=>`<option value="${id}" ${t.status===id?"selected":""}>${n}</option>`).join("")}</select></label>`:""}
  <button class="btn block" data-act="saveTask" data-v="${t.id||""}">${isEdit?"Salvar":"Criar tarefa"}</button>
- ${isEdit?`<button class="btn danger" data-act="askDel">Apagar tarefa</button>${confirmBox("delTask","Apagar esta tarefa?")}`:""}</div>`,()=>renderTaskSubs())}
+ ${isEdit?`<button class="btn danger" data-act="askDel">Apagar tarefa</button>${confirmBox("delTask","Apagar esta tarefa?")}`:""}</div>`,()=>{renderTaskSubs();renderTaskUpds()})}
+const STEP_FINAL={concluida:"Concluída",pendencias:"Concluída com pendências",cancelada:"Cancelada"};
+const updDate=ts=>{const d=new Date(ts);return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"})+" às "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})};
+function renderTaskUpds(){const el=$("#tk_upds");if(!el)return;const us=(UI.tkUpds||[]).slice().sort((a,b)=>b.at-a.at);
+ el.innerHTML=us.length?us.map(u=>`<div class="card flat" style="padding:10px 12px;gap:2px;display:flex;flex-direction:column"><span class="tiny muted">${updDate(u.at)}${u.by&&teamAg()?" · "+esc(u.by===ME.uid?"você":teamNick(u.by)):""}${u.status?` · <b>${esc(u.status)}</b>`:""}</span><span class="small" style="white-space:pre-line;overflow-wrap:anywhere">${esc(u.txt)}</span></div>`).join(""):`<p class="tiny muted">Nenhuma atualização ainda.</p>`}
+/* progresso de uma etapa: concluída = 100%; com subtarefas, proporcional; cancelada não conta */
+function stepPct(t){if(t.final==="cancelada")return null;if(t.status==="done")return 1;const s=t.subs||[];return s.length?s.filter(x=>x.done).length/s.length:0}
 function renderTaskSubs(){const el=$("#tk_subs");if(!el)return;el.innerHTML=(UI.taskSubs||[]).map((s,i)=>`<div class="row" style="gap:8px"><button type="button" class="iconbtn" style="width:30px;height:30px;border-radius:8px;${s.done?"background:var(--good);color:#fff":""}" data-act="tkToggleSub" data-v="${i}" aria-label="${s.done?"Desmarcar":"Marcar"} ${esc(s.t)}">${s.done?I.check.replace('<svg','<svg width="14" height="14"'):""}</button><span class="small grow" style="${s.done?"text-decoration:line-through;color:var(--muted)":""}">${esc(s.t)}</span><button type="button" class="btn ghost sm" data-act="tkDelSub" data-v="${i}" aria-label="Remover">${I.trash.replace('<svg','<svg width="14" height="14"')}</button></div>`).join("")}
 function moveTask(id,to){const t=S.tasks.items[id];if(!t||t.status===to)return;const lb=taskDecay().lost;setTimeout(()=>taskLostToast(lb),0);const prev=t.status;t.status=to;
  if(to==="done"){t.doneAt=Date.now();S.tasks.doneTotal=(+S.tasks.doneTotal||0)+1;markActive();let tot=S.tasks.doneTotal;if(teamAg()&&PERS&&PERS.tasks){PERS.tasks.doneTotal=(+PERS.tasks.doneTotal||0)+1;tot=PERS.tasks.doneTotal;t.doneBy=ME.uid}const r=TASK_REWARDS.find(x=>x.tasks===tot);
@@ -2921,6 +2938,8 @@ const A={
  taskArea:el=>{UI.taskArea=el.dataset.v;try{localStorage.setItem("prumo.taskArea",el.dataset.v)}catch(e){}render()},
  addTask:el=>taskForm(null,UI.tab==="agenda"&&UI.agendaSub!=="tasks"?{date:UI.calDay}:null),
  editTask:el=>{const t=S.tasks.items[el.dataset.v];if(t)taskForm(t)},
+ tkHelp:el=>{const id=el.dataset.v;UI.tkHelp=UI.tkHelp||[];const i=UI.tkHelp.indexOf(id);if(i>=0)UI.tkHelp.splice(i,1);else UI.tkHelp.push(id);el.classList.toggle("on",i<0);el.setAttribute("aria-pressed",i<0)},
+ tkAddUpd:()=>{const x=v("tk_newupd").trim();if(!x){toast("Escreva a atualização.");return}UI.tkUpds=UI.tkUpds||[];UI.tkUpds.push({at:Date.now(),by:ME.uid,txt:x});$("#tk_newupd").value="";renderTaskUpds();toast("Atualização registrada. Ela fica salva quando você tocar em Salvar.")},
  tkWho:el=>{UI.tkWho=el.dataset.v;document.querySelectorAll('[data-act="tkWho"]').forEach(c=>c.classList.toggle("on",c===el))},
  teamWho:el=>{UI.teamWho=el.dataset.v;render()},
  tkKind:el=>{UI.taskKind=el.dataset.v;document.querySelectorAll('[data-act="tkKind"]').forEach(c=>c.classList.toggle("on",c===el));$("#tk_valf").classList.toggle("hide",el.dataset.v!=="pagar");$("#tk_placef").classList.toggle("hide",!(el.dataset.v==="ir"||el.dataset.v==="falar"||v("tk_place")))},
@@ -2932,10 +2951,13 @@ const A={
  tkDelSub:el=>{UI.taskSubs.splice(+el.dataset.v,1);renderTaskSubs()},
  saveTask:el=>{const title=v("tk_title").trim();if(!title){toast("Escreva o que precisa fazer.");return}const lb=taskDecay().lost;setTimeout(()=>taskLostToast(lb),0);const id=el.dataset.v||rid();const old=S.tasks.items[id]||{};
   const pend=v("tk_newsub").trim();if(pend)UI.taskSubs.push({t:pend,done:false});
-  const t={id,title,kind:UI.taskKind||"pessoal",prio:v("tk_prio"),date:v("tk_date")||null,time:v("tk_time")||"",remind:+v("tk_rem")||0,cal:$("#tk_cal").checked,place:v("tk_place").trim(),value:UI.taskKind==="pagar"?parseMoney(v("tk_val"))||null:null,notes:v("tk_notes").trim(),subs:clone(UI.taskSubs||[]),repeat:v("tk_rep")||"",who:teamAg()?(UI.tkWho||""):(old.who||""),by:old.by||ME.uid,...(UI.tkProj?{proj:UI.tkProj,order:old.order!=null?old.order:projNextOrder(UI.tkProj)}:{}),status:old.status||"todo",created:old.created||Date.now(),doneAt:old.doneAt||null,resched:old.resched||0,reschedLog:old.reschedLog||[]};
+  const t={id,title,kind:UI.taskKind||"pessoal",prio:v("tk_prio"),date:v("tk_date")||null,time:v("tk_time")||"",remind:+v("tk_rem")||0,cal:$("#tk_cal").checked,place:v("tk_place").trim(),value:UI.taskKind==="pagar"?parseMoney(v("tk_val"))||null:null,notes:v("tk_notes").trim(),subs:clone(UI.taskSubs||[]),help:teamAg()?clone(UI.tkHelp||[]):(old.help||[]),repeat:v("tk_rep")||"",who:teamAg()?(UI.tkWho||""):(old.who||""),by:old.by||ME.uid,...(UI.tkProj?{proj:UI.tkProj,order:old.order!=null?old.order:projNextOrder(UI.tkProj)}:{}),status:old.status||"todo",created:old.created||Date.now(),doneAt:old.doneAt||null,resched:old.resched||0,reschedLog:old.reschedLog||[]};
   if(old.id&&old.date&&t.date!==old.date&&daysLate(old)>=1){t.reschedLog=[...t.reschedLog,{from:old.date,to:t.date,reason:"editado",at:today()}];t.resched++}
   if(t.repeat&&!t.date)t.date=today();if(old.nextId)t.nextId=old.nextId;
-  S.tasks.items[id]=t;const ns=$("#tk_status")?v("tk_status"):t.status;closeModal();if(ns!==t.status)moveTask(id,ns);else{commit();toast(old.id?"Tarefa salva.":"Tarefa criada.")}},
+  if(t.proj){const pu=v("tk_newupd").trim();if(pu)UI.tkUpds.push({at:Date.now(),by:ME.uid,txt:pu});t.now=v("tk_now").trim();t.next=v("tk_next").trim();t.block=v("tk_block").trim();t.final=v("tk_final")||"";t.finalObs=v("tk_finalobs").trim();
+   if(t.final&&t.final!==(old.final||""))UI.tkUpds.push({at:Date.now(),by:ME.uid,txt:t.finalObs||"Etapa encerrada.",status:STEP_FINAL[t.final]});t.updates=clone(UI.tkUpds||[])}
+  else{["now","next","block","final","finalObs","updates"].forEach(k=>{if(old[k]!=null)t[k]=old[k]})}
+  S.tasks.items[id]=t;let ns=$("#tk_status")?v("tk_status"):t.status;if(t.final&&!old.final)ns="done";closeModal();if(ns!==t.status)moveTask(id,ns);else{commit();toast(old.id?"Tarefa salva.":"Tarefa criada.")}},
  delTaskYes:()=>{const lb=taskDecay().lost;setTimeout(()=>taskLostToast(lb),0);const id=document.querySelector('[data-act="saveTask"]').dataset.v;delete S.tasks.items[id];commit();closeModal();toast("Tarefa apagada.")},
  taskMove:el=>moveTask(el.dataset.v,el.dataset.to),
  clearDone:()=>{taskList().filter(t=>t.status==="done"&&!(t.proj&&PJ().items[t.proj])).forEach(t=>delete S.tasks.items[t.id]);commit();toast("Concluídas removidas do quadro. Elas continuam contando para o porquinho.")},
@@ -3876,7 +3898,7 @@ const PJ_COLORS=["#E5739A","#2F8F6B","#3F7FD9","#E0A23B","#8B5CF6","#5B6B7A"];
 const PJ_ST={plan:"Planejando",doing:"Em andamento",pause:"Pausado",done:"Concluído"};
 const projSteps=id=>vals(S.tasks.items).filter(t=>t.proj===id).sort((a,b)=>(a.order||0)-(b.order||0)||(a.created||0)-(b.created||0));
 function projNextOrder(id){return projSteps(id).reduce((m,t)=>Math.max(m,+t.order||0),0)+1}
-function projProg(id){const st=projSteps(id);if(!st.length)return 0;return st.reduce((s,t)=>s+(t.status==="done"?1:(t.subs&&t.subs.length?t.subs.filter(x=>x.done).length/t.subs.length*.9:t.status==="doing"?.3:0)),0)/st.length}
+function projProg(id){const ps=projSteps(id).map(stepPct).filter(x=>x!=null);if(!ps.length)return 0;return ps.reduce((a,b)=>a+b,0)/ps.length}
 const stepLate=t=>t.status!=="done"&&t.date&&t.date<today();
 function projCard(p){const st=projSteps(p.id);const done=st.filter(t=>t.status==="done").length;const pr=projProg(p.id);const nx=st.find(t=>t.status!=="done");const late=st.filter(stepLate).length;
  return `<button class="card stack" style="text-align:left;gap:8px;border-left:6px solid ${p.color||PJ_COLORS[0]}" data-act="projOpen" data-v="${p.id}">
@@ -3889,7 +3911,7 @@ function projView(){if(UI.projOpen&&PJ().items[UI.projOpen])return projDetail(UI
  const f=UI.projF||"ativos";const all=vals(PJ().items).sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999")||(a.created||0)-(b.created||0));
  const chips=[["ativos","Em andamento"],["done","Concluídos"],["todos","Todos"]];if(teamAg())chips.push(["minhas","Minhas etapas"]);
  let body;
- if(f==="minhas"){const mine=vals(S.tasks.items).filter(t=>t.proj&&PJ().items[t.proj]&&t.who===ME.uid&&t.status!=="done").sort(taskSort);
+ if(f==="minhas"){const mine=vals(S.tasks.items).filter(t=>t.proj&&PJ().items[t.proj]&&(t.who===ME.uid||(t.help||[]).includes(ME.uid))&&t.status!=="done").sort(taskSort);
   body=mine.length?`<div class="card list">${mine.map(t=>{const p=PJ().items[t.proj];return `<div class="item"><button class="iconbtn" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--line);background:none;flex:none" data-act="projStepDone" data-v="${t.id}" aria-label="Concluir ${esc(t.title)}"></button><button class="grow stack-s" style="gap:1px;border:0;background:none;text-align:left;padding:0" data-act="editTask" data-v="${t.id}"><b>${esc(t.title)}</b><span class="tiny muted"><i class="dot" style="background:${p.color};display:inline-block;margin-right:4px"></i>${esc(p.name)}</span></button>${taskDue(t)}</div>`}).join("")}</div>`:`<div class="card empty">Nenhuma etapa com você agora.</div>`}
  else{const list=all.filter(p=>f==="todos"?true:f==="done"?p.status==="done":p.status!=="done");
   body=list.length?list.map(projCard).join(""):`<div class="card empty stack" style="align-items:center">${f==="done"?"Nenhum projeto concluído ainda.":`<span>Um projeto é um objetivo maior dividido em etapas. Ex.: ${TEAM?"lançar um produto, montar o estande da feira":"reformar o quarto, planejar a viagem, fazer um curso"}.</span>`}</div>`}
@@ -3897,6 +3919,22 @@ function projView(){if(UI.projOpen&&PJ().items[UI.projOpen])return projDetail(UI
  <div class="chips">${chips.map(([id,n])=>`<button class="chip ${f===id?"on":""}" data-act="projFilter" data-v="${id}">${n}</button>`).join("")}</div>
  ${body}
  <button class="btn line" data-act="addProject">${I.plus.replace('<svg','<svg width="16" height="16"')} Novo projeto</button></div>`}
+function stepHelpTag(t){const h=(t.help||[]).filter(Boolean);if(!teamAg()||!h.length)return"";return `<span class="row" style="gap:3px">· apoio ${h.map(u=>`<span class="avatar" style="width:18px;height:18px;font-size:8px;margin:0" title="${esc(u===ME.uid?"você":teamNick(u))}">${teamInitials(u)}</span>`).join("")}</span>`}
+function stepExtra(t,c){const pc=stepPct(t);const fin=t.final?`<span class="pill ${t.final==="cancelada"?"bad":t.final==="pendencias"?"warn":"good"}" style="padding:0 8px;align-self:flex-start">${STEP_FINAL[t.final]}</span>`:"";
+ return `${pc!=null?`<span class="row" style="gap:6px;margin-top:3px"><span class="meter" style="height:6px;width:90px;flex:none"><i style="width:${Math.round(pc*100)}%;background:${c}"></i></span><span class="tiny num muted">${Math.round(pc*100)}%</span>${fin}</span>`:fin}
+ ${t.block&&t.status!=="done"?`<span class="tiny" style="color:var(--bad);font-weight:700;margin-top:2px">⛔ Impedimento: ${esc(t.block)}</span>`:""}
+ ${t.now&&t.status!=="done"?`<span class="tiny muted" style="margin-top:2px">Agora: ${esc(t.now)}${t.next?` · Depois: ${esc(t.next)}`:""}</span>`:""}
+ ${(t.updates||[]).length?`<span class="tiny muted" style="margin-top:2px">Última atualização: ${updDate(Math.max(...t.updates.map(u=>u.at)))}</span>`:""}`}
+function projBoard(id,st,c){const ix=Object.fromEntries(st.map((t,i)=>[t.id,i+1]));
+ return `<div class="kanban" role="list">${TCOLS.map(([col,n])=>{const list=st.filter(t=>t.status===col);
+  return `<section class="kcol" data-col="${col}" aria-label="${n}"><div class="row between"><b>${n}</b><span class="pill info num">${list.length}</span></div>
+  ${list.length?list.map(t=>`<div class="kcard card stack" draggable="true" data-task="${t.id}" style="gap:6px;padding:12px;border-left:4px solid ${c}">
+   <button class="stack-s" style="gap:3px;border:0;background:none;text-align:left;padding:0;min-width:0" data-act="editTask" data-v="${t.id}"><span class="tiny muted">Etapa ${ix[t.id]}${t.date?` · <span style="${stepLate(t)?"color:var(--bad);font-weight:700":""}">${ddmm(t.date)}</span>`:""}</span><b style="${t.final==="cancelada"?"text-decoration:line-through;color:var(--muted)":""}">${esc(t.title)}</b>
+   ${teamAg()&&t.who?`<span class="tiny row" style="gap:4px"><span class="avatar" style="width:18px;height:18px;font-size:8px;margin:0">${teamInitials(t.who)}</span>${esc(t.who===ME.uid?"você":teamNick(t.who))}${stepHelpTag(t)}</span>`:stepHelpTag(t)?`<span class="tiny row">${stepHelpTag(t)}</span>`:""}
+   ${stepExtra(t,c)}</button>
+   <div class="row" style="gap:6px">${col!=="todo"?`<button class="btn ghost sm" data-act="taskMove" data-v="${t.id}" data-to="${col==="done"?"doing":"todo"}" aria-label="Voltar">◀</button>`:""}${col!=="done"?`<button class="btn ghost sm grow" data-act="taskMove" data-v="${t.id}" data-to="${col==="todo"?"doing":"done"}">${col==="todo"?"Começar":"Concluir"}</button>`:""}</div></div>`).join(""):`<p class="tiny muted" style="text-align:center;padding:14px 4px">${col==="todo"?"Nenhuma etapa a fazer.":col==="doing"?"Toque em Começar numa etapa.":"As etapas concluídas aparecem aqui."}</p>`}
+  ${col==="todo"?`<button class="btn ghost sm" data-act="projAddStep">${I.plus.replace('<svg','<svg width="16" height="16"')} Nova etapa</button>`:""}</section>`}).join("")}</div>
+ <p class="tiny muted">Deslize para ver as colunas. No computador, dá para arrastar os cartões.</p>`}
 function projDetail(id){const p=PJ().items[id];const st=projSteps(id);const pr=projProg(id);const c=p.color||PJ_COLORS[0];
  return `<div class="stack">${agendaHead()}
  <button class="btn ghost sm" data-act="projBack" style="align-self:flex-start">${I.left.replace('<svg','<svg width="16" height="16"')} Projetos</button>
@@ -3907,11 +3945,11 @@ function projDetail(id){const p=PJ().items[id];const st=projSteps(id);const pr=p
   <div class="stack-s" style="gap:4px"><div class="row between small"><span>Progresso</span><b class="num">${Math.round(pr*100)}%</b></div><div class="meter" style="height:12px"><i style="width:${Math.round(pr*100)}%;background:${c}"></i></div></div>
   ${p.status==="done"?`<div class="row" style="gap:10px"><span style="width:64px;flex:none">${pigSVG({score:95,mood:"feliz",equip:{},env:0,mini:true})}</span><span class="small"><b>Projeto concluído!</b> Que orgulho. Cada etapa feita foi um passo no prumo.</span></div>`:""}
  </div>
- <div class="section"><div class="label">Etapas</div>
- ${st.length?`<div class="card pjsteps">${st.map((t,i)=>{const sd=(t.subs||[]).filter(x=>x.done).length;const ok=t.status==="done";return `<div class="pjstep ${ok?"ok":""}">
+ <div class="section"><div class="row between"><div class="label">Etapas</div>${st.length?`<div class="chips">${[["lista","Lista"],["quadro","Quadro"]].map(([k,n])=>`<button class="chip ${(UI.pjView||"lista")===k?"on":""}" data-act="pjView" data-v="${k}">${n}</button>`).join("")}</div>`:""}</div>
+ ${st.length&&UI.pjView==="quadro"?projBoard(id,st,c):st.length?`<div class="card pjsteps">${st.map((t,i)=>{const sd=(t.subs||[]).filter(x=>x.done).length;const ok=t.status==="done";return `<div class="pjstep ${ok?"ok":""}">
   <button class="pjdot" style="${ok?`background:${c};border-color:${c};color:#fff`:t.status==="doing"?`border-color:${c};color:${c}`:""}" data-act="projStepDone" data-v="${t.id}" aria-label="${ok?"Reabrir":"Concluir"} ${esc(t.title)}">${ok?I.check.replace('<svg','<svg width="14" height="14"'):i+1}</button>
   <button class="grow stack-s" style="gap:2px;border:0;background:none;text-align:left;padding:2px 0;min-width:0" data-act="editTask" data-v="${t.id}"><b style="${ok?"text-decoration:line-through;color:var(--muted)":""}">${esc(t.title)}</b>
-   <span class="tiny muted row" style="gap:6px;flex-wrap:wrap">${t.date?`<span style="${stepLate(t)?"color:var(--bad);font-weight:700":""}">${stepLate(t)?"Atrasada · ":""}${ddmm(t.date)}</span>`:"Sem prazo"}${t.status==="doing"?"<span>· fazendo</span>":""}${(t.subs||[]).length?`<span>· ${sd}/${t.subs.length} itens</span>`:""}${teamAg()&&t.who?`<span class="row" style="gap:3px">· <span class="avatar" style="width:18px;height:18px;font-size:8px;margin:0">${teamInitials(t.who)}</span>${esc(t.who===ME.uid?"você":teamNick(t.who))}</span>`:teamAg()?"<span>· sem responsável</span>":""}</span></button>
+   <span class="tiny muted row" style="gap:6px;flex-wrap:wrap">${t.date?`<span style="${stepLate(t)?"color:var(--bad);font-weight:700":""}">${stepLate(t)?"Atrasada · ":""}${ddmm(t.date)}</span>`:"Sem prazo"}${t.status==="doing"?"<span>· fazendo</span>":""}${(t.subs||[]).length?`<span>· ${sd}/${t.subs.length} itens</span>`:""}${teamAg()&&t.who?`<span class="row" style="gap:3px">· <span class="avatar" style="width:18px;height:18px;font-size:8px;margin:0">${teamInitials(t.who)}</span>${esc(t.who===ME.uid?"você":teamNick(t.who))}</span>`:teamAg()?"<span>· sem responsável</span>":""}${stepHelpTag(t)}</span>${stepExtra(t,c)}</button>
   <span class="stack-s" style="gap:2px;flex:none">${i>0?`<button class="iconbtn" style="width:28px;height:24px" data-act="projStepMove" data-v="${t.id}" data-d="-1" aria-label="Subir">&#9650;</button>`:""}${i<st.length-1?`<button class="iconbtn" style="width:28px;height:24px" data-act="projStepMove" data-v="${t.id}" data-d="1" aria-label="Descer">&#9660;</button>`:""}</span></div>`}).join("")}</div>`
   :`<div class="card empty">Divida o projeto em etapas. Ex.: pesquisa, protótipo, fotos, lançamento.</div>`}
  <button class="btn line" data-act="projAddStep">${I.plus.replace('<svg','<svg width="16" height="16"')} Adicionar etapa</button>
@@ -3942,6 +3980,7 @@ Object.assign(A,{
   UI.projOpen=id;closeModal();commit();window.scrollTo(0,0);toast(old.id?"Projeto salvo.":"Projeto criado. Agora coloque prazo nas etapas.")},
  projDelYes:()=>{const id=document.querySelector('[data-act="projSave"]').dataset.v;projSteps(id).forEach(t=>delete S.tasks.items[t.id]);delete PJ().items[id];UI.projOpen=null;closeModal();commit();toast("Projeto apagado.")},
  projAddStep:()=>{const id=UI.projOpen;if(!id)return;taskForm(null,{proj:id,kind:TEAM?"trabalho":"pessoal",title:""})},
+ pjView:el=>{UI.pjView=el.dataset.v;render()},
  projStepDone:el=>{const t=S.tasks.items[el.dataset.v];if(!t)return;moveTask(t.id,t.status==="done"?"todo":"done")},
  projStepMove:el=>{const t=S.tasks.items[el.dataset.v];if(!t)return;const st=projSteps(t.proj);const i=st.findIndex(x=>x.id===t.id);const j=i+(+el.dataset.d);if(j<0||j>=st.length)return;
   st.forEach((x,k)=>x.order=k+1);const o=st[j].order;st[j].order=t.order;t.order=o;commit()},
@@ -4531,7 +4570,7 @@ function teamNewView(){openModal("Criar equipe",`<div class="stack">
  <p class="tiny muted">Depois de criar, convide as pessoas pelo e-mail que elas usam no Prumo.</p>
  <button class="btn block" data-act="teamCreate">Criar equipe</button></div>`)}
 
-function teamManageView(id){const t=(TEAMS||[]).find(x=>x.id===id);if(!t)return;const own=t.owner===ME.uid;UI.tmId=id;
+function teamManageView(id){const t=(TEAMS||[]).find(x=>x.id===id);if(!t)return;if(WMAIL[id]===undefined)workLoad(id).then(()=>{const i=$("#tf_work");if(i&&WMAIL[id]&&WMAIL[id]!=="~")i.value=WMAIL[id]});const own=t.owner===ME.uid;UI.tmId=id;
  openModal(own?"Gerenciar equipe":t.name,`<div class="stack">
  ${own?`<label class="field"><span>Nome</span><input id="tf_name" maxlength="60" value="${esc(t.name)}"></label>${featPicker(t.features)}
   <p class="tiny muted">Desligar um módulo esconde ele para todos, mas não apaga nada: se ligar de novo, os dados voltam.</p>
@@ -4540,6 +4579,8 @@ function teamManageView(id){const t=(TEAMS||[]).find(x=>x.id===id);if(!t)return;
  ${own?`<div class="card flat stack"><div class="label">Convidar pelo e-mail</div><div class="row"><input id="tf_mail" type="email" inputmode="email" class="grow" placeholder="email@exemplo.com"><button class="btn sm" data-act="teamInvite">Convidar</button></div>
   <span class="tiny muted">A pessoa vê o convite ao entrar no Prumo com esse e-mail. Se ainda não tiver conta, é só criar com o mesmo e-mail.</span>
   ${t.invites.length?`<div class="list">${t.invites.map(e=>`<div class="item"><span class="grow small">${esc(e)} <span class="tiny muted">· aguardando</span></span><a class="btn ghost sm" href="https://wa.me/?text=${encodeURIComponent(`Te convidei para a equipe "${t.name}" no Prumo. Entre em https://prumovidaemordem.com.br com o e-mail ${e} e aceite o convite na tela inicial.`)}" target="_blank" rel="noopener">Avisar</a><button class="btn ghost sm" data-act="teamUninvite" data-v="${esc(e)}">Cancelar</button></div>`).join("")}</div>`:""}</div>`:""}
+ <div class="card flat stack" id="tf_wbox"><div class="label">Seu e-mail profissional (opcional)</div><div class="row"><input id="tf_work" type="email" inputmode="email" class="grow" placeholder="voce@empresa.com.br" value="${esc(WMAIL[t.id]&&WMAIL[t.id]!=="~"?WMAIL[t.id]:"")}"><button class="btn sm" data-act="workSave" data-v="${t.id}">Salvar</button></div>
+  <span class="tiny muted">Para receber por e-mail as tarefas e as atualizações de projetos em que você está nesta equipe. Deixe em branco e salve para não receber.</span></div>
  <button class="btn ghost" data-act="teamGo" data-v="${t.id}">Entrar na equipe</button>
  <button class="btn danger sm" data-act="askDel" style="align-self:center">${own?"Excluir equipe":"Sair da equipe"}</button>${confirmBox("teamLeave",own?"Excluir a equipe para todos? Ninguém mais vai conseguir abrir.":"Sair desta equipe? Você pode voltar se for convidado de novo.")}</div>`)}
 
@@ -4581,6 +4622,23 @@ Object.assign(A,{
 });
 
 /* ---------- Início da equipe ---------- */
+/* e-mail profissional por equipe: avisos de tarefas e projetos chegam também por e-mail */
+const WMAIL={};
+async function workLoad(id){if(Store.demo||!sb)return;try{const {data}=await sb.rpc("my_work_email",{p_team:id});WMAIL[id]=data==null?"":data}catch(e){}}
+const workSkipKey=id=>"prumo-wskip-"+id;
+function workPrompt(t){if(Store.demo||!(teamHas("tasks")||teamHas("proj")))return"";const w=WMAIL[t.id];if(w!=="~")return"";
+ try{const sk=+localStorage.getItem(workSkipKey(t.id))||0;if(Date.now()-sk<7*864e5)return""}catch(e){}
+ return `<div class="card stack" style="gap:10px;border:2px solid var(--pig-soft)"><div class="row" style="gap:10px"><span style="font-size:26px">📧</span><b>Quer receber os avisos desta equipe por e-mail?</b></div>
+ <p class="small muted">Se possível, cadastre seu e-mail profissional. Quando alguém te colocar numa tarefa ou atualizar um projeto em que você está, chega um e-mail.</p>
+ <div class="row"><input id="tw_mail" type="email" inputmode="email" class="grow" placeholder="voce@empresa.com.br"><button class="btn sm" data-act="workSave" data-v="${t.id}" data-src="home">Salvar</button></div>
+ <div class="row" style="gap:8px"><button class="btn ghost sm" data-act="workLater" data-v="${t.id}">Agora não</button><button class="btn ghost sm" data-act="workNo" data-v="${t.id}">Não quero receber</button></div></div>`}
+Object.assign(A,{
+ workSave:async el=>{const id=el.dataset.v;const i=$(el.dataset.src==="home"?"#tw_mail":"#tf_work");const e=(i&&i.value||"").trim();
+  if(el.dataset.src==="home"&&!e){toast("Escreva o e-mail ou toque em Agora não.");return}
+  if(e&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)){toast("Confira o e-mail.");return}
+  const r=await trpc("set_my_work_email",{p_team:id,p_email:e},e?"E-mail salvo. Você vai receber os avisos desta equipe por e-mail.":"Pronto, você não vai receber e-mails desta equipe.");if(r!==null){WMAIL[id]=e;render()}},
+ workLater:el=>{try{localStorage.setItem(workSkipKey(el.dataset.v),String(Date.now()))}catch(e){}render()},
+ workNo:async el=>{const r=await trpc("set_my_work_email",{p_team:el.dataset.v,p_email:""},"Tudo bem. Se mudar de ideia, cadastre em Ver equipe.");if(r!==null){WMAIL[el.dataset.v]="";render()}}});
 function viewTeamHome(){const t=TEAM;const tk=teamHas("tasks")&&TD.agenda?vals(S.tasks.items).filter(x=>x.status!=="done"):[];
  const mine=tk.filter(x=>x.who===ME.uid).sort(taskSort),free=tk.filter(x=>!x.who);
  let fin="";if(teamHas("fin")){const tt=totals(mkey(),false);fin=`<div class="card stack"><div class="row between"><div class="label">Finanças da equipe · ${monthLabel(mkey())}</div><button class="btn ghost sm" data-act="tab" data-v="fin">Abrir</button></div>
@@ -4589,7 +4647,8 @@ function viewTeamHome(){const t=TEAM;const tk=teamHas("tasks")&&TD.agenda?vals(S
  let vq="";if(teamHas("vaq")){const ds=vqDebts().filter(x=>x.from===ME.uid||x.to===ME.uid);vq=`<div class="card stack"><div class="row between"><div class="row" style="gap:8px">${cowPig(36)}<div class="label">Vaquinha</div></div><button class="btn ghost sm" data-act="tab" data-v="vaq">Abrir</button></div>
   ${ds.length?ds.map(x=>`<p class="small">${x.from===ME.uid?`Você deve <b>${brl(x.v)}</b> para ${esc(nm(x.to))}`:`${esc(nm(x.from))} te deve <b>${brl(x.v)}</b>`}</p>`).join(""):`<p class="small muted">Nada pendente entre você e a equipe.</p>`}</div>`}
  const ev=teamHas("agenda")?upcoming(4):[];
- return `<div class="stack"><h1 style="margin-top:4px">${esc(t.name)}</h1>
+ if(WMAIL[t.id]===undefined&&!Store.demo)setTimeout(()=>workLoad(t.id).then(()=>render()),0);
+ return `<div class="stack"><h1 style="margin-top:4px">${esc(t.name)}</h1>${workPrompt(t)}
  <div class="card stack" style="gap:10px"><div class="row" style="gap:6px;flex-wrap:wrap">${t.members.map(m=>`<span class="chip" style="cursor:default"><span class="avatar">${teamInitials(m.uid)}</span>${esc(nm(m.uid))}</span>`).join("")}</div>
   <div class="row between"><span class="tiny muted">Usando: ${teamFeatList(t).join(", ")}</span><button class="btn ghost sm" data-act="teamManage">${iOwn()?"Gerenciar":"Ver equipe"}</button></div></div>
  ${teamHas("proj")?(()=>{const ps=vals(PJ().items).filter(p=>p.status!=="done");const my=vals(S.tasks.items).filter(t=>t.proj&&PJ().items[t.proj]&&t.who===ME.uid&&t.status!=="done").length;
@@ -5117,9 +5176,15 @@ A.pushNo=()=>{try{localStorage.setItem("prumo.pushAsk","no")}catch(e){}render()}
 /* ---------- disparos ---------- */
 function teamNotify(targets,kind,title,body,go){if(Store.demo||!sb||!Store.cloud||!TEAM)return;
  sb.functions.invoke("notify",{body:{team_id:TEAM.id,targets,kind,title,body,url:`/?t=${TEAM.id}&go=${go}`}}).catch(e=>console.warn(e))}
-{const _st=A.saveTask;A.saveTask=el=>{if(!TEAM||!teamAg())return _st(el);const before={};vals(S.tasks.items).forEach(t=>before[t.id]=t.who||"");_st(el);
- setTimeout(()=>{vals(S.tasks.items).forEach(t=>{if(t.who&&t.who!==ME.uid&&before[t.id]!==t.who&&t.status!=="done"){const pj=t.proj&&PJ().items[t.proj];
-  teamNotify([t.who],pj?"proj":"task",`${TEAM.name}: ${pj?"etapa":"tarefa"} para você`,`${myNick()} colocou você em "${t.title}"${pj?` (projeto ${pj.name})`:""}${t.date?` · até ${ddmm(t.date)}`:""}`,pj?"proj":"tasks")}})},0)}}
+{const _st=A.saveTask;A.saveTask=el=>{if(!TEAM||!teamAg())return _st(el);const before={};vals(S.tasks.items).forEach(t=>before[t.id]={who:t.who||"",help:(t.help||[]).slice(),upd:(t.updates||[]).length,final:t.final||"",status:t.status});_st(el);
+ setTimeout(()=>{vals(S.tasks.items).forEach(t=>{const b=before[t.id]||{who:"",help:[],upd:0,final:"",status:""};const pj=t.proj&&PJ().items[t.proj];const kd=pj?"proj":"task",go=pj?"proj":"tasks";const what=pj?`"${t.title}" (projeto ${pj.name})`:`"${t.title}"`;
+  if(t.who&&t.who!==ME.uid&&b.who!==t.who&&t.status!=="done")teamNotify([t.who],kd,`${TEAM.name}: ${pj?"etapa":"tarefa"} para você`,`${myNick()} colocou você como responsável em ${what}${t.date?` · até ${ddmm(t.date)}`:""}`,go);
+  const nh=(t.help||[]).filter(u=>u!==ME.uid&&!b.help.includes(u)&&u!==t.who);if(nh.length&&t.status!=="done")teamNotify(nh,kd,`${TEAM.name}: você foi chamado para apoiar`,`${myNick()} colocou você como apoio em ${what}${t.date?` · até ${ddmm(t.date)}`:""}`,go);
+  if(pj){const people=[t.who,...(t.help||[])].filter(u=>u&&u!==ME.uid);const nu=(t.updates||[]).slice(b.upd);
+   if(people.length&&nu.length){const last=nu[nu.length-1];teamNotify(people,"projupd",`${TEAM.name}: atualização em ${t.title}`,`${myNick()}${last.status?` encerrou a etapa como "${last.status}"`:" registrou uma atualização"} no projeto ${pj.name}: ${last.txt}`,go)}}})},0)}}
+/* etapa concluída pelo botão ou pelo quadro também avisa o responsável e o apoio */
+{const _mt=moveTask;moveTask=function(id,to){const t0=S.tasks.items[id];const was=t0&&t0.status;const r=_mt.apply(this,arguments);
+ try{const t=S.tasks.items[id];if(TEAM&&teamAg()&&t&&t.proj&&to==="done"&&was!=="done"){const pj=PJ().items[t.proj];const people=[t.who,...(t.help||[])].filter(u=>u&&u!==ME.uid);const lu=(t.updates||[]).reduce((m,u)=>Math.max(m,u.at||0),0);if(pj&&people.length&&Date.now()-lu>8000)teamNotify(people,"projupd",`${TEAM.name}: etapa concluída`,`${myNick()} concluiu "${t.title}" no projeto ${pj.name}.`,"proj")}}catch(e){}return r}}
 {const _cs=A.chalCheckSave;A.chalCheckSave=async el=>{const c=CHP().items[UI.chalOpen];const d=UI.chDay||today();const had=!!(c&&((c.checkins||{})[ME.uid]||{})[d]);await _cs(el);
  const ck=c&&((c.checkins||{})[ME.uid]||{})[d];if(!had&&ck)teamNotify("all","chal",`${TEAM.name} · ${c.name}`,`${myNick()} fez check-in${ck.note?`: ${ck.note}`:""}${ck.photo||ck.photoData?" 📸":""}`,"chal")}}
 {const _ce=A.chalEditSave;A.chalEditSave=async el=>{const c=CHP().items[UI.chalOpen];const d=UI.chEdit;const b=c&&((c.checkins||{})[ME.uid]||{})[d];const hadPh=!!(b&&(b.photo||b.photoData)),hadNote=!!(b&&b.note&&!b.auto);await _ce(el);

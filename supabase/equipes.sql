@@ -321,3 +321,22 @@ returns jsonb language sql stable security definer set search_path = public, aut
   from public.teams t where not t.archived and exists (select 1 from public.team_members m where m.team_id = t.id and m.uid = auth.uid() and m.active);
 $$;
 grant execute on function public.set_my_pig(jsonb) to authenticated;
+
+-- E-mail profissional por equipe (avisos de tarefas e projetos por e-mail)
+alter table public.team_members add column if not exists work_email text;
+create or replace function public.my_work_email(p_team uuid) returns text
+language sql security definer set search_path=public as $$
+  select coalesce(work_email,'~') from team_members where team_id=p_team and uid=auth.uid() and active
+$$;
+create or replace function public.set_my_work_email(p_team uuid, p_email text) returns boolean
+language plpgsql security definer set search_path=public as $$
+declare e text := lower(trim(coalesce(p_email,'')));
+begin
+  if e <> '' and (length(e) > 120 or e !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$') then raise exception 'e-mail inválido'; end if;
+  update team_members set work_email = e where team_id=p_team and uid=auth.uid() and active;
+  return found;
+end $$;
+revoke all on function public.my_work_email(uuid) from public, anon;
+revoke all on function public.set_my_work_email(uuid,text) from public, anon;
+grant execute on function public.my_work_email(uuid) to authenticated;
+grant execute on function public.set_my_work_email(uuid,text) to authenticated;

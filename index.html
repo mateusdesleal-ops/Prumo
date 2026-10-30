@@ -3850,7 +3850,18 @@ A.saveNewPass=async()=>{const p=v("np");if(p.length<8){toast("A senha precisa te
 /* arquivos e notificações no navegador */
 async function saveFile(filename,data){try{const blob=new Blob([data],{type:filename.endsWith(".ics")?"text/calendar":"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);a.remove()},1500)}catch(e){toast("Não foi possível salvar o arquivo.")}}
 function notify(title,body){try{if(!("Notification" in window)||Notification.permission!=="granted")return;if(navigator.serviceWorker&&navigator.serviceWorker.ready)navigator.serviceWorker.ready.then(r=>r.showNotification(title,{body,icon:"icons/icon-192.png",badge:"icons/icon-192.png"})).catch(()=>new Notification(title,{body}));else new Notification(title,{body})}catch(e){}}
-if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+/* app instalado fica aberto o dia todo: procura versão nova de tempos em tempos e atualiza sozinho */
+if("serviceWorker" in navigator)window.addEventListener("load",()=>{const had=!!navigator.serviceWorker.controller;
+ navigator.serviceWorker.register("sw.js").then(reg=>{const chk=()=>{reg.update().catch(()=>{})};setInterval(chk,20*60000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)chk()})}).catch(()=>{});
+ let done=false;navigator.serviceWorker.addEventListener("controllerchange",()=>{if(!had||done)return;done=true;
+  const busy=()=>{const a=document.activeElement;return ($("#modal")&&$("#modal").innerHTML)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))};
+  const go=()=>{try{sessionStorage.setItem("prumo-upd","1")}catch(e){}location.reload()};
+  if(!busy()&&document.hidden){go();return}
+  if(!busy()){go();return}
+  const b=document.createElement("button");b.className="updbar";b.textContent="Nova versão do Prumo pronta · tocar para atualizar";b.onclick=go;document.body.appendChild(b);
+  const t=setInterval(()=>{if(document.hidden&&!busy()){clearInterval(t);go()}},3000)})});
+try{if(sessionStorage.getItem("prumo-upd")){sessionStorage.removeItem("prumo-upd");setTimeout(()=>toast("Prumo atualizado para a versão mais nova."),1200)}}catch(e){}
+document.head.insertAdjacentHTML("beforeend",`<style>.updbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:90;border:0;border-radius:999px;padding:10px 16px;background:var(--ink);color:var(--bg);font-weight:700;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.25);cursor:pointer;max-width:92vw}</style>`);
 
 /* lembretes nativos quando o app roda instalado pelo iPhone (Capacitor) */
 const LN=()=>window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.LocalNotifications;

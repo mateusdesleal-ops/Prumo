@@ -300,6 +300,7 @@ body.team-env .envbtn.cur{border-color:var(--money);background:color-mix(in srgb
 .lesson p:last-child{margin-bottom:0}
 .prose{max-width:65ch}
 .trayrow .unsel{width:auto!important;flex:0 1 auto;max-width:180px;min-height:0!important;height:32px!important;padding:2px 26px 2px 10px!important;font-size:13px!important;border-radius:10px!important}.trayrow .unnum{width:52px!important;min-height:0!important;height:32px!important;padding:2px 4px!important;text-align:center;font-size:14px!important;border-radius:10px!important}
+#modal .scrim.center{align-items:center;padding:16px}#modal .scrim.center .sheet{border-radius:22px;max-width:420px}#modal .scrim.center .grab{display:none}
 .closet{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
 .closet button{border:1.5px solid var(--line);background:var(--surface);border-radius:14px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;font-weight:700}
 .closet button.on{border-color:var(--pig-deep);background:var(--pig-soft)}
@@ -2023,6 +2024,85 @@ function header(){const st=streak();const first=(S.profile.name||"").split(" ")[
  <span style="position:relative;display:inline-flex"><button class="iconbtn" data-act="tab" data-v="profile" aria-label="Perfil" style="${S.profile.photo?"padding:0;overflow:hidden;border-radius:50%":""}">${S.profile.photo?`<img src="${S.profile.photo}" alt="" style="width:40px;height:40px;object-fit:cover;display:block">`:I.user}</button>${S.profile.supporter?`<span class="supdot" title="Apoiador do Prumo" aria-label="Apoiador">${I.heart.replace('<svg','<svg width="10" height="10"')}</span>`:""}</span></div>`}
 
 /* ---------- Início ---------- */
+
+/* ============================================================
+   Sequências para os stories: a partir de 2 dias seguidos dá para gerar a arte;
+   a cada dezena (10, 20, 30…) o app pergunta se a pessoa quer compartilhar.
+   ============================================================ */
+const STK_AREAS=[
+ {k:"ex",n:"Exercício",t:"de exercício",e:"💪",c:["#2F9E6E","#1B6E4B"]},
+ {k:"read",n:"Leitura",t:"de leitura",e:"📚",c:["#8E5CF6","#5B34B8"]},
+ {k:"study",n:"Estudo",t:"de estudo",e:"🧠",c:["#E5739A","#B8436E"]},
+ {k:"fin",n:"Finanças",t:"com as finanças em dia",e:"💰",c:["#1F9AA8","#126A76"]},
+ {k:"food",n:"Alimentação",t:"anotando a alimentação",e:"🥗",c:["#F08C3A","#C2611A"]},
+ {k:"prayer",n:"Oração",t:"de oração",e:"🙏",c:["#D9A52B","#A2740F"]},
+ {k:"vocab",n:"Palavra do dia",t:"aprendendo uma palavra nova",e:"📖",c:["#3C6FD1","#244A9C"]}];
+function stkDid(k,d){try{
+ if(k==="ex")return vals(S.ex.logs).some(l=>l.date===d);
+ if(k==="read")return vals(S.study.logs).some(l=>l.date===d&&l.type==="livro");
+ if(k==="study")return studyMin(d)>0;
+ if(k==="fin")return !!finActivity(d);
+ if(k==="food")return vals(S.food.logs).some(l=>l.date===d);
+ if(k==="prayer"){if(!S.profile.prayer)return false;const l=S.prayer.log[d];return !!(l&&Object.values(l).some(Boolean))}
+ if(k==="vocab")return Object.values((S.vocab||{}).words||{}).some(x=>x&&x.d===d);
+ }catch(e){}return false}
+function stkCount(k){let d=today();if(!stkDid(k,d))d=addDays(d,-1);let n=0;while(n<400&&stkDid(k,d)){n++;d=addDays(d,-1)}return n}
+function stkList(){return STK_AREAS.map(a=>({...a,n:stkCount(a.k),today:stkDid(a.k,today())})).filter(a=>a.n>=2).sort((a,b)=>b.n-a.n)}
+function stkHomeCard(){const ls=stkList();if(!ls.length)return"";
+ return `<div class="card stack" style="gap:10px"><div class="row between"><div class="label">🔥 Suas sequências</div><span class="tiny muted">Compartilhe nos stories</span></div>
+ <div class="row" style="gap:8px;flex-wrap:wrap">${ls.map(a=>`<button type="button" class="chip" data-act="storyOpen" data-v="${a.k}" style="padding:6px 12px"><span>${a.e}</span> <b class="num">${a.n}</b> <span class="small">dias · ${esc(STK_AREAS.find(x=>x.k===a.k).n)}</span></button>`).join("")}</div></div>`}
+
+function stkPigImg(pg){return new Promise(ok=>{pg=pg||{score:92,mood:"feliz",equip:S.profile.pet?effectiveEquip():{}};let svg=pigSVG({score:pg.score||88,mood:pg.mood==="triste"||pg.mood==="preocupado"?"ok":(pg.mood||"feliz"),equip:pg.equip||{},env:0,mini:true});
+ svg=svg.replace(/<svg /,'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="510" ').replace(/(<svg[^>]*>)/,'$1<style>.pig-wdsad,.pig-wdhappy,.tear,.pig-coin{display:none}.pig-heart{opacity:0}*{animation:none!important}</style>');
+ const i=new Image();i.onload=()=>ok(i);i.onerror=()=>ok(null);i.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg)})}
+const STK_F='"Fredoka","Baloo 2","Trebuchet MS",system-ui,sans-serif';
+function stkRR(x,X,Y,w,h,r){x.beginPath();x.moveTo(X+r,Y);x.arcTo(X+w,Y,X+w,Y+h,r);x.arcTo(X+w,Y+h,X,Y+h,r);x.arcTo(X,Y+h,X,Y,r);x.arcTo(X,Y,X+w,Y,r);x.closePath()}
+function stkBrand(x,W,y){const F=STK_F,fs=72;x.font=`600 ${fs}px ${F}`;const w=x.measureText("Prum").width,d=fs*.54,gap=fs*.03,tot=w+gap+d,x0=W/2-tot/2;
+ x.textAlign="left";x.fillStyle="#fff";x.fillText("Prum",x0,y);const cx=x0+w+gap+d/2,cy=y-d/2+fs*.01;
+ x.beginPath();x.fillStyle="#F28AA8";x.arc(cx,cy,d/2,0,7);x.fill();x.fillStyle="#2B1E24";[-.15,.15].forEach(o=>{x.beginPath();x.ellipse(cx+o*d,cy,d*.085,d*.15,0,0,7);x.fill()});
+ x.textAlign="center";x.fillStyle="rgba(255,255,255,.8)";x.font=`600 26px ${F}`;x.fillText("V I D A   E M   O R D E M",W/2,y+45)}
+function stkFooter(x,W,y,txt){const F=STK_F;x.textAlign="center";x.fillStyle="#fff";x.font=`600 44px ${F}`;x.fillText(txt||"Organize a sua vida também",W/2,y);x.fillStyle="rgba(255,255,255,.22)";stkRR(x,220,y+40,640,92,46);x.fill();x.fillStyle="#fff";x.font=`600 40px ${F}`;x.fillText("prumovidaemordem.com.br",W/2,y+100)}
+function stkShareModal(title,blob,alt){UI.stkBlob=blob;const u=URL.createObjectURL(blob);
+ const canFile=(()=>{try{return !!(navigator.canShare&&navigator.canShare({files:[new File([blob],"prumo.png",{type:"image/png"})]}))}catch(e){return false}})();
+ openModal(title,`<div class="stack" style="align-items:center"><img src="${u}" alt="${esc(alt)}" style="width:min(240px,62vw);border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.18)">
+ ${canFile?`<button class="btn block" data-act="storyShare">Compartilhar no Instagram ou Facebook</button><p class="tiny muted" style="text-align:center">Na tela que abrir, escolha Instagram ou Facebook e depois <b>Stories</b>.</p>`:""}
+ <button class="btn ${canFile?"ghost":""} block" data-act="storySave">Baixar a imagem</button>
+ ${canFile?"":`<p class="tiny muted" style="text-align:center">Depois de baixar, abra o Instagram ou o Facebook, crie um story e escolha esta imagem da galeria.</p>`}</div>`)}
+async function stkArt(k){const a=STK_AREAS.find(x=>x.k===k);const n=stkCount(k);const W=1080,H=1920;const cv=document.createElement("canvas");cv.width=W;cv.height=H;const x=cv.getContext("2d");
+ try{await document.fonts.load('700 100px Fredoka');await document.fonts.load('600 40px Fredoka')}catch(e){}
+ const F='"Fredoka","Baloo 2","Trebuchet MS",system-ui,sans-serif';
+ const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,a.c[0]);g.addColorStop(1,a.c[1]);x.fillStyle=g;x.fillRect(0,0,W,H);
+ // bolinhas de fundo
+ x.fillStyle="rgba(255,255,255,.07)";[[140,420,180],[960,300,240],[900,1500,200],[120,1650,150],[560,980,520]].forEach(([cx,cy,r])=>{x.beginPath();x.arc(cx,cy,r,0,7);x.fill()});
+ x.textAlign="center";x.fillStyle="#fff";
+ stkBrand(x,W,300);
+// cartão branco com o porquinho
+ x.fillStyle="rgba(255,255,255,.96)";const rr=(X,Y,w,h,r)=>{x.beginPath();x.moveTo(X+r,Y);x.arcTo(X+w,Y,X+w,Y+h,r);x.arcTo(X+w,Y+h,X,Y+h,r);x.arcTo(X,Y+h,X,Y,r);x.arcTo(X,Y,X+w,Y,r);x.closePath()};
+ rr(110,430,860,1060,56);x.fill();
+ const pig=await stkPigImg();if(pig)x.drawImage(pig,W/2-300,470,600,510);
+ x.fillStyle=a.c[1];x.font=`700 260px ${F}`;x.fillText(String(n),W/2,1215);
+ x.font=`600 64px ${F}`;x.fillText(n===1?"dia seguido":"dias seguidos",W/2,1300);
+ x.fillStyle="#5A4B52";x.font=`500 50px ${F}`;const t=a.t;const words=t.split(" ");let line="",ys=1380;const lines=[];words.forEach(w=>{const tt=line?line+" "+w:w;if(x.measureText(tt).width>760){lines.push(line);line=w}else line=tt});lines.push(line);lines.forEach((l,i)=>x.fillText(l,W/2,ys+i*62));
+ x.font=`100px system-ui,"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;x.fillText(a.e,W/2+330,560);
+ // rodapé
+ x.fillStyle="#fff";x.font=`600 44px ${F}`;x.fillText("Organize a sua vida também",W/2,1620);
+ x.fillStyle="rgba(255,255,255,.22)";rr(220,1660,640,92,46);x.fill();x.fillStyle="#fff";x.font=`600 40px ${F}`;x.fillText("prumovidaemordem.com.br",W/2,1720);
+ return await new Promise(r=>cv.toBlob(r,"image/png"))}
+async function storyOpen(k){const a=STK_AREAS.find(x=>x.k===k);const n=stkCount(k);if(n<2){toast("Com 2 dias seguidos você já pode compartilhar.");return}
+ openModal("Compartilhar nos stories",`<div class="tiny muted" style="padding:40px 0;text-align:center">Montando a arte…</div>`);
+ const b=await stkArt(k);UI.stkArea=k;stkShareModal("Compartilhar nos stories",b,`Arte da sequência de ${n} dias ${a.t}`)}
+function storyAskPopup(){if(S.profile.storyAsk===false||!S.profile.created||UI.needAuth||UI.onb>=0&&UI.onb<3)return;const asked=S.profile.storyAsked||{};
+ const hit=stkList().find(a=>a.today&&a.n>=10&&a.n%10===0&&asked[a.k]!==a.n);if(!hit)return;
+ if($("#modal").innerHTML){setTimeout(storyAskPopup,4000);return}
+ S.profile.storyAsked={...asked,[hit.k]:hit.n};saveApp();
+ openModal("Que sequência!",`<div class="stack" style="align-items:center;text-align:center;gap:12px">
+ <div style="font-size:52px;line-height:1">${hit.e}</div><h2 style="margin:0">${hit.n} dias seguidos!</h2><p>Você completou ${hit.n} dias seguidos ${esc(hit.t)}. Quer mostrar para os amigos nos stories?</p>
+ <button class="btn block" data-act="storyOpen" data-v="${hit.k}">Criar arte para os stories</button>
+ <button class="btn ghost block" data-act="closeModal">Agora não</button>
+ <button class="linkbtn tiny muted" data-act="storyNever" style="border:0;background:none">Não perguntar mais</button></div>`);
+ const sc=document.querySelector("#modal .scrim");if(sc)sc.classList.add("center")}
+{const _rs=render;let tmr=null;render=function(){_rs.apply(this,arguments);clearTimeout(tmr);tmr=setTimeout(storyAskPopup,1500)}}
+
 function viewHome(){
  const h=pigHealth();const t=totals(mkey(),false);const inc=refIncome(mkey());
  const fdT=foodDay(today());const sMin=studyMin(today()),sGoal=+S.profile.studyGoal||20;const plan=exPlan();const eMin=vals(S.ex.logs).filter(l=>l.date===today()).reduce((s,l)=>s+(+l.min||0),0);
@@ -2041,7 +2121,7 @@ function viewHome(){
  ${whyCard()}
  ${letterHomeCard()}${prumoCard()}${msgCard()}${missionsCard()}${shareCard()}
  ${pigCard}
- ${envWarning()}${studyWarning()}${taskWarning()}${vocabCard(true)}
+ ${envWarning()}${studyWarning()}${taskWarning()}${vocabCard(true)}${stkHomeCard()}
  <div class="card"><div class="label" style="margin-bottom:12px">Metas de hoje</div>
   <div class="grid3" style="row-gap:16px">${ring(finToday?1:0,"var(--money)","Finanças",finToday?"Registrado":"Pendente")}${ring(sMin/sGoal,"var(--pig-deep)","Estudo",`${sMin}/${sGoal} min`)}${ring(eMin/Math.max(1,plan.daily),"var(--need)","Exercício",`${eMin}/${plan.daily} min`)}${ring(fdT.meals/3,"var(--warn)","Alimentação",`${fdT.meals} ${fdT.meals===1?"refeição":"refeições"}`)}${(()=>{const td=today();const dueT=taskList().filter(t=>t.date===td);const doneT=taskList().filter(t=>t.status==="done"&&t.doneAt&&ymd(new Date(t.doneAt))===td);const plan=new Set([...dueT,...doneT].map(t=>t.id)).size;return ring(plan?doneT.length/plan:0,"#8A6FD1","Tarefas",plan?`${doneT.length}/${plan}`:"Nenhuma hoje")})()}${S.profile.prayer&&S.prayer.trad?(()=>{const d=prDaily();const n=d.filter(id=>prDone(id)).length;return ring(d.length?n/d.length:0,"var(--warn)","Oração",`${n}/${d.length}`)})():""}</div>
   ${finToday?"":`<button class="btn ghost block" style="margin-top:12px" data-act="checkin">Hoje não gastei nada</button>`}
@@ -2730,6 +2810,10 @@ const A={
  delStudyYes:()=>{const id=document.querySelector('[data-act="saveStudy"]').dataset.v;delete S.study.logs[id];commit();closeModal();toast("Registro apagado.")},
  addBook:()=>bookForm(),
  editBook:el=>{const b=S.study.books[el.dataset.v];if(b)bookForm(b)},
+ storyOpen:el=>storyOpen(el.dataset.v),
+ storyShare:async()=>{const b=UI.stkBlob;if(!b)return;const f=new File([b],"prumo-sequencia.png",{type:"image/png"});try{await navigator.share({files:[f],title:"Minha sequência no Prumo"});closeModal()}catch(e){if(e&&e.name!=="AbortError")toast("Não consegui abrir o compartilhamento. Use Baixar a imagem.")}},
+ storySave:()=>{const b=UI.stkBlob;if(!b)return;const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="prumo-sequencia.png";document.body.appendChild(a);a.click();a.remove();toast("Imagem salva. Agora é só postar nos stories!")},
+ storyNever:()=>{S.profile.storyAsk=false;saveApp();closeModal();toast("Tudo bem, não pergunto mais. A arte continua disponível em Suas sequências, na tela Início.")},
  vocabGo:()=>{UI.tab="study";UI.study="hoje";render();window.scrollTo(0,0)},
  vocabWrite:()=>{const w=vocabOf()[0];UI.vocWrite=UI.vocWrite===w?null:w;render();setTimeout(()=>{const t=$("#voc_fr");if(t)t.focus()},50)},
  vocabSave:el=>{const w=vocabOf()[0];const cur=VOC().words[w]||{d:today(),t:Date.now()};const k=el.dataset.v;
@@ -4490,6 +4574,50 @@ function chPendPopup(cid,d){const c=CHP().items[cid];if(!c||!chPend(c,d)||(((c.c
  <button class="btn ghost block" data-act="closeModal">Depois</button></div>`);
  const sc=document.querySelector("#modal .scrim");if(sc)sc.classList.add("center")}
 
+
+/* ---------- arte para os stories: começo do desafio e resultado ---------- */
+const chPigOf=u=>{const pg=u===ME.uid?myPigSig():((teamMembers().find(x=>x.uid===u)||{}).pig);return pg&&pg.pet?pg:{equip:{},mood:"feliz",score:80}};
+const chEnded=c=>today()>chEnd(c);
+function chWinners(c){const r=chRank(c);const top=r.length?r[0].p:0;return top>0?r.filter(x=>x.p===top):[]}
+async function chStoryArt(c,mode){const W=1080,H=1920,F=STK_F;const cv=document.createElement("canvas");cv.width=W;cv.height=H;const x=cv.getContext("2d");
+ try{await document.fonts.load('700 100px Fredoka');await document.fonts.load('600 40px Fredoka')}catch(e){}
+ const end=mode==="end";const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,end?"#F2B53A":"#E5739A");g.addColorStop(1,end?"#C9761B":"#8E5CF6");x.fillStyle=g;x.fillRect(0,0,W,H);
+ x.fillStyle="rgba(255,255,255,.08)";[[140,420,180],[960,300,240],[900,1500,200],[120,1650,150]].forEach(([cx,cy,r])=>{x.beginPath();x.arc(cx,cy,r,0,7);x.fill()});
+ stkBrand(x,W,250);
+ x.fillStyle="rgba(255,255,255,.96)";stkRR(x,90,360,900,1220,56);x.fill();x.textAlign="center";
+ const fit=(t,max,size,weight)=>{let sz=size;do{x.font=`${weight} ${sz}px ${F}`;sz-=4}while(x.measureText(t).width>max&&sz>28);return t};
+ x.fillStyle=end?"#B5650F":"#B8436E";x.font=`700 46px ${F}`;x.fillText(end?"🏆  DESAFIO CONCLUÍDO":"🔥  COMEÇOU O DESAFIO",W/2,450);
+ x.fillStyle="#2B1E24";fit(c.name,780,76,"700");x.fillText(c.name,W/2,545);
+ x.fillStyle="#7A6A72";x.font=`500 36px ${F}`;x.fillText(`${c.days||30} dias · ${ddmm(c.start)} a ${ddmm(chEnd(c))}`,W/2,600);
+ if(TEAM&&TEAM.name){x.font=`600 34px ${F}`;x.fillStyle="#9A8A92";x.fillText(`Equipe ${TEAM.name}`,W/2,648)}
+ const draw=async(u,cx,cy,sz,label,sub,crown)=>{const im=await stkPigImg(chPigOf(u));if(im)x.drawImage(im,cx-sz/2,cy-sz*.42,sz,sz*.85);
+  if(crown){x.font=`${Math.round(sz*.28)}px system-ui,"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;x.fillText("👑",cx,cy-sz*.36)}
+  x.fillStyle="#2B1E24";fit(label,sz*1.35,Math.round(sz*.17),"600");x.fillText(label,cx,cy+sz*.58);if(sub){x.fillStyle="#7A6A72";x.font=`500 ${Math.round(sz*.13)}px ${F}`;x.fillText(sub,cx,cy+sz*.58+sz*.17)}};
+ const people=teamMembers().map(m=>m.uid);const nmS=u=>{const m=teamMembers().find(z=>z.uid===u);return (m&&m.nick)||(u===ME.uid?myNick():teamNick(u))};
+ if(end){const r=chRank(c);const win=chWinners(c);
+  if(win.length===1){await draw(win[0].u,W/2,900,300,nmS(win[0].u),`${win[0].p} ponto${win[0].p===1?"":"s"} · campeão`,true)}
+  else if(win.length>1){const ws=win.slice(0,3);const step=860/ws.length;for(let i=0;i<ws.length;i++)await draw(ws[i].u,90+step*(i+.5),880,Math.min(260,step*.8),nmS(ws[i].u),`${ws[i].p} ponto${ws[i].p===1?"":"s"}`,true);x.fillStyle="#B5650F";x.font=`600 34px ${F}`;x.fillText("Empate no topo!",W/2,1140)}
+  const rest=r.filter(z=>!win.some(w=>w.u===z.u)).slice(0,6);let y=1250;for(let i=0;i<rest.length;i++){const z=rest[i];const col=i%2,row=Math.floor(i/2);const cx=300+col*480,cy=y+row*150;const im=await stkPigImg(chPigOf(z.u));if(im)x.drawImage(im,cx-170,cy-55,120,102);
+   x.textAlign="left";x.fillStyle="#2B1E24";fit(nmS(z.u),230,40,"600");x.fillText(nmS(z.u),cx-40,cy+5);x.fillStyle="#7A6A72";x.font=`500 30px ${F}`;x.fillText(`${win.length+i+1}º · ${z.p} pts`,cx-40,cy+45);x.textAlign="center"}
+  if(!win.length){x.fillStyle="#7A6A72";x.font=`500 40px ${F}`;x.fillText("Desafio encerrado",W/2,900)}}
+ else{const ps=people.slice(0,9);const cols=ps.length<=2?ps.length:ps.length<=4?2:3;const rows=Math.ceil(ps.length/cols);const sz=Math.min(300,780/cols*.78,(820/rows)*.62);
+  for(let i=0;i<ps.length;i++){const col=i%cols,row=Math.floor(i/cols);const inRow=Math.min(cols,ps.length-row*cols);const cx=W/2+(col-(inRow-1)/2)*(840/cols);const cy=780+row*(sz*1.25)+(rows===1?120:0);await draw(ps[i],cx,cy,sz,nmS(ps[i]),"",false)}
+  if(people.length>9){x.fillStyle="#7A6A72";x.font=`500 34px ${F}`;x.fillText(`+ ${people.length-9} participantes`,W/2,1500)}
+  const rule=(c.desc||"").split("\n")[0].trim();if(rule){x.fillStyle="#5A4B52";x.font=`500 36px ${F}`;const t="“"+(rule.length>110?rule.slice(0,108)+"…":rule)+"”";const ls=[];let ln="";t.split(" ").forEach(w=>{const tt=ln?ln+" "+w:w;if(x.measureText(tt).width>780){ls.push(ln);ln=w}else ln=tt});ls.push(ln);ls.slice(0,3).forEach((l,i)=>x.fillText(l,W/2,1490+i*46-(Math.min(ls.length,3)-1)*23))}}
+ stkFooter(x,W,1690,end?"Desafios em grupo no Prumo":"Bora junto? Crie o seu desafio");
+ return await new Promise(r=>cv.toBlob(r,"image/png"))}
+async function chStory(cid,mode){const c=CHP().items[cid];if(!c)return;openModal("Compartilhar nos stories",`<div class="tiny muted" style="padding:40px 0;text-align:center">Montando a arte…</div>`);
+ const b=await chStoryArt(c,mode||(chEnded(c)?"end":"start"));stkShareModal("Compartilhar nos stories",b,`Arte do desafio ${c.name}`)}
+function chAskKey(cid,m){return `prumo-chask-${m}-${cid}`}
+function chAsked(cid,m){try{return localStorage.getItem(chAskKey(cid,m))==="1"}catch(e){return false}}
+function chSetAsked(cid,m){try{localStorage.setItem(chAskKey(cid,m),"1")}catch(e){}}
+function chWinPopup(){if(!TEAM||!teamHas("desafios")||!TD.chal)return;const c=vals(CHP().items).find(c=>chEnded(c)&&addDays(chEnd(c),14)>=today()&&chWinners(c).some(w=>w.u===ME.uid)&&!chAsked(c.id,"win"));if(!c)return;
+ if($("#modal").innerHTML){setTimeout(chWinPopup,4000);return}chSetAsked(c.id,"win");
+ openModal("Você ganhou!",`<div class="stack" style="align-items:center;text-align:center;gap:12px"><div style="font-size:52px;line-height:1">🏆</div><h2 style="margin:0">${esc(c.name)}</h2><p>Você terminou em primeiro lugar no desafio. Quer comemorar nos stories com a equipe?</p>
+ <button class="btn block" data-act="chStory" data-v="${c.id}" data-m="end">Criar arte para os stories</button><button class="btn ghost block" data-act="closeModal">Agora não</button></div>`);
+ const sc=document.querySelector("#modal .scrim");if(sc)sc.classList.add("center")}
+{const _r=render;let tm=null;render=function(){_r.apply(this,arguments);clearTimeout(tm);tm=setTimeout(chWinPopup,1800)}}
+
 /* ---------- fotos ---------- */
 const PH={url:{},pending:new Set(),ar:{}};
 async function chShrink(file){let bmp;try{bmp=await createImageBitmap(file,{imageOrientation:"from-image"})}catch(e){bmp=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=URL.createObjectURL(file)})}
@@ -4547,6 +4675,7 @@ function chDetail(c){const r=chRank(c);const me=r.find(x=>x.u===ME.uid)||{};cons
   ${c.desc?`<p class="small" style="white-space:pre-line">${esc(c.desc)}</p>`:""}
   <span class="tiny muted">${ddmm(c.start)} a ${ddmm(chEnd(c))} · ${c.auto&&c.auto!=="none"?`check-in automático: ${(CH_AUTO.find(x=>x[0]===c.auto)||["",""])[1].toLowerCase()}`:"cada um marca o seu check-in"}</span>
   ${chLive(c)?`<span class="small">📸 Só vale foto tirada na hora, pela câmera do Prumo</span>`:c.photo==="req"?`<span class="small">📸 Check-in só com foto</span>`:""}
+  <button class="btn line sm" data-act="chStory" data-v="${c.id}" data-m="${chEnded(c)?"end":"start"}" style="align-self:flex-start">📲 ${chEnded(c)?"Postar o resultado nos stories":"Postar nos stories"}</button>
   ${c.prize?`<span class="small">🏆 Prêmio: <b>${esc(c.prize)}</b></span>`:""}
   ${act?(me.today?`<div class="banner info"><div class="stack-s" style="gap:6px"><span>✅ Check-in de hoje feito${(((c.checkins||{})[ME.uid]||{})[today()]||{}).auto?" automaticamente":""}! ${me.s>1?`Sequência de ${me.s} dias.`:""}</span><button class="btn line sm" data-act="chalEdit2" data-c="${c.id}" data-d="${today()}" style="align-self:flex-start">${(((c.checkins||{})[ME.uid]||{})[today()]||{}).photo||(((c.checkins||{})[ME.uid]||{})[today()]||{}).photoData?"Editar check-in":"📸 Pôr foto ou comentário"}</button></div></div>`:`${chPend(c,today())?`<div class="banner warn"><span>${chPendText(c)}</span></div>`:""}<button class="btn block" data-act="chalCheckin">📸 ${chPend(c,today())?(chLive(c)?"Tirar a foto e validar o check-in":"Mandar a foto e validar o check-in"):"Fazer meu check-in de hoje"}</button>`):today()<c.start?`<div class="banner info"><span>O desafio começa em ${dayLabel(c.start)}.</span></div>`:`<div class="banner info"><span>Desafio encerrado. ${r[0]&&r[0].p?`Campeão: <b>${esc(nm(r[0].u))}</b> com ${r[0].p} pontos!`:""}</span></div>`}
  </div>
@@ -4619,13 +4748,15 @@ Object.assign(A,{
   cv.toBlob(b=>{if(!b){toast("Não consegui tirar a foto.");return}UI.chFile=b;UI.chLive=true;camStop();const box=$("#ch_cam");const u=URL.createObjectURL(b);
    if(box)box.innerHTML=`<img src="${u}" alt="Foto tirada agora" style="max-height:240px;max-width:100%;border-radius:12px;align-self:center"><button type="button" class="btn ghost sm" data-act="camOpen" style="align-self:center">Tirar outra</button>`},"image/jpeg",.9)},
  addChal:()=>chForm(),
+ chStory:el=>chStory(el.dataset.v,el.dataset.m),
  chalOpen:el=>{UI.chalOpen=el.dataset.v;render();window.scrollTo(0,0)},
  chalBack:()=>{UI.chalOpen=null;render();window.scrollTo(0,0)},
  chalEdit:el=>chForm(CHP().items[el.dataset.v]),
  chalPreset:el=>{const p=CH_PRESETS[+el.dataset.v];$("#ch_n").value=p[0];$("#ch_a").value=p[1];$("#ch_days").value=p[2];$("#ch_d").value=p[3]},
  chalSave:el=>{const name=v("ch_n").trim();if(!name){toast("Dê um nome ao desafio.");return}const id=el.dataset.v||rid();const old=CHP().items[id]||{};
   CHP().items[id]={...old,id,name,desc:v("ch_d").trim(),start:v("ch_s")||today(),days:clamp(+v("ch_days")||30,3,120),auto:v("ch_a")||"none",photo:v("ch_ph")||"opt",prize:v("ch_p").trim(),by:old.by||ME.uid,created:old.created||Date.now(),checkins:old.checkins||{}};
-  UI.chalOpen=id;closeModal();commit();toast(old.id?"Desafio salvo.":"Desafio criado! Chame a equipe para o primeiro check-in.")},
+  UI.chalOpen=id;closeModal();commit();toast(old.id?"Desafio salvo.":"Desafio criado! Chame a equipe para o primeiro check-in.");
+  if(!old.id){chSetAsked(id,"start");setTimeout(()=>{if($("#modal").innerHTML)return;openModal("Desafio criado!",`<div class="stack" style="align-items:center;text-align:center;gap:12px"><div style="font-size:52px;line-height:1">🔥</div><p>Quer anunciar o começo do desafio nos stories, com os porquinhos da equipe?</p><button class="btn block" data-act="chStory" data-v="${id}" data-m="start">Criar arte para os stories</button><button class="btn ghost block" data-act="closeModal">Agora não</button></div>`);const sc=document.querySelector("#modal .scrim");if(sc)sc.classList.add("center")},700)}},
  chalDelYes:()=>{const id=document.querySelector('[data-act="chalSave"]').dataset.v;const c=CHP().items[id];
   if(c&&!Store.demo&&sb){const mine=Object.values((c.checkins||{})[ME.uid]||{}).map(x=>x&&x.photo).filter(Boolean);if(mine.length)sb.storage.from("checkins").remove(mine).catch(()=>{})}
   delete CHP().items[id];UI.chalOpen=null;closeModal();commit();toast("Desafio apagado.")},

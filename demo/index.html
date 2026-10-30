@@ -4597,13 +4597,18 @@ async function chStoryArt(c,mode){const W=1080,H=1920,F=STK_F;const cv=document.
  if(end){const r=chRank(c);const win=chWinners(c);
   if(win.length===1){await draw(win[0].u,W/2,900,300,nmS(win[0].u),`${win[0].p} ponto${win[0].p===1?"":"s"} · campeão`,true)}
   else if(win.length>1){const ws=win.slice(0,3);const step=860/ws.length;for(let i=0;i<ws.length;i++)await draw(ws[i].u,90+step*(i+.5),880,Math.min(260,step*.8),nmS(ws[i].u),`${ws[i].p} ponto${ws[i].p===1?"":"s"}`,true);x.fillStyle="#B5650F";x.font=`600 34px ${F}`;x.fillText("Empate no topo!",W/2,1140)}
-  const rest=r.filter(z=>!win.some(w=>w.u===z.u)).slice(0,6);let y=1250;for(let i=0;i<rest.length;i++){const z=rest[i];const col=i%2,row=Math.floor(i/2);const cx=300+col*480,cy=y+row*150;const im=await stkPigImg(chPigOf(z.u));if(im)x.drawImage(im,cx-170,cy-55,120,102);
+  const rest=r.filter(z=>!win.some(w=>w.u===z.u)).slice(0,6);let y=1235;for(let i=0;i<rest.length;i++){const z=rest[i];const col=i%2,row=Math.floor(i/2);const cx=300+col*480,cy=y+row*118;const im=await stkPigImg(chPigOf(z.u));if(im)x.drawImage(im,cx-170,cy-55,120,102);
    x.textAlign="left";x.fillStyle="#2B1E24";fit(nmS(z.u),230,40,"600");x.fillText(nmS(z.u),cx-40,cy+5);x.fillStyle="#7A6A72";x.font=`500 30px ${F}`;x.fillText(`${win.length+i+1}º · ${z.p} pts`,cx-40,cy+45);x.textAlign="center"}
+  const more=r.length-win.length-rest.length;if(more>0){x.fillStyle="#7A6A72";x.font=`500 32px ${F}`;x.fillText(`+ ${more} participante${more===1?"":"s"}`,W/2,1555)}
   if(!win.length){x.fillStyle="#7A6A72";x.font=`500 40px ${F}`;x.fillText("Desafio encerrado",W/2,900)}}
- else{const ps=people.slice(0,9);const cols=ps.length<=2?ps.length:ps.length<=4?2:3;const rows=Math.ceil(ps.length/cols);const sz=Math.min(300,780/cols*.78,(820/rows)*.62);
-  for(let i=0;i<ps.length;i++){const col=i%cols,row=Math.floor(i/cols);const inRow=Math.min(cols,ps.length-row*cols);const cx=W/2+(col-(inRow-1)/2)*(840/cols);const cy=780+row*(sz*1.25)+(rows===1?120:0);await draw(ps[i],cx,cy,sz,nmS(ps[i]),"",false)}
-  if(people.length>9){x.fillStyle="#7A6A72";x.font=`500 34px ${F}`;x.fillText(`+ ${people.length-9} participantes`,W/2,1500)}
-  const rule=(c.desc||"").split("\n")[0].trim();if(rule){x.fillStyle="#5A4B52";x.font=`500 36px ${F}`;const t="“"+(rule.length>110?rule.slice(0,108)+"…":rule)+"”";const ls=[];let ln="";t.split(" ").forEach(w=>{const tt=ln?ln+" "+w:w;if(x.measureText(tt).width>780){ls.push(ln);ln=w}else ln=tt});ls.push(ln);ls.slice(0,3).forEach((l,i)=>x.fillText(l,W/2,1490+i*46-(Math.min(ls.length,3)-1)*23))}}
+ else{const MAX=20;const ps=people.slice(0,MAX);const n=ps.length;const cols=n<=2?n:n<=4?2:n<=9?3:n<=16?4:5;const rows=Math.ceil(n/cols);
+  const rule=(c.desc||"").split("\n")[0].trim();let ruleLines=[];
+  if(rule){x.font=`500 36px ${F}`;const t="“"+(rule.length>110?rule.slice(0,108)+"…":rule)+"”";let ln="";t.split(" ").forEach(w=>{const tt=ln?ln+" "+w:w;if(x.measureText(tt).width>780){ruleLines.push(ln);ln=w}else ln=tt});ruleLines.push(ln);ruleLines=ruleLines.slice(0,3)}
+  const extra=people.length>MAX;const top=690,bottom=1560-(ruleLines.length?ruleLines.length*46+30:0)-(extra?60:0);const avail=bottom-top;
+  const sz=Math.min(300,(840/cols)*.8,avail/rows/1.32);const gridH=rows*sz*1.32;const y0=top+(avail-gridH)/2+sz*.42;
+  for(let i=0;i<n;i++){const col=i%cols,row=Math.floor(i/cols);const inRow=Math.min(cols,n-row*cols);const cx=W/2+(col-(inRow-1)/2)*(840/cols);const cy=y0+row*sz*1.32;await draw(ps[i],cx,cy,sz,nmS(ps[i]),"",false)}
+  let yb=bottom+10;if(extra){x.fillStyle="#7A6A72";x.font=`500 34px ${F}`;x.fillText(`+ ${people.length-MAX} participantes`,W/2,yb+30);yb+=60}
+  if(ruleLines.length){x.fillStyle="#5A4B52";x.font=`500 36px ${F}`;ruleLines.forEach((l,i)=>x.fillText(l,W/2,yb+40+i*46))}}
  stkFooter(x,W,1690,end?"Desafios em grupo no Prumo":"Bora junto? Crie o seu desafio");
  return await new Promise(r=>cv.toBlob(r,"image/png"))}
 async function chStory(cid,mode){const c=CHP().items[cid];if(!c)return;openModal("Compartilhar nos stories",`<div class="tiny muted" style="padding:40px 0;text-align:center">Montando a arte…</div>`);

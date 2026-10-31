@@ -5114,16 +5114,18 @@ Object.assign(A,{
   if(chLive(c)&&news.some(x=>!x.live)){toast("Neste desafio só vale foto tirada agora.");return}
   if(chPhotoReq(c)&&!keep.length&&!news.length){toast("Neste desafio o check-in precisa de foto.");return}
   el.disabled=true;el.textContent="Salvando…";let up;try{up=await chUpload(c,d,news)}catch(e){console.warn(e);el.disabled=false;el.textContent="Salvar";toast("Não consegui enviar as fotos. Confira a internet.");return}
-  const nx={...ck,note:v("ch_note").trim(),edited:Date.now(),photo:null,photoData:null,photos:[...keep.filter(x=>x.p).map(x=>x.p),...up.paths],photosData:[...keep.filter(x=>x.d).map(x=>x.d),...up.datas]};
+  const cF=CHP().items[c.id]||c;const ckF=((cF.checkins||{})[ME.uid]||{})[d]||ck;
+  const nx={...ckF,note:v("ch_note").trim(),edited:Date.now(),photo:null,photoData:null,photos:[...keep.filter(x=>x.p).map(x=>x.p),...up.paths],photosData:[...keep.filter(x=>x.d).map(x=>x.d),...up.datas]};
   if(news.length)nx.live=(ck.live||!ckPics(ck).length)&&news.every(x=>x.live)?1:null;
   const gone=ckPaths(ck).filter(p=>!nx.photos.includes(p));if(gone.length&&!Store.demo&&sb)sb.storage.from("checkins").remove(gone).catch(()=>{});
-  c.checkins[ME.uid][d]=nx;closeModal();commit();toast("Check-in atualizado.")},
- chalCheckSave:async el=>{const c=CHP().items[UI.chalOpen];if(!c)return;const d=UI.chDay||today();const news=UI.chPics||[];
+  cF.checkins[ME.uid][d]=nx;closeModal();commit();toast("Check-in atualizado.")},
+ chalCheckSave:async el=>{let c=CHP().items[UI.chalOpen];if(!c)return;const d=UI.chDay||today();const news=UI.chPics||[];
   if(chPhotoReq(c)&&!news.length){toast(chLive(c)?"Tire a foto pela câmera para fazer o check-in.":"Neste desafio o check-in precisa de foto.");return}
   if(chLive(c)&&news.some(x=>!x.live)){toast("Neste desafio só vale foto tirada agora.");return}el.disabled=true;el.textContent="Enviando…";
   const ck={t:Date.now(),note:v("ch_note").trim()};if(news.length&&news.every(x=>x.live))ck.live=1;
   try{const up=await chUpload(c,d,news);if(up.paths.length)ck.photos=up.paths;if(up.datas.length)ck.photosData=up.datas}
   catch(e){console.warn(e);el.disabled=false;el.textContent="Fazer check-in";toast("Não consegui enviar as fotos. Confira a internet ou tente sem foto.");return}
+  c=CHP().items[c.id]||c;
   if(chPend(c,d)){ck.auto=1;if(!ck.note)ck.note=(CH_AUTO.find(x=>x[0]===c.auto)||["",""])[1];delete c.pend[ME.uid][d]}
   c.checkins=c.checkins||{};c.checkins[ME.uid]=c.checkins[ME.uid]||{};c.checkins[ME.uid][d]=ck;closeModal();commit();markActive();
   const r=chRank(c);toast(r.every(x=>x.today)&&r.length>1?"Check-in feito! Todo mundo cumpriu hoje! 🎉":"Check-in feito! +1 ponto.")},
@@ -5149,7 +5151,7 @@ Object.assign(A,{
    else{const ext=/mp4|aac|m4a/.test(R.blob.type)?"m4a":/ogg/.test(R.blob.type)?"ogg":"webm";const path=`${TEAM.id}/${c.id}/${ME.uid}/a-${rid()}.${ext}`;
     const {error}=await sb.storage.from("checkins").upload(path,R.blob,{contentType:R.blob.type||"audio/webm",upsert:false,cacheControl:"31536000"});if(error)throw error;cm.a=path;PH.url[path]=R.url}}
   catch(e){console.warn(e);el.disabled=false;el.textContent="Enviar áudio";toast("Não consegui enviar o áudio. Confira a internet.");return}
-  REC=null;UI.chCmReply=null;ck.cm=ck.cm||{};ck.cm[rid()]=cm;chPatch(k);chQuietSave();
+  REC=null;UI.chCmReply=null;const ck2=chCkOf(k).ck||ck;ck2.cm=ck2.cm||{};ck2.cm[rid()]=cm;chPatch(k);chQuietSave();
   if(typeof teamNotify==="function"){if(rep&&rep.u!==ME.uid)teamNotify([rep.u],"chal",`${TEAM.name} · ${c.name}`,`${myNick()} respondeu seu comentário com um áudio 🎤`,"chal");
    if(u!==ME.uid&&!(rep&&rep.u===u))teamNotify([u],"chal",`${TEAM.name} · ${c.name}`,`${myNick()} mandou um áudio no seu check-in 🎤`,"chal")}},
  audPlay:async el=>{const id=el.dataset.id;if(AUDP.el&&AUDP.id===id){if(!AUDP.el.paused){AUDP.el.pause();AUDP.id=null;document.querySelectorAll(".audbtn.on").forEach(b=>{b.classList.remove("on");b.innerHTML=b.innerHTML.replace("❚❚","▶")});return}}
@@ -5279,9 +5281,9 @@ function teamNotify(targets,kind,title,body,go){if(Store.demo||!sb||!Store.cloud
 {const _mt=moveTask;moveTask=function(id,to){const t0=S.tasks.items[id];const was=t0&&t0.status;const r=_mt.apply(this,arguments);
  try{const t=S.tasks.items[id];if(TEAM&&teamAg()&&t&&t.proj&&to==="done"&&was!=="done"){const pj=PJ().items[t.proj];const people=[t.who,...(t.help||[])].filter(u=>u&&u!==ME.uid);const lu=(t.updates||[]).reduce((m,u)=>Math.max(m,u.at||0),0);if(pj&&people.length&&Date.now()-lu>8000)teamNotify(people,"projupd",`${TEAM.name}: etapa concluída`,`${myNick()} concluiu "${t.title}" no projeto ${pj.name}.`,"proj")}}catch(e){}return r}}
 {const _cs=A.chalCheckSave;A.chalCheckSave=async el=>{const c=CHP().items[UI.chalOpen];const d=UI.chDay||today();const had=!!(c&&((c.checkins||{})[ME.uid]||{})[d]);await _cs(el);
- const ck=c&&((c.checkins||{})[ME.uid]||{})[d];if(!had&&ck)teamNotify("all","chal",`${TEAM.name} · ${c.name}`,`${myNick()} fez check-in${ck.note?`: ${ck.note}`:""}${ckPics(ck).length?" 📸":""}`,"chal")}}
+ const cN=c&&(CHP().items[c.id]||c);const ck=cN&&((cN.checkins||{})[ME.uid]||{})[d];if(!had&&ck)teamNotify("all","chal",`${TEAM.name} · ${c.name}`,`${myNick()} fez check-in${ck.note?`: ${ck.note}`:""}${ckPics(ck).length?" 📸":""}`,"chal")}}
 {const _ce=A.chalEditSave;A.chalEditSave=async el=>{const c=CHP().items[UI.chalOpen];const d=UI.chEdit;const b=c&&((c.checkins||{})[ME.uid]||{})[d];const hadPh=!!(b&&ckPics(b).length),hadNote=!!(b&&b.note&&!b.auto);await _ce(el);
- const a=c&&((c.checkins||{})[ME.uid]||{})[d];if(a&&((!hadPh&&ckPics(a).length)||(!hadNote&&a.note&&a.edited)))teamNotify("all","chal",`${TEAM.name} · ${c.name}`,`${myNick()} ${!hadPh&&ckPics(a).length?"postou uma foto":"comentou"} no check-in${a.note?`: ${a.note}`:""}`,"chal")}}
+ const cN=c&&(CHP().items[c.id]||c);const a=cN&&((cN.checkins||{})[ME.uid]||{})[d];if(a&&((!hadPh&&ckPics(a).length)||(!hadNote&&a.note&&a.edited)))teamNotify("all","chal",`${TEAM.name} · ${c.name}`,`${myNick()} ${!hadPh&&ckPics(a).length?"postou uma foto":"comentou"} no check-in${a.note?`: ${a.note}`:""}`,"chal")}}
 {const _cv=A.chalSave;A.chalSave=el=>{const isNew=!el.dataset.v;const n0=Object.keys(CHP().items).length;_cv(el);if(isNew&&Object.keys(CHP().items).length>n0){const c=CHP().items[UI.chalOpen];if(c)teamNotify("all","chal",`${TEAM.name}: novo desafio`,`${myNick()} criou o desafio "${c.name}". Bora participar?`,"chal")}}}
 
 /* ao sair da conta, este aparelho para de receber os avisos dela */

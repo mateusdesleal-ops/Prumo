@@ -894,6 +894,24 @@ function oinc(){try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContex
   OINC_LOAD=new Promise((ok,no)=>AC.decodeAudioData(u8.buffer,ok,no)).then(b=>{OINC_BUF=b;return b})}
  OINC_LOAD.then(play).catch(()=>{try{const a=new Audio(OINC_SRC);a.volume=.8;a.play()}catch(e){}})}catch(e){}}
 function beep(){if(S.profile.oinc!==false){oinc();return}try{if(!AC)return;const t=AC.currentTime;[0,.22,.44].forEach((o,i)=>{const g=AC.createGain(),os=AC.createOscillator();os.frequency.value=[660,880,990][i];os.type="sine";g.gain.setValueAtTime(0,t+o);g.gain.linearRampToValueAtTime(.25,t+o+.02);g.gain.exponentialRampToValueAtTime(.001,t+o+.2);os.connect(g).connect(AC.destination);os.start(t+o);os.stop(t+o+.22)})}catch(e){}}
+/* "fala de bichinho": o porquinho fala com sílabas de oinc, como nos jogos.
+   O tom muda com o humor: feliz = agudo e rápido; triste = grave e devagar. */
+let PIGTALK=null;
+function pigTalkStop(){if(PIGTALK){PIGTALK.forEach(n=>{try{n.stop()}catch(e){}});PIGTALK=null}}
+async function pigTalk(text,mood){if(S.profile.pigVoice===false||typeof OINC_SRC==="undefined"||!OINC_SRC)return;
+ try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")await AC.resume();
+  if(!OINC_BUF){if(!OINC_LOAD){const u8=Uint8Array.from(atob(OINC_SRC.split(",")[1]),c=>c.charCodeAt(0));OINC_LOAD=new Promise((ok,no)=>AC.decodeAudioData(u8.buffer,ok,no)).then(b=>{OINC_BUF=b;return b})}await OINC_LOAD}
+  pigTalkStop();const clean=String(text||"").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim();if(!clean)return;
+  const words=clean.split(" ").slice(0,24);const md=mood||(typeof pigHealth==="function"?pigHealth().mood:"feliz");
+  const base={feliz:1.75,ok:1.55,preocupado:1.3,triste:1.05}[md]||1.55,gap={feliz:.075,ok:.085,preocupado:.1,triste:.12}[md]||.085;
+  const buf=OINC_BUF,grain=Math.min(.09,buf.duration*.25),off=Math.min(buf.duration*.18,Math.max(0,buf.duration-grain-.01));
+  let t=AC.currentTime+.03;const nodes=[];
+  words.forEach((w,wi)=>{const syl=Math.max(1,Math.min(4,(w.toLowerCase().match(/[aeiouáéíóúâêôãõà]+/g)||[]).length));
+   for(let i=0;i<syl;i++){const src=AC.createBufferSource();src.buffer=buf;const up=/[!?]$/.test(w)&&i===syl-1?1.18:1;src.playbackRate.value=base*up*(0.88+Math.random()*.28);
+    const g=AC.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.55,t+.012);g.gain.linearRampToValueAtTime(0,t+grain*.9);
+    src.connect(g).connect(AC.destination);src.start(t,off,grain);nodes.push(src);t+=gap*(0.9+Math.random()*.25)}
+   t+=/[.,;:!?]$/.test(w)?gap*2.6:gap*.6});
+  PIGTALK=nodes}catch(e){}}
 function oink(){try{unlockAudio();if(!AC)return;const t=AC.currentTime;[0,.16].forEach(o=>{const os=AC.createOscillator(),g=AC.createGain(),f=AC.createBiquadFilter();os.type="sawtooth";os.frequency.setValueAtTime(320,t+o);os.frequency.exponentialRampToValueAtTime(170,t+o+.13);f.type="lowpass";f.frequency.value=900;g.gain.setValueAtTime(0,t+o);g.gain.linearRampToValueAtTime(.18,t+o+.02);g.gain.exponentialRampToValueAtTime(.001,t+o+.14);os.connect(f).connect(g).connect(AC.destination);os.start(t+o);os.stop(t+o+.15)})}catch(e){}}
 function toast(msg,ms){const el=document.createElement("div");el.className="toast";el.textContent=msg;$("#toasts").appendChild(el);setTimeout(()=>el.remove(),ms||3200)}
 
@@ -2602,7 +2620,8 @@ function viewProfile(){const p=S.profile;
   ${p.prayer?`<label class="field"><span>Tradição</span><select id="prayerTradSel">${Object.entries(PRAYER_TRADS).map(([id,t])=>`<option value="${id}" ${S.prayer.trad===id?"selected":""}>${t.n}</option>`).join("")}</select></label>`:""}
   ${p.pet?`<label class="field"><span>Nome do porquinho</span><input id="petNameInp" maxlength="20" value="${esc(S.pet.name||"")}" placeholder="Ex.: Toicinho"></label>`:""}
   <label class="check"><input type="checkbox" id="petToggle" ${p.pet?"checked":""} data-act="petToggle"><span><b>Mostrar o porquinho</b><br><span class="small muted">O mascote que cresce com a sua saúde financeira.</span></span></label>
-  ${typeof OINC_SRC!=="undefined"&&OINC_SRC?"":"<!--"}<div class="row" style="gap:8px;align-items:flex-start"><label class="check grow" style="margin:0"><input type="checkbox" id="oincToggle" ${p.oinc!==false?"checked":""}><span><b>Som de oinc</b><br><span class="small muted">Toca nos lembretes e quando chega um aviso, com o app aberto.</span></span></label><button type="button" class="btn ghost sm" data-act="oincTest" style="flex:none">▶ Ouvir</button></div>${typeof OINC_SRC!=="undefined"&&OINC_SRC?"":"-->"}
+  ${typeof OINC_SRC!=="undefined"&&OINC_SRC?"":"<!--"}<div class="row" style="gap:8px;align-items:flex-start"><label class="check grow" style="margin:0"><input type="checkbox" id="oincToggle" ${p.oinc!==false?"checked":""}><span><b>Som de oinc</b><br><span class="small muted">Toca nos lembretes e quando chega um aviso, com o app aberto.</span></span></label><button type="button" class="btn ghost sm" data-act="oincTest" style="flex:none">▶ Ouvir</button></div>
+  <div class="row" style="gap:8px;align-items:flex-start"><label class="check grow" style="margin:0"><input type="checkbox" id="pigVoiceToggle" ${p.pigVoice!==false?"checked":""}><span><b>Voz do porquinho</b><br><span class="small muted">Ele "fala" com oincs quando você toca nele ou abre um recado.</span></span></label><button type="button" class="btn ghost sm" data-act="pigVoiceTest" style="flex:none">▶ Ouvir</button></div>${typeof OINC_SRC!=="undefined"&&OINC_SRC?"":"-->"}
   <label class="check desk-only"><input type="checkbox" id="finLockToggle" ${p.finLock!==false?"checked":""}><span><b>Cadeado nas finanças (computador)</b><br><span class="small muted">No computador, a aba Finanças abre trancada para ninguém ver seus valores sem querer.${p.finPin?" Você usa uma senha de números.":""}</span></span></label>
   ${p.pet?`<label class="check"><input type="checkbox" id="buddyToggle" ${p.buddy!==false?"checked":""}><span><b>Mascote nas abas</b><br><span class="small muted">Um porquinho pequeno no canto de cada aba: comendo, lendo, se exercitando. Toque nele para uma dica.</span></span></label>`:""}
   <label class="field"><span>Tema</span><select id="themeSel" data-act="themeSel"><option value="system" ${p.theme==="system"?"selected":""}>Igual ao aparelho</option><option value="light" ${p.theme==="light"?"selected":""}>Claro</option><option value="dark" ${p.theme==="dark"?"selected":""}>Escuro</option></select></label>
@@ -3075,9 +3094,11 @@ const A={
  icsOne:el=>{const e=S.agenda.events[el.dataset.v];saveFile((e.title.replace(/[^\w\- ]/g,"").trim()||"compromisso")+".ics",icsFor([e]))},
  icsAll:()=>{const evs=vals(S.agenda.events).filter(e=>e.date>=today()||(e.repeat&&e.repeat!=="none"));saveFile("agenda-prumo.ics",icsFor(evs))},
  // porquinho
- pigPoke:el=>{const svg=el.querySelector("svg");if(!svg)return;svg.classList.remove("poke");void svg.getBoundingClientRect();svg.classList.add("poke");setTimeout(()=>svg.classList.remove("poke"),950);oink();
+ letterTalk:()=>pigTalk(letterParas(false).join(" "),"feliz"),
+ pigVoiceTest:()=>{const v=S.profile.pigVoice;S.profile.pigVoice=true;pigTalk("Oi! Eu sou o seu porquinho. Vamos colocar a vida em ordem?","feliz");S.profile.pigVoice=v},
+ pigPoke:el=>{const svg=el.querySelector("svg");if(!svg)return;svg.classList.remove("poke");void svg.getBoundingClientRect();svg.classList.add("poke");setTimeout(()=>svg.classList.remove("poke"),950);
   const m=pigHealth().mood;const F={feliz:["Oinc! Obrigado por cuidar de mim.","Oinc! Estou cheio de moedinhas.","Oinc! Assim a gente vai longe."],ok:["Oinc! Tudo tranquilo por aqui.","Oinc! Que tal guardar um pouquinho hoje?"],preocupado:["Oinc... as contas estão apertando.","Oinc... vamos segurar os desejos?"],triste:["Oinc... estou magrinho. Vamos olhar as contas juntos?","Oinc... um passo de cada vez, eu confio em você."]}[m];
-  toast((S.pet.name?S.pet.name+": ":"")+F[Math.floor(Math.random()*F.length)],2600)},
+  const ln=F[Math.floor(Math.random()*F.length)];toast((S.pet.name?S.pet.name+": ":"")+ln,2600);if(S.profile.pigVoice!==false&&typeof OINC_SRC!=="undefined"&&OINC_SRC)pigTalk(ln,m);else oink()},
  acc:el=>{const a=ACCESSORIES.find(x=>x.id===el.dataset.v);const owned=!!S.pet.owned[a.id];
   if(owned&&taskDecay().lostIds.has(a.id)){toast(`${a.n} está guardado por causa de tarefa atrasada. Conclua ou remarque para recuperar.`);return}
   if(owned&&studyDecay().lostIds.has(a.id)){toast(`O ${a.n.toLowerCase()} está guardado. Estude para recuperar.`);return}
@@ -3586,7 +3607,7 @@ function letterParas(short){const pig=letterPig();const who=letterWho();
 function letterAvatar(px){return letterPig()?`<div class="pigstage" style="width:${px}px;flex:none;border-radius:50%;aspect-ratio:1;overflow:hidden" aria-hidden="true">${pigFace(S.profile.created?effectiveEquip():{head:null,face:null,neck:null})}</div>`:`<div style="flex:none">${logoHTML(Math.round(px*.32))}</div>`}
 function letterTitle(){return letterPig()?(S.pet&&S.pet.name?`Um recado do ${esc(S.pet.name)}`:"Um recado do seu mascote"):"Um recado do Prumo"}
 function letterBubble(paras){return `<div style="position:relative;background:var(--pig-soft);border-radius:18px;padding:14px 16px;font-size:15px;line-height:1.5"><span style="position:absolute;top:-8px;left:34px;width:16px;height:16px;background:var(--pig-soft);transform:rotate(45deg)"></span><div class="stack-s" style="position:relative;gap:10px">${paras.map(p=>`<p>${p}</p>`).join("")}</div></div>`}
-function letterBlock(){return `<div class="stack" style="gap:10px"><div class="row" style="gap:12px;align-items:flex-end">${letterAvatar(88)}${letterPig()?`<b style="color:var(--pig-deep);font-family:var(--f-display);font-size:20px">${letterTitle()}</b>`:""}</div>${letterBubble(letterParas(false))}</div>`}
+function letterBlock(){return `<div class="stack" style="gap:10px"><div class="row" style="gap:12px;align-items:flex-end">${letterAvatar(88)}${letterPig()?`<span class="stack-s" style="gap:6px"><b style="color:var(--pig-deep);font-family:var(--f-display);font-size:20px">${letterTitle()}</b>${S.profile.pigVoice!==false&&typeof OINC_SRC!=="undefined"&&OINC_SRC?`<button type="button" class="btn ghost sm" data-act="letterTalk" style="align-self:flex-start">🔊 Ouvir o porquinho</button>`:""}</span>`:""}</div>${letterBubble(letterParas(false))}</div>`}
 function letterModal(){openModal(letterTitle().replace(/<[^>]+>/g,""),`<div class="stack">${letterBlock()}<button class="btn block" data-act="letterOk">${letterPig()?"Oinc! Combinado":"Combinado"}</button></div>`)}
 /* cartões no Início */
 function daysSinceLastActive(){const td=today();const ks=Object.keys(S.activity||{}).filter(d=>d<td).sort();if(!ks.length)return 0;return Math.round((parseDate(td)-parseDate(ks[ks.length-1]))/864e5)}
@@ -3834,7 +3855,7 @@ function buddyPaint(){let b=document.getElementById("buddy");const tip=document.
  if(b.dataset.sig!==sig){b.dataset.sig=sig;b.innerHTML=`<div class="bd-av">${pigFace(effectiveEquip())}</div><div class="bd-prop p-${P.pos}"><svg viewBox="0 0 40 40" aria-hidden="true">${P.svg}</svg></div>`;if(tip)tip.remove()}}
 {const _rb=render;render=function(){_rb();buddyPaint()}}
 A.buddyTap=()=>{const old=document.getElementById("buddyTip");if(old){old.remove();return}const P=BUDDY[buddyKind()];if(!P)return;UI._bdI=((UI._bdI||0)+1)%P.tips.length;
- const t=document.createElement("div");t.id="buddyTip";const r=document.getElementById("buddy").getBoundingClientRect();t.style.top=Math.round(r.bottom+8)+"px";t.style.left=Math.max(8,Math.round(r.left-6))+"px";t.innerHTML=`<b style="color:var(--pig-deep)">${esc(petCap())}</b><br>${P.tips[UI._bdI]}<br><button data-act="buddyHide">Esconder o mascote das abas</button>`;document.body.appendChild(t);clearTimeout(UI._bdT);UI._bdT=setTimeout(()=>t.remove(),6000)};
+ const t=document.createElement("div");t.id="buddyTip";const r=document.getElementById("buddy").getBoundingClientRect();t.style.top=Math.round(r.bottom+8)+"px";t.style.left=Math.max(8,Math.round(r.left-6))+"px";t.innerHTML=`<b style="color:var(--pig-deep)">${esc(petCap())}</b><br>${P.tips[UI._bdI]}<br><button data-act="buddyHide">Esconder o mascote das abas</button>`;document.body.appendChild(t);pigTalk(P.tips[UI._bdI]);clearTimeout(UI._bdT);UI._bdT=setTimeout(()=>t.remove(),6000)};
 A.buddyHide=()=>{S.profile.buddy=false;const t=document.getElementById("buddyTip");if(t)t.remove();commit();toast("Pronto. Para mostrar de novo, vá em Perfil.")};
 document.addEventListener("change",ev=>{if(ev.target&&ev.target.id==="buddyToggle"){S.profile.buddy=ev.target.checked;commit();toast(ev.target.checked?"O mascote vai aparecer nas abas.":"Mascote escondido das abas.")}});
 
@@ -3986,6 +4007,7 @@ Object.assign(A,{
 });
 
 A.oincTest=()=>oinc();
+document.addEventListener("change",ev=>{if(ev.target&&ev.target.id==="pigVoiceToggle"){S.profile.pigVoice=ev.target.checked;saveApp();if(ev.target.checked)pigTalk("Oba! Agora eu posso falar com você!");else pigTalkStop()}});
 document.addEventListener("change",ev=>{if(ev.target&&ev.target.id==="oincToggle"){S.profile.oinc=ev.target.checked;commit();if(ev.target.checked)oinc();toast(ev.target.checked?"Oinc ligado!":"Som desligado. Os lembretes tocam um bip discreto.")}});
 
 /* ============================================================

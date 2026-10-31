@@ -4021,7 +4021,10 @@ async function connectCloud(){
  if(!SESSION){UI.needAuth=localModeChosen()?false:true;render();return}
  await connectWithUser(SESSION.user.id);
 }
-async function connectWithUser(uid){
+/* registra que a pessoa abriu o app hoje (no máximo a cada 20 min) — usado só no painel do administrador */
+let SEEN_AT=0;function touchSeen(){if(!sb||!Store.cloud||Store.demo||document.hidden)return;if(Date.now()-SEEN_AT<20*60000)return;SEEN_AT=Date.now();sb.rpc("touch_seen").then(()=>{},()=>{})}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(touchSeen,1500)});setInterval(touchSeen,5*60000);
+async function connectWithUser(uid){setTimeout(touchSeen,3000);
  UI.needAuth=false;
  const db=sbDb();const localS=S,localFin=clone(PFIN);
  Store.db=db;ME.uid=uid;
@@ -4134,7 +4137,8 @@ if(SB_ON&&!localModeChosen())UI.needAuth="pending";
 UI.isAdmin=undefined;
 async function checkAdmin(){if(!sb||!Store.cloud||UI.isAdmin!==undefined)return;UI.isAdmin=null;try{const {data,error}=await sb.rpc("is_admin");UI.isAdmin=!error&&data===true}catch(e){UI.isAdmin=false}if(UI.isAdmin&&UI.tab==="profile")render()}
 const ADM={stats:null,users:null,err:null,loading:false,all:false,q:""};
-async function admLoad(){ADM.loading=true;ADM.err=null;render();try{const [a,b]=await Promise.all([sb.rpc("admin_stats"),sb.rpc("admin_users")]);if(a.error||b.error)throw(a.error||b.error);ADM.stats=a.data;ADM.users=b.data||[]}catch(e){ADM.err=(e&&e.message)||"erro"}ADM.loading=false;render()}
+async function admAccLoad(){ADM.accLoading=true;try{const {data,error}=await sb.rpc("admin_access",{p_days:ADM.accDays||1});if(error)throw error;ADM.acc=data||[];ADM.accErr=null}catch(e){ADM.accErr=(e&&e.message)||"erro"}ADM.accLoading=false;render()}
+async function admLoad(){setTimeout(admAccLoad,0);ADM.loading=true;ADM.err=null;render();try{const [a,b]=await Promise.all([sb.rpc("admin_stats"),sb.rpc("admin_users")]);if(a.error||b.error)throw(a.error||b.error);ADM.stats=a.data;ADM.users=b.data||[]}catch(e){ADM.err=(e&&e.message)||"erro"}ADM.loading=false;render()}
 function admDate(s,withTime){if(!s)return"—";const d=new Date(s);return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit"})+(withTime?" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"")}
 function viewAdmin(){if(!UI.isAdmin)return `<div class="card empty">Acesso restrito.</div>`;if(ADM.sel)return admDetail();const s=ADM.stats;
  if(!s&&!ADM.loading&&!ADM.err)setTimeout(admLoad,0);
@@ -4148,6 +4152,7 @@ function viewAdmin(){if(!UI.isAdmin)return `<div class="card empty">Acesso restr
   const base=Math.max(1,s.onboarded);const FN={fin:"Dinheiro",saude:"Saúde",estudo:"Estudos",rotina:"Rotina",fe:"Fé e mente"};
   const q=ADM.q.trim().toLowerCase();const us=(ADM.users||[]).filter(u=>!q||String(u.email).toLowerCase().includes(q));const list=ADM.all?us:us.slice(0,30);
   body=`<div class="grid2">${kpi("Contas",s.users,`${s.confirmed} confirmadas`)}${kpi("Terminaram o cadastro",s.onboarded,`${pct(s.onboarded,s.users)}% das contas`)}${kpi("Novas em 7 dias",s.new7,`${s.new30} em 30 dias`)}${kpi("Usaram hoje",s.active1,`${s.active7} na semana · ${s.active30} no mês`)}</div>
+  ${admAccCard()}
   <div class="card stack"><div class="label">Novas contas nos últimos 30 dias</div><svg viewBox="0 0 300 90" style="width:100%;height:auto" role="img" aria-label="Novas contas por dia">${days.map((d,i)=>{const h=(map[d]||0)/mx*70;return `<rect x="${i*10+1}" y="${78-h}" width="8" height="${Math.max(h,1)}" rx="2" fill="${map[d]?"var(--pig-deep)":"var(--line)"}"><title>${admDate(d)}: ${map[d]||0}</title></rect>`}).join("")}<text x="0" y="89" font-size="8" fill="var(--muted)">${admDate(days[0])}</text><text x="300" y="89" font-size="8" text-anchor="end" fill="var(--muted)">hoje</text></svg></div>
   <div class="card stack"><div class="label">O que as pessoas usam</div><p class="tiny muted">Entre as ${s.onboarded} pessoas que terminaram o cadastro.</p>
    ${bar("Lançaram finanças",s.finance,base)}${bar("Cadastraram cartão",s.cards,base)}${bar("Cadastraram dívida",s.debts,base)}${bar("Registraram estudo",s.study,base)}${bar("Registraram exercício",s.exercise,base)}${bar("Registraram alimentação",s.food,base)}${bar("Criaram tarefas",s.tasks,base)}${bar("Porquinho ligado",s.pet,base)}${bar("Aba de Oração ligada",s.prayer,base)}
@@ -4165,6 +4170,11 @@ function viewAdmin(){if(!UI.isAdmin)return `<div class="card empty">Acesso restr
  ${typeof supAdminCard==="function"?supAdminCard():""}
  ${body}</div>`}
 A.goAdmin=()=>{UI.tab="admin";window.scrollTo(0,0);ADM.stats=null;ADM.sel=null;render()};
+function admAccCard(){const d=ADM.accDays||1;const L=ADM.acc;const hm=t=>{const x=new Date(t);const td=new Date();return x.toDateString()===td.toDateString()?"hoje às "+x.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):x.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})+" às "+x.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})};
+ return `<div class="card stack" id="admAcc"><div class="row between"><div class="label">Quem acessou</div><div class="chips">${[[1,"Hoje"],[7,"7 dias"],[30,"30 dias"]].map(([k,n])=>`<button class="chip ${d===k?"on":""}" data-act="admAccDays" data-v="${k}">${n}</button>`).join("")}</div></div>
+ ${ADM.accErr?`<p class="small" style="color:var(--bad)">Não consegui carregar: ${esc(ADM.accErr)}</p>`:!L?`<p class="small muted">Carregando…</p>`:L.length?`<p class="tiny muted">${L.length} pessoa${L.length===1?"":"s"} ${d===1?"hoje":`nos últimos ${d} dias`}.</p><div class="list">${L.map(u=>`<button class="item" style="width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;padding-inline:0" data-act="admOpen" data-v="${esc(u.email)}"><div class="grow stack-s" style="gap:1px;min-width:0"><p class="small"><b>${esc(u.name||u.email.split("@")[0])}</b> <span class="tiny muted">${esc(u.email)}</span></p><p class="tiny muted">Último acesso ${hm(u.last_at)}${d>1?` · ${u.days_used} dia${u.days_used==1?"":"s"}`:""} · abriu ${u.opens}×</p></div></button>`).join("")}</div>`:`<p class="small muted">Ninguém ${d===1?"hoje":"nesse período"} ainda.</p>`}
+ <span class="tiny muted">Conta como acesso abrir o app com a conta conectada. Os registros de cada pessoa continuam privados.</span></div>`}
+A.admAccDays=el=>{ADM.accDays=+el.dataset.v;ADM.acc=null;render();admAccLoad()};
 A.admReload=()=>admLoad();
 A.admAll=()=>{ADM.all=true;render()};
 A.admCsv=()=>{const rows=[["email","criada_em","ultimo_acesso","confirmada","ultima_atividade","cadastro_completo"],...(ADM.users||[]).map(u=>[u.email,u.created_at||"",u.last_sign_in_at||"",u.confirmed?"sim":"nao",u.last_activity||"",u.onboarded?"sim":"nao"])];

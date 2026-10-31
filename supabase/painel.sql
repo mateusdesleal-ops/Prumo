@@ -219,3 +219,34 @@ alter policy "ver meus apoios" on public.support_claims using (uid = (select aut
 
 -- Avisos das equipes (sininho + notificações). A função "notify" (Edge Function) cria os avisos e envia o push.
 -- push_subs: aparelhos que aceitaram notificações; notifications: avisos; app_secrets: chaves VAPID (só o servidor lê).
+
+-- Acessos: um registro por pessoa por dia (quando abre o app com a conta conectada)
+create table if not exists public.user_days(uid uuid not null references auth.users(id) on delete cascade, day date not null, first_at timestamptz not null default now(), last_at timestamptz not null default now(), opens int not null default 1, primary key(uid,day));
+alter table public.user_days enable row level security;
+create or replace function public.touch_seen() returns void
+language plpgsql security definer set search_path=public as $$
+declare d date := (now() at time zone 'America/Sao_Paulo')::date;
+begin
+  if auth.uid() is null then return; end if;
+  insert into user_days(uid,day) values (auth.uid(), d)
+  on conflict (uid,day) do update set last_at=now(), opens=user_days.opens+1;
+end $$;
+revoke all on function public.touch_seen() from public, anon;
+grant execute on function public.touch_seen() to authenticated;
+create or replace function public.admin_access(p_days int default 1)
+returns table (email text, name text, last_at timestamptz, days_used bigint, opens bigint)
+language plpgsql stable security definer set search_path = public, auth as $$
+declare since date := (now() at time zone 'America/Sao_Paulo')::date - greatest(p_days,1) + 1;
+begin
+  if not public.is_admin() then raise exception 'acesso negado'; end if;
+  return query
+    select u.email::text, nullif(d.data -> 'profile' ->> 'name','')::text, max(x.last_at), count(*), sum(x.opens)::bigint
+    from user_days x join auth.users u on u.id=x.uid
+    left join public.docs d on d.path = 'data/users/' || u.id::text || '/app'
+    where x.day >= since
+    group by u.email, d.data -> 'profile' ->> 'name'
+    order by max(x.last_at) desc;
+end $$;
+revoke all on function public.admin_access(int) from public, anon;
+grant execute on function public.admin_access(int) to authenticated;
+-- (admin_stats passou a contar "usaram hoje / semana / mês" pela tabela user_days)

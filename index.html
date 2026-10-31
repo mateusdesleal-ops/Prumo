@@ -4995,16 +4995,23 @@ const fmtDur=n=>`${Math.floor(n/60)}:${String(Math.round(n%60)).padStart(2,"0")}
 function chAudBtn(x){const id=x.a||("d"+x.t);const on=AUDP.id===id;return `<button type="button" class="audbtn ${on?"on":""}" data-act="audPlay" data-src="${esc(x.a||"")}" data-id="${esc(id)}" data-k2="${x.t}">${on?"❚❚":"▶"} 🎤 ${fmtDur(x.dur||0)}</button>`}
 function recRow(k){if(REC.blob)return `<div class="stack-s" style="gap:6px"><audio controls src="${REC.url}" style="width:100%;height:40px"></audio>${REC.tx?`<span class="tiny muted" style="font-style:italic">“${esc(REC.tx)}”</span>`:""}<div class="row" style="gap:6px"><button type="button" class="btn ghost sm" data-act="recDrop" data-k="${k}">Descartar</button><button type="button" class="btn sm grow" data-act="recSend" data-k="${k}">Enviar áudio</button></div></div>`;
  return `<div class="row" style="gap:8px;align-items:center"><span class="recdot"></span><b class="small" id="recClock">Gravando 0:00</b><span class="tiny muted grow">até ${AUD_MAX} s</span><button type="button" class="btn ghost sm" data-act="recDrop" data-k="${k}">Cancelar</button><button type="button" class="btn sm" data-act="recStop" data-k="${k}">Parar</button></div>`}
-function recSpeechOK(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return null;if(/Android/i.test(navigator.userAgent))return null;return SR}
+/* transcrição junto da gravação só no computador: no celular o navegador costuma "roubar" o microfone e a gravação trava */
+function recSpeechOK(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return null;const ua=navigator.userAgent;if(/Android|iPhone|iPad|iPod|Mobile/i.test(ua)||(navigator.maxTouchPoints>1&&/Macintosh/.test(ua)))return null;return SR}
 async function recStart(k){if(REC)recCleanup();let stream;try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}})}catch(e){toast(e&&e.name==="NotAllowedError"?"Libere o microfone nas permissões do navegador para gravar.":"Não consegui usar o microfone.");return}
  const types=["audio/webm;codecs=opus","audio/mp4","audio/ogg;codecs=opus","audio/webm"];const mt=types.find(t=>{try{return MediaRecorder.isTypeSupported(t)}catch(e){return false}})||"";
  let mr;try{mr=new MediaRecorder(stream,mt?{mimeType:mt,audioBitsPerSecond:24000}:{audioBitsPerSecond:24000})}catch(e){mr=new MediaRecorder(stream)}
  REC={k,mr,stream,chunks:[],start:Date.now(),tx:"",type:mr.mimeType||mt||"audio/webm"};mr.ondataavailable=e=>{if(e.data&&e.data.size)REC&&REC.chunks.push(e.data)};
- mr.onstop=()=>{if(!REC)return;REC.dur=Math.min(AUD_MAX,Math.max(1,Math.round((Date.now()-REC.start)/1000)));REC.blob=new Blob(REC.chunks,{type:REC.type.split(";")[0]});REC.url=URL.createObjectURL(REC.blob);stream.getTracks().forEach(t=>t.stop());clearInterval(REC.timer);
-  setTimeout(()=>chPatch(k),REC.sr?600:0)};
+ mr.onstop=()=>{setTimeout(recFinish,REC&&REC.sr?500:60)};
  const SR=recSpeechOK();if(SR){try{const sr=new SR();sr.lang="pt-BR";sr.continuous=true;sr.interimResults=false;sr.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal&&REC)REC.tx=(REC.tx+" "+e.results[i][0].transcript).trim()};sr.onerror=()=>{};sr.start();REC.sr=sr}catch(e){}}
- mr.start(1000);REC.timer=setInterval(()=>{if(!REC)return;const n=(Date.now()-REC.start)/1000;const c=document.getElementById("recClock");if(c)c.textContent="Gravando "+fmtDur(n);if(n>=AUD_MAX)recStop()},400);chPatch(k)}
-function recStop(){if(!REC||!REC.mr||REC.mr.state==="inactive")return;try{REC.sr&&REC.sr.stop()}catch(e){}REC.mr.stop()}
+ mr.start(250);REC.timer=setInterval(()=>{if(!REC)return;const n=(Date.now()-REC.start)/1000;const c=document.getElementById("recClock");if(c)c.textContent="Gravando "+fmtDur(n);if(n>=AUD_MAX)recStop()},400);chPatch(k)}
+function recStop(){if(!REC||REC.done||REC.stopping)return;REC.stopping=true;REC.end=Date.now();clearInterval(REC.timer);const c=document.getElementById("recClock");if(c)c.textContent="Finalizando…";
+ try{REC.sr&&REC.sr.stop()}catch(e){}try{if(REC.mr.state!=="inactive"){try{REC.mr.requestData()}catch(e){}REC.mr.stop()}}catch(e){}
+ setTimeout(recFinish,1600)}
+/* fecha a gravação mesmo que o navegador não avise que parou */
+function recFinish(){if(!REC||REC.done)return;REC.done=true;clearInterval(REC.timer);try{REC.stream.getTracks().forEach(t=>t.stop())}catch(e){}const k=REC.k;
+ const blob=new Blob(REC.chunks,{type:(REC.type||"audio/webm").split(";")[0]});
+ if(!blob.size){REC=null;toast("Não consegui gravar o áudio. Tente de novo.");chPatch(k);return}
+ REC.dur=Math.min(AUD_MAX,Math.max(1,Math.round(((REC.end||Date.now())-REC.start)/1000)));REC.blob=blob;REC.url=URL.createObjectURL(blob);chPatch(k)}
 function recCleanup(){if(!REC)return;try{REC.sr&&REC.sr.abort()}catch(e){}try{if(REC.mr&&REC.mr.state!=="inactive")REC.mr.stop()}catch(e){}try{REC.stream.getTracks().forEach(t=>t.stop())}catch(e){}clearInterval(REC.timer);const k=REC.k;REC=null;return k}
 async function audUrl(path){if(PH.url[path])return PH.url[path];const {data,error}=await sb.storage.from("checkins").createSignedUrl(path,6*3600);if(error)throw error;PH.url[path]=data.signedUrl;return data.signedUrl}
 /* limpeza: meus áudios com mais de 7 dias e pesados viram texto (quando há transcrição) */

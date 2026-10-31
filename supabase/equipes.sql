@@ -340,3 +340,6 @@ revoke all on function public.my_work_email(uuid) from public, anon;
 revoke all on function public.set_my_work_email(uuid,text) from public, anon;
 grant execute on function public.my_work_email(uuid) to authenticated;
 grant execute on function public.set_my_work_email(uuid,text) to authenticated;
+
+-- Fotos e áudios dos desafios: até 1 MB por arquivo (fotos são reduzidas no aparelho; áudios de até 60 s)
+update storage.buckets set file_size_limit=1048576, allowed_mime_types=array['image/jpeg','image/webp','audio/webm','audio/mp4','audio/ogg','audio/mpeg','audio/aac','audio/x-m4a'] where id='checkins';

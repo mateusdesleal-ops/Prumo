@@ -4901,6 +4901,11 @@ function chWinPopup(){if(!TEAM||!teamHas("desafios")||!TD.chal)return;const c=va
 
 /* ---------- fotos ---------- */
 const PH={url:{},pending:new Set(),ar:{}};
+async function chUpload(c,d,news){const paths=[],datas=[];
+ for(const x of news){const blob=await chShrink(x.blob);
+  if(Store.demo||!sb){datas.push(await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(blob)}))}
+  else{const path=`${TEAM.id}/${c.id}/${ME.uid}/${d}-${rid()}.jpg`;const {error}=await sb.storage.from("checkins").upload(path,blob,{contentType:"image/jpeg",upsert:false,cacheControl:"31536000"});if(error)throw error;paths.push(path);PH.url[path]=URL.createObjectURL(blob)}}
+ return{paths,datas}}
 async function chShrink(file){let bmp;try{bmp=await createImageBitmap(file,{imageOrientation:"from-image"})}catch(e){bmp=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=URL.createObjectURL(file)})}
  const W=bmp.width,H=bmp.height,m=720,sc=Math.min(1,m/Math.max(W,H));const cv=document.createElement("canvas");cv.width=Math.round(W*sc);cv.height=Math.round(H*sc);cv.getContext("2d").drawImage(bmp,0,0,cv.width,cv.height);
  let q=.6,blob=null;for(let k=0;k<5;k++){blob=await new Promise(r=>cv.toBlob(r,"image/jpeg",q));if(blob.size<=110000)break;q-=.1}
@@ -4924,11 +4929,17 @@ async function camOpen(){const box=$("#ch_cam");if(!box)return;camStop();
 const camErr=m=>`<div class="banner warn"><span>${m} Este desafio só aceita foto tirada na hora, pelo Prumo. Se não der por aqui, faça o check-in pelo celular.</span></div><button type="button" class="btn ghost sm" data-act="camOpen" style="align-self:center">Tentar de novo</button>`;
 function camPanel(label){return `<div class="stack-s" style="gap:8px"><div class="tiny muted">📸 ${label}</div><div id="ch_cam" class="stack-s" style="gap:8px"><button type="button" class="chpick" data-act="camOpen" style="width:100%"><span class="stack-s" style="align-items:center;gap:4px">📷<b class="small">Abrir câmera</b><span class="tiny muted">Neste desafio só vale foto tirada agora</span></span></button></div></div>`}
 {const _cm=closeModal;closeModal=function(){camStop();return _cm.apply(this,arguments)}}
+const CH_MAXPICS=4;
+/* fotos de um check-in, no formato novo (várias) ou antigo (uma) */
+function ckPics(ck){if(!ck)return[];const o=[];if(ck.photo)o.push({p:ck.photo});if(ck.photoData)o.push({d:ck.photoData});(ck.photos||[]).forEach(p=>p&&o.push({p}));(ck.photosData||[]).forEach(d=>d&&o.push({d}));return o}
+const ckPaths=ck=>ckPics(ck).filter(x=>x.p).map(x=>x.p);
 function chPhotoTag(ck){const t=chPhotoTag0(ck);return t&&ck.live?t+`<span class="tiny muted">📸 Foto tirada na hora</span>`:t}
 const phKey=ck=>ck.photo||("d"+(ck.t||0)+"_"+String(ck.photoData||"").length);
 const phAR=ck=>{const r=PH.ar[phKey(ck)];return r?` style="aspect-ratio:${r};min-height:0" data-k="${esc(phKey(ck))}"`:` data-k="${esc(phKey(ck))}"`};
-function chPhotoTag0(ck){if(ck.photoData)return `<img src="${ck.photoData}" alt="Foto do check-in" class="chph"${phAR(ck)}>`;if(!ck.photo)return"";const u=PH.url[ck.photo];
- return `<img ${u?`src="${u}"`:""} data-ph="${esc(ck.photo)}" alt="Foto do check-in" class="chph" loading="lazy"${phAR(ck)}>`}
+function chPhotoTag0(ck){const ps=ckPics(ck);if(!ps.length)return"";
+ const img=(x,i,cls,extra)=>x.d?`<img src="${x.d}" alt="Foto ${i+1} do check-in" class="${cls}"${extra}>`:`<img ${PH.url[x.p]?`src="${PH.url[x.p]}"`:""} data-ph="${esc(x.p)}" alt="Foto ${i+1} do check-in" class="${cls}" loading="lazy"${extra}>`;
+ if(ps.length===1){const k=ps[0].p||("d"+(ck.t||0)+"_"+String(ps[0].d||"").length);const r=PH.ar[k];return img(ps[0],0,"chph",r?` style="aspect-ratio:${r};min-height:0" data-k="${esc(k)}"`:` data-k="${esc(k)}"`)}
+ return `<div class="phgrid n${Math.min(ps.length,4)}">${ps.map((x,i)=>img(x,i,"chph","")).join("")}</div>`}
 /* guarda a proporção de cada foto: quando a tela se redesenha, a foto já ocupa o mesmo espaço e nada pula */
 document.addEventListener("load",ev=>{const i=ev.target;if(i&&i.classList&&i.classList.contains("chph")&&i.naturalWidth&&i.dataset.k){const r=Math.max(i.naturalWidth/i.naturalHeight,.6).toFixed(3);if(!PH.ar[i.dataset.k]){PH.ar[i.dataset.k]=r;i.style.aspectRatio=r;i.style.minHeight="0"}}},true);
 async function chLoadPhotos(){if(Store.demo||!sb)return;const need=[...document.querySelectorAll("img[data-ph]:not([src])")].map(i=>i.dataset.ph).filter(p=>!PH.url[p]&&!PH.pending.has(p));if(!need.length)return;
@@ -4958,7 +4969,7 @@ function chDetail(c){const r=chRank(c);const me=r.find(x=>x.u===ME.uid)||{};cons
   ${chLive(c)?`<span class="small">📸 Só vale foto tirada na hora, pela câmera do Prumo</span>`:c.photo==="req"?`<span class="small">📸 Check-in só com foto</span>`:""}
   <button class="btn line sm" data-act="chStory" data-v="${c.id}" data-m="${chEnded(c)?"end":"start"}" style="align-self:flex-start">📲 ${chEnded(c)?"Postar o resultado nos stories":"Postar nos stories"}</button>
   ${c.prize?`<span class="small">🏆 Prêmio: <b>${esc(c.prize)}</b></span>`:""}
-  ${act?(me.today?`<div class="banner info"><div class="stack-s" style="gap:6px"><span>✅ Check-in de hoje feito${(((c.checkins||{})[ME.uid]||{})[today()]||{}).auto?" automaticamente":""}! ${me.s>1?`Sequência de ${me.s} dias.`:""}</span><button class="btn line sm" data-act="chalEdit2" data-c="${c.id}" data-d="${today()}" style="align-self:flex-start">${(((c.checkins||{})[ME.uid]||{})[today()]||{}).photo||(((c.checkins||{})[ME.uid]||{})[today()]||{}).photoData?"Editar check-in":"📸 Pôr foto ou comentário"}</button></div></div>`:`${chPend(c,today())?`<div class="banner warn"><span>${chPendText(c)}</span></div>`:""}<button class="btn block" data-act="chalCheckin">📸 ${chPend(c,today())?(chLive(c)?"Tirar a foto e validar o check-in":"Mandar a foto e validar o check-in"):"Fazer meu check-in de hoje"}</button>`):today()<c.start?`<div class="banner info"><span>O desafio começa em ${dayLabel(c.start)}.</span></div>`:`<div class="banner info"><span>Desafio encerrado. ${r[0]&&r[0].p?`Campeão: <b>${esc(nm(r[0].u))}</b> com ${r[0].p} pontos!`:""}</span></div>`}
+  ${act?(me.today?`<div class="banner info"><div class="stack-s" style="gap:6px"><span>✅ Check-in de hoje feito${(((c.checkins||{})[ME.uid]||{})[today()]||{}).auto?" automaticamente":""}! ${me.s>1?`Sequência de ${me.s} dias.`:""}</span><button class="btn line sm" data-act="chalEdit2" data-c="${c.id}" data-d="${today()}" style="align-self:flex-start">${ckPics(((c.checkins||{})[ME.uid]||{})[today()]).length?"Editar check-in":"📸 Pôr fotos ou comentário"}</button></div></div>`:`${chPend(c,today())?`<div class="banner warn"><span>${chPendText(c)}</span></div>`:""}<button class="btn block" data-act="chalCheckin">📸 ${chPend(c,today())?(chLive(c)?"Tirar a foto e validar o check-in":"Mandar a foto e validar o check-in"):"Fazer meu check-in de hoje"}</button>`):today()<c.start?`<div class="banner info"><span>O desafio começa em ${dayLabel(c.start)}.</span></div>`:`<div class="banner info"><span>Desafio encerrado. ${r[0]&&r[0].p?`Campeão: <b>${esc(nm(r[0].u))}</b> com ${r[0].p} pontos!`:""}</span></div>`}
  </div>
  ${allToday?`<div class="card row" style="gap:10px"><span style="width:56px;flex:none">${pigSVG({score:95,mood:"feliz",equip:{},env:0,mini:true})}</span><span class="small"><b>Todo mundo cumpriu hoje!</b> O porquinho está orgulhoso da equipe.</span></div>`:""}
  <div class="card stack"><div class="label">Ranking</div>${chRankMsg(c,r)}<div class="list">${r.map((x,i)=>`<div class="item"><b class="num" style="width:30px">${chPos(r,x)}º</b><span class="avatar">${teamInitials(x.u)}</span><span class="grow">${x.p&&x.p===r[0].p?"👑 ":""}${esc(nm(x.u))}${x.today?" <span class='tiny' title='Fez hoje'>✅</span>":""}</span><span class="tiny muted">${x.s>1?`🔥 ${x.s} · `:""}</span><b class="num">${x.p} pt${x.p===1?"":"s"}</b></div>`).join("")}</div></div>
@@ -4976,10 +4987,37 @@ function chRxBar(c,u,d){const ck=((c.checkins||{})[u]||{})[d]||{};const rs=ck.r|
  <button type="button" class="chip" data-act="chCmOpen" data-k="${k}" style="padding:4px 10px">💬 ${ncm?ncm:"Comentar"}</button>
  ${u===ME.uid?`<button type="button" class="chip" data-act="chalEdit2" data-c="${c.id}" data-d="${d}" style="padding:4px 10px;margin-left:auto">Editar</button>`:""}</div>
  ${open?`<div class="rxpal">${CH_REACT.map(e=>`<button type="button" class="${rs[ME.uid]===e?"on":""}" data-act="chalReact" data-c="${c.id}" data-u="${u}" data-d="${d}" data-e="${e}" aria-label="Reagir com ${e}">${e}</button>`).join("")}</div>`:""}`}
+/* ---------- comentários em áudio (até 60 s). Quando dá, o Prumo transcreve enquanto grava.
+   Depois de 7 dias, áudios mais pesados viram só texto (se houver transcrição). Áudios leves ficam. ---------- */
+const AUD_MAX=60,AUD_LIGHT=120*1024,AUD_DAYS=7;let REC=null;const AUDP={el:null,id:null};
+const recOK=()=>!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder);
+const fmtDur=n=>`${Math.floor(n/60)}:${String(Math.round(n%60)).padStart(2,"0")}`;
+function chAudBtn(x){const id=x.a||("d"+x.t);const on=AUDP.id===id;return `<button type="button" class="audbtn ${on?"on":""}" data-act="audPlay" data-src="${esc(x.a||"")}" data-id="${esc(id)}" data-k2="${x.t}">${on?"❚❚":"▶"} 🎤 ${fmtDur(x.dur||0)}</button>`}
+function recRow(k){if(REC.blob)return `<div class="stack-s" style="gap:6px"><audio controls src="${REC.url}" style="width:100%;height:40px"></audio>${REC.tx?`<span class="tiny muted" style="font-style:italic">“${esc(REC.tx)}”</span>`:""}<div class="row" style="gap:6px"><button type="button" class="btn ghost sm" data-act="recDrop" data-k="${k}">Descartar</button><button type="button" class="btn sm grow" data-act="recSend" data-k="${k}">Enviar áudio</button></div></div>`;
+ return `<div class="row" style="gap:8px;align-items:center"><span class="recdot"></span><b class="small" id="recClock">Gravando 0:00</b><span class="tiny muted grow">até ${AUD_MAX} s</span><button type="button" class="btn ghost sm" data-act="recDrop" data-k="${k}">Cancelar</button><button type="button" class="btn sm" data-act="recStop" data-k="${k}">Parar</button></div>`}
+function recSpeechOK(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return null;if(/Android/i.test(navigator.userAgent))return null;return SR}
+async function recStart(k){if(REC)recCleanup();let stream;try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}})}catch(e){toast(e&&e.name==="NotAllowedError"?"Libere o microfone nas permissões do navegador para gravar.":"Não consegui usar o microfone.");return}
+ const types=["audio/webm;codecs=opus","audio/mp4","audio/ogg;codecs=opus","audio/webm"];const mt=types.find(t=>{try{return MediaRecorder.isTypeSupported(t)}catch(e){return false}})||"";
+ let mr;try{mr=new MediaRecorder(stream,mt?{mimeType:mt,audioBitsPerSecond:24000}:{audioBitsPerSecond:24000})}catch(e){mr=new MediaRecorder(stream)}
+ REC={k,mr,stream,chunks:[],start:Date.now(),tx:"",type:mr.mimeType||mt||"audio/webm"};mr.ondataavailable=e=>{if(e.data&&e.data.size)REC&&REC.chunks.push(e.data)};
+ mr.onstop=()=>{if(!REC)return;REC.dur=Math.min(AUD_MAX,Math.max(1,Math.round((Date.now()-REC.start)/1000)));REC.blob=new Blob(REC.chunks,{type:REC.type.split(";")[0]});REC.url=URL.createObjectURL(REC.blob);stream.getTracks().forEach(t=>t.stop());clearInterval(REC.timer);
+  setTimeout(()=>chPatch(k),REC.sr?600:0)};
+ const SR=recSpeechOK();if(SR){try{const sr=new SR();sr.lang="pt-BR";sr.continuous=true;sr.interimResults=false;sr.onresult=e=>{for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal&&REC)REC.tx=(REC.tx+" "+e.results[i][0].transcript).trim()};sr.onerror=()=>{};sr.start();REC.sr=sr}catch(e){}}
+ mr.start(1000);REC.timer=setInterval(()=>{if(!REC)return;const n=(Date.now()-REC.start)/1000;const c=document.getElementById("recClock");if(c)c.textContent="Gravando "+fmtDur(n);if(n>=AUD_MAX)recStop()},400);chPatch(k)}
+function recStop(){if(!REC||!REC.mr||REC.mr.state==="inactive")return;try{REC.sr&&REC.sr.stop()}catch(e){}REC.mr.stop()}
+function recCleanup(){if(!REC)return;try{REC.sr&&REC.sr.abort()}catch(e){}try{if(REC.mr&&REC.mr.state!=="inactive")REC.mr.stop()}catch(e){}try{REC.stream.getTracks().forEach(t=>t.stop())}catch(e){}clearInterval(REC.timer);const k=REC.k;REC=null;return k}
+async function audUrl(path){if(PH.url[path])return PH.url[path];const {data,error}=await sb.storage.from("checkins").createSignedUrl(path,6*3600);if(error)throw error;PH.url[path]=data.signedUrl;return data.signedUrl}
+/* limpeza: meus áudios com mais de 7 dias e pesados viram texto (quando há transcrição) */
+async function audCleanup(){if(Store.demo||!sb||!TEAM||!TD.chal)return;const lim=Date.now()-AUD_DAYS*864e5;const gone=[];
+ for(const c of vals(CHP().items))for(const days of Object.values(c.checkins||{}))for(const ck of Object.values(days||{}))for(const x of Object.values((ck&&ck.cm)||{})){
+  if(x&&x.u===ME.uid&&x.a&&x.t<lim&&(x.sz||0)>AUD_LIGHT&&x.tx){gone.push(x.a);x.a=null;x.ax=1}}
+ if(!gone.length)return;try{await sb.storage.from("checkins").remove(gone)}catch(e){}chQuietSave()}
+{const _r=render;let at=0;render=function(){_r.apply(this,arguments);if(TEAM&&UI.tab==="chal"&&Date.now()-at>60000){at=Date.now();setTimeout(audCleanup,3000)}}}
 const CM_RX=["❤️","👏","😂","🔥","💪","😮"];
 function chCmRow(k,x,isReply){const rs=x.r||{};const used=CM_RX.filter(e=>Object.values(rs).includes(e));const pk=`${k}#${x.id}`;const open=UI.chCmRxOpen===pk;
  return `<div class="row" style="gap:6px;align-items:flex-start;${isReply?"margin-left:28px":""}"><span class="avatar" style="width:${isReply?20:22}px;height:${isReply?20:22}px;font-size:10px;flex:none">${teamInitials(x.u)}</span>
- <div class="grow stack-s" style="gap:3px;min-width:0"><div class="small"><b>${esc(nm(x.u))}</b> <span style="white-space:pre-line;overflow-wrap:anywhere">${esc(x.x)}</span></div>
+ <div class="grow stack-s" style="gap:3px;min-width:0"><div class="small"><b>${esc(nm(x.u))}</b> ${x.a||x.ad?chAudBtn(x):x.ax?`<span class="tiny muted">🎤 áudio transcrito:</span> `:""}<span style="white-space:pre-line;overflow-wrap:anywhere">${esc(x.x||"")}</span></div>
+  ${(x.a||x.ad)&&x.tx?`<div class="tiny muted" style="font-style:italic;overflow-wrap:anywhere">“${esc(x.tx)}”</div>`:""}${x.ax&&x.tx?`<div class="small" style="overflow-wrap:anywhere">${esc(x.tx)}</div>`:""}
   <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center"><span class="tiny muted">${chAgo(x.t)}</span>
    ${used.map(e=>`<button type="button" class="cmrx ${rs[ME.uid]===e?"on":""}" data-act="chCmRx" data-k="${k}" data-id="${x.id}" data-e="${e}">${e} ${Object.values(rs).filter(z=>z===e).length}</button>`).join("")}
    <button type="button" class="linkbtn tiny" data-act="chCmRxOpen" data-k="${k}" data-id="${x.id}">Reagir</button>
@@ -4992,7 +5030,7 @@ function chCmBox(c,u,d){const ck=((c.checkins||{})[u]||{})[d]||{};const k=`${c.i
  return `<div class="stack-s cmbox" style="gap:8px">${tops.length>list.length?`<button type="button" class="linkbtn tiny" data-act="chCmAll" data-k="${k}">Ver os ${all.length} comentários</button>`:""}
  ${list.map(x=>{const reps=all.filter(y=>y.re===x.id);return chCmRow(k,x,false)+reps.map(y=>chCmRow(k,y,true)).join("")}).join("")}
  ${open?`${rep?`<div class="row tiny muted" style="gap:6px">↳ Respondendo a <b>${esc(nm(rep.u))}</b><button type="button" class="linkbtn tiny" data-act="chCmReplyX" data-k="${k}">cancelar</button></div>`:""}
- <div class="row" style="gap:6px"><input class="grow" data-cm-in="${k}" maxlength="300" placeholder="${rep?"Escreva uma resposta":"Escreva um comentário"}" enterkeyhint="send" style="height:38px"><button type="button" class="btn sm" data-act="chCmSend" data-k="${k}">Enviar</button></div>`:""}</div>`}
+ ${REC&&REC.k===k?recRow(k):`<div class="row" style="gap:6px"><input class="grow" data-cm-in="${k}" maxlength="300" placeholder="${rep?"Escreva uma resposta":"Escreva um comentário"}" enterkeyhint="send" style="height:38px">${recOK()?`<button type="button" class="btn ghost sm" data-act="recStart" data-k="${k}" aria-label="Gravar áudio" title="Gravar áudio">🎤</button>`:""}<button type="button" class="btn sm" data-act="chCmSend" data-k="${k}">Enviar</button></div>`}`:""}</div>`}
 function chAgo(t){const m=Math.round((Date.now()-t)/60000);return m<1?"agora":m<60?m+" min":m<1440?Math.round(m/60)+" h":ddmm(new Date(t).toISOString().slice(0,10))}
 function chCkOf(k){const [cid,u,d]=k.split("|");const c=CHP().items[cid];const ck=c&&((c.checkins||{})[u]||{})[d];return {c,u,d,ck}}
 /* atualiza só aquele post (sem redesenhar a tela inteira) e salva */
@@ -5015,30 +5053,37 @@ function chForm(c){c=c||{start:today(),days:30,auto:"none"};const isEdit=!!c.id;
  <label class="field"><span>Prêmio (opcional)</span><input id="ch_p" maxlength="80" value="${esc(c.prize||"")}" placeholder="Ex.: quem perder paga o açaí"></label>
  <button class="btn block" data-act="chalSave" data-v="${c.id||""}">${isEdit?"Salvar":"Criar desafio"}</button>
  ${isEdit?`<button class="btn danger" data-act="askDel">Apagar desafio</button>${confirmBox("chalDel","Apagar o desafio e todos os check-ins dele?")}`:""}</div>`)}
-function chEditForm(cid,d){const c=CHP().items[cid];const ck=c&&((c.checkins||{})[ME.uid]||{})[d];if(!ck)return;UI.chalOpen=cid;UI.chFile=null;UI.chLive=false;UI.chDropPhoto=false;UI.chEdit=d;
- const ph=ck.photoData||(ck.photo&&PH.url[ck.photo]);
+function chEditForm(cid,d){const c=CHP().items[cid];const ck=c&&((c.checkins||{})[ME.uid]||{})[d];if(!ck)return;UI.chalOpen=cid;UI.chPics=[];UI.chKeep=ckPics(ck);UI.chEdit=d;
  openModal("Editar check-in",`<div class="stack">
  <p class="small muted">${d===today()?"Check-in de hoje":"Check-in de "+dayLabel(d)}${ck.auto?" · feito automaticamente pelo que você registrou no Prumo":""}.</p>
- ${chLive(c)?(ph?`<img src="${ph}" alt="" style="max-height:200px;max-width:100%;border-radius:12px;align-self:center">`:"")+camPanel(ph||ck.photo?"Para trocar, tire uma foto nova agora":"Foto obrigatória, tirada agora"):`<label class="chpick" for="ch_file"><span id="ch_prev" class="stack-s" style="align-items:center;gap:4px">${ph?`<img src="${ph}" alt="" style="max-height:200px;max-width:100%;border-radius:12px"><span class="tiny muted">Toque para trocar a foto</span>`:ck.photo?`📷<b class="small">Foto atual guardada</b><span class="tiny muted">Toque para trocar</span>`:`📸<b class="small">Pôr uma foto</b><span class="tiny muted">opcional</span>`}</span></label><input type="file" id="ch_file" accept="image/*" hidden>`}
- ${(ck.photo||ck.photoData)&&!chPhotoReq(c)?`<button type="button" class="btn ghost sm" data-act="chDropPhoto" style="align-self:flex-start">Tirar a foto</button>`:""}
+ <div id="ch_pics"></div>
  <label class="field"><span>Comentário</span><input id="ch_note" maxlength="140" value="${esc(ck.note||"")}" placeholder="Ex.: perna hoje, 5 km de caminhada"></label>
  <button class="btn block" data-act="chalEditSave">Salvar</button>
- <button class="btn danger sm" data-act="chalUndo" data-c="${cid}" data-d="${d}" style="align-self:center">Apagar este check-in</button></div>`)}
-function chCheckinForm(d0){const c=CHP().items[UI.chalOpen];if(!c)return;UI.chFile=null;UI.chLive=false;UI.chEdit=null;
+ <button class="btn danger sm" data-act="chalUndo" data-c="${cid}" data-d="${d}" style="align-self:center">Apagar este check-in</button></div>`,()=>chPicsRender())}
+function chPicsRender(){const box=$("#ch_pics");if(!box)return;const c=CHP().items[UI.chalOpen];const keep=UI.chKeep||[],news=UI.chPics||[];const n=keep.length+news.length;const room=CH_MAXPICS-n;
+ const th=(src,act,i)=>`<div class="chthumb"><img src="${src}" alt=""><button type="button" data-act="${act}" data-v="${i}" aria-label="Tirar esta foto">×</button></div>`;
+ box.innerHTML=`<div class="field" style="gap:8px"><span>Fotos ${n?`(${n} de ${CH_MAXPICS})`:`<span class="tiny muted">${chPhotoReq(c)?"obrigatória":"opcional"}, até ${CH_MAXPICS}</span>`}</span>
+ <div class="chthumbs">${keep.map((x,i)=>th(x.d||PH.url[x.p]||"","chPicKeepX",i)).join("")}${news.map((x,i)=>th(x.url,"chPicNewX",i)).join("")}
+ ${room>0&&!chLive(c)?`<label class="chaddpic" for="ch_file"><span style="font-size:24px">📸</span>${n?"Mais":"Adicionar"}</label>`:""}</div>
+ ${room>0&&!chLive(c)?`<input type="file" id="ch_file" accept="image/*" multiple hidden>`:""}
+ ${room>0&&chLive(c)?camPanel(n?"Quer mais uma? Tire agora":"Foto obrigatória, tirada agora"):""}
+ ${chLive(c)&&n?`<span class="tiny muted">📸 Tiradas na hora pela câmera do Prumo.</span>`:""}</div>`}
+function chCheckinForm(d0){const c=CHP().items[UI.chalOpen];if(!c)return;UI.chPics=[];UI.chKeep=[];UI.chEdit=null;
  const days=[today(),addDays(today(),-1)].filter(d=>d>=c.start&&d<=chEnd(c)&&!(((c.checkins||{})[ME.uid]||{})[d]));
  if(!days.length){toast("Seu check-in de hoje já está feito.");return}
  openModal("Check-in",`<div class="stack">${days.some(d=>chPend(c,d))?`<div class="banner info"><span>${chPendText(c)}</span></div>`:""}
  <div class="field"><span>Dia</span><div class="chips">${days.map((d,i)=>`<button type="button" class="chip ${d===(d0&&days.includes(d0)?d0:days[0])?"on":""}" data-act="chDay" data-v="${d}">${d===today()?"Hoje":"Ontem"}</button>`).join("")}</div></div>
- ${chLive(c)?camPanel("Foto obrigatória, tirada agora"):`<label class="chpick" for="ch_file"><span id="ch_prev" class="stack-s" style="align-items:center;gap:4px">📸<b class="small">Tirar ou escolher foto</b><span class="tiny muted">${c.photo==="req"?"obrigatória":"opcional"}</span></span></label><input type="file" id="ch_file" accept="image/*" hidden>`}
+ <div id="ch_pics"></div>
  <label class="field"><span>Comentário (opcional)</span><input id="ch_note" maxlength="140" placeholder="Ex.: perna hoje, 5 km de caminhada"></label>
- <button class="btn block" data-act="chalCheckSave">Fazer check-in</button></div>`,()=>{UI.chDay=d0&&days.includes(d0)?d0:days[0]})}
+ <button class="btn block" data-act="chalCheckSave">Fazer check-in</button></div>`,()=>{UI.chDay=d0&&days.includes(d0)?d0:days[0];chPicsRender()})}
 Object.assign(A,{
  camOpen:()=>camOpen(),
  camFlip:()=>{CAM.facing=CAM.facing==="user"?"environment":"user";camOpen()},
  camShot:()=>{const vd=$("#ch_vid");if(!vd||!vd.videoWidth){toast("A câmera ainda está abrindo.");return}
   const cv=document.createElement("canvas");cv.width=vd.videoWidth;cv.height=vd.videoHeight;const x=cv.getContext("2d");if(CAM.facing==="user"){x.translate(cv.width,0);x.scale(-1,1)}x.drawImage(vd,0,0);
-  cv.toBlob(b=>{if(!b){toast("Não consegui tirar a foto.");return}UI.chFile=b;UI.chLive=true;camStop();const box=$("#ch_cam");const u=URL.createObjectURL(b);
-   if(box)box.innerHTML=`<img src="${u}" alt="Foto tirada agora" style="max-height:240px;max-width:100%;border-radius:12px;align-self:center"><button type="button" class="btn ghost sm" data-act="camOpen" style="align-self:center">Tirar outra</button>`},"image/jpeg",.9)},
+  cv.toBlob(b=>{if(!b){toast("Não consegui tirar a foto.");return}camStop();UI.chPics=UI.chPics||[];UI.chPics.push({blob:b,url:URL.createObjectURL(b),live:true});chPicsRender()},"image/jpeg",.9)},
+ chPicNewX:el=>{UI.chPics.splice(+el.dataset.v,1);chPicsRender()},
+ chPicKeepX:el=>{UI.chKeep.splice(+el.dataset.v,1);chPicsRender()},
  addChal:()=>chForm(),
  chStory:el=>chStory(el.dataset.v,el.dataset.m),
  chalOpen:el=>{UI.chalOpen=el.dataset.v;render();window.scrollTo(0,0)},
@@ -5050,34 +5095,28 @@ Object.assign(A,{
   UI.chalOpen=id;closeModal();commit();toast(old.id?"Desafio salvo.":"Desafio criado! Chame a equipe para o primeiro check-in.");
   if(!old.id){chSetAsked(id,"start");setTimeout(()=>{if($("#modal").innerHTML)return;openModal("Desafio criado!",`<div class="stack" style="align-items:center;text-align:center;gap:12px"><div style="font-size:52px;line-height:1">🔥</div><p>Quer anunciar o começo do desafio nos stories, com os porquinhos da equipe?</p><button class="btn block" data-act="chStory" data-v="${id}" data-m="start">Criar arte para os stories</button><button class="btn ghost block" data-act="closeModal">Agora não</button></div>`);const sc=document.querySelector("#modal .scrim");if(sc)sc.classList.add("center")},700)}},
  chalDelYes:()=>{const id=document.querySelector('[data-act="chalSave"]').dataset.v;const c=CHP().items[id];
-  if(c&&!Store.demo&&sb){const mine=Object.values((c.checkins||{})[ME.uid]||{}).map(x=>x&&x.photo).filter(Boolean);if(mine.length)sb.storage.from("checkins").remove(mine).catch(()=>{})}
+  if(c&&!Store.demo&&sb){const mine=Object.values((c.checkins||{})[ME.uid]||{}).flatMap(x=>ckPaths(x));if(mine.length)sb.storage.from("checkins").remove(mine).catch(()=>{})}
   delete CHP().items[id];UI.chalOpen=null;closeModal();commit();toast("Desafio apagado.")},
  chalCheckin:()=>chCheckinForm(),
  chPendGo:el=>{closeModal();UI.tab="chal";UI.chalOpen=el.dataset.c;render();setTimeout(()=>chCheckinForm(el.dataset.d),50)},
  chDay:el=>{UI.chDay=el.dataset.v;document.querySelectorAll('[data-act="chDay"]').forEach(b=>b.classList.toggle("on",b===el))},
  chalEdit2:el=>chEditForm(el.dataset.c,el.dataset.d),
- chDropPhoto:el=>{UI.chDropPhoto=true;UI.chFile=null;const p=$("#ch_prev");if(p)p.innerHTML=`📸<b class="small">Pôr uma foto</b><span class="tiny muted">a foto atual será retirada</span>`;el.remove()},
- chalEditSave:async el=>{const c=CHP().items[UI.chalOpen];const d=UI.chEdit;const ck=c&&((c.checkins||{})[ME.uid]||{})[d];if(!ck)return;el.disabled=true;el.textContent="Salvando…";
-  const nx={...ck,note:v("ch_note").trim(),edited:Date.now()};
-  if(chLive(c)&&UI.chFile&&!UI.chLive){el.disabled=false;el.textContent="Salvar";toast("Neste desafio só vale foto tirada agora.");return}
-  if(chPhotoReq(c)&&!UI.chFile&&!ck.photo&&!ck.photoData){el.disabled=false;el.textContent="Salvar";toast("Neste desafio o check-in precisa de foto.");return}
-  if(UI.chFile)nx.live=UI.chLive?1:null;const oldPath=ck.photo;
-  try{if(UI.chFile){const blob=await chShrink(UI.chFile);delete nx.photo;delete nx.photoData;
-    if(Store.demo||!sb){nx.photoData=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(blob)})}
-    else{const path=`${TEAM.id}/${c.id}/${ME.uid}/${d}-${rid()}.jpg`;const {error}=await sb.storage.from("checkins").upload(path,blob,{contentType:"image/jpeg",upsert:false,cacheControl:"31536000"});if(error)throw error;nx.photo=path;PH.url[path]=URL.createObjectURL(blob)}}
-   else if(UI.chDropPhoto){delete nx.photo;delete nx.photoData}}
-  catch(e){console.warn(e);el.disabled=false;el.textContent="Salvar";toast("Não consegui enviar a foto. Confira a internet.");return}
-  if(oldPath&&oldPath!==nx.photo&&!Store.demo&&sb)sb.storage.from("checkins").remove([oldPath]).catch(()=>{});
-  if(nx.photo===undefined)nx.photo=null;if(nx.photoData===undefined)nx.photoData=null;
+ chDropPhoto0:el=>{UI.chDropPhoto=true;UI.chFile=null;const p=$("#ch_prev");if(p)p.innerHTML=`📸<b class="small">Pôr uma foto</b><span class="tiny muted">a foto atual será retirada</span>`;el.remove()},
+ chalEditSave:async el=>{const c=CHP().items[UI.chalOpen];const d=UI.chEdit;const ck=c&&((c.checkins||{})[ME.uid]||{})[d];if(!ck)return;
+  const keep=UI.chKeep||[],news=UI.chPics||[];
+  if(chLive(c)&&news.some(x=>!x.live)){toast("Neste desafio só vale foto tirada agora.");return}
+  if(chPhotoReq(c)&&!keep.length&&!news.length){toast("Neste desafio o check-in precisa de foto.");return}
+  el.disabled=true;el.textContent="Salvando…";let up;try{up=await chUpload(c,d,news)}catch(e){console.warn(e);el.disabled=false;el.textContent="Salvar";toast("Não consegui enviar as fotos. Confira a internet.");return}
+  const nx={...ck,note:v("ch_note").trim(),edited:Date.now(),photo:null,photoData:null,photos:[...keep.filter(x=>x.p).map(x=>x.p),...up.paths],photosData:[...keep.filter(x=>x.d).map(x=>x.d),...up.datas]};
+  if(news.length)nx.live=(ck.live||!ckPics(ck).length)&&news.every(x=>x.live)?1:null;
+  const gone=ckPaths(ck).filter(p=>!nx.photos.includes(p));if(gone.length&&!Store.demo&&sb)sb.storage.from("checkins").remove(gone).catch(()=>{});
   c.checkins[ME.uid][d]=nx;closeModal();commit();toast("Check-in atualizado.")},
- chalCheckSave:async el=>{const c=CHP().items[UI.chalOpen];if(!c)return;const d=UI.chDay||today();
-  if(chPhotoReq(c)&&!UI.chFile){toast(chLive(c)?"Tire a foto pela câmera para fazer o check-in.":"Neste desafio o check-in precisa de foto.");return}
-  if(chLive(c)&&!UI.chLive){toast("Neste desafio só vale foto tirada agora.");return}el.disabled=true;el.textContent="Enviando…";
-  const ck={t:Date.now(),note:v("ch_note").trim()};if(UI.chFile&&UI.chLive)ck.live=1;
-  try{if(UI.chFile){const blob=await chShrink(UI.chFile);
-    if(Store.demo||!sb){ck.photoData=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(blob)})}
-    else{const path=`${TEAM.id}/${c.id}/${ME.uid}/${d}-${rid()}.jpg`;const {error}=await sb.storage.from("checkins").upload(path,blob,{contentType:"image/jpeg",upsert:false,cacheControl:"31536000"});if(error)throw error;ck.photo=path;PH.url[path]=URL.createObjectURL(blob)}}}
-  catch(e){console.warn(e);el.disabled=false;el.textContent="Fazer check-in";toast("Não consegui enviar a foto. Confira a internet ou tente sem foto.");return}
+ chalCheckSave:async el=>{const c=CHP().items[UI.chalOpen];if(!c)return;const d=UI.chDay||today();const news=UI.chPics||[];
+  if(chPhotoReq(c)&&!news.length){toast(chLive(c)?"Tire a foto pela câmera para fazer o check-in.":"Neste desafio o check-in precisa de foto.");return}
+  if(chLive(c)&&news.some(x=>!x.live)){toast("Neste desafio só vale foto tirada agora.");return}el.disabled=true;el.textContent="Enviando…";
+  const ck={t:Date.now(),note:v("ch_note").trim()};if(news.length&&news.every(x=>x.live))ck.live=1;
+  try{const up=await chUpload(c,d,news);if(up.paths.length)ck.photos=up.paths;if(up.datas.length)ck.photosData=up.datas}
+  catch(e){console.warn(e);el.disabled=false;el.textContent="Fazer check-in";toast("Não consegui enviar as fotos. Confira a internet ou tente sem foto.");return}
   if(chPend(c,d)){ck.auto=1;if(!ck.note)ck.note=(CH_AUTO.find(x=>x[0]===c.auto)||["",""])[1];delete c.pend[ME.uid][d]}
   c.checkins=c.checkins||{};c.checkins[ME.uid]=c.checkins[ME.uid]||{};c.checkins[ME.uid][d]=ck;closeModal();commit();markActive();
   const r=chRank(c);toast(r.every(x=>x.today)&&r.length>1?"Check-in feito! Todo mundo cumpriu hoje! 🎉":"Check-in feito! +1 ponto.")},
@@ -5092,26 +5131,49 @@ Object.assign(A,{
   if(typeof teamNotify==="function"){const to=new Set();if(u!==ME.uid)to.add(u);if(rep&&rep.u!==ME.uid)to.add(rep.u);
    if(rep&&rep.u!==ME.uid)teamNotify([rep.u],"chal",`${TEAM.name} · ${c.name}`,`${myNick()} respondeu seu comentário: ${x.slice(0,80)}`,"chal");
    if(u!==ME.uid&&!(rep&&rep.u===u))teamNotify([u],"chal",`${TEAM.name} · ${c.name}`,`${myNick()} comentou no seu check-in: ${x.slice(0,80)}`,"chal")}},
- chCmDel:el=>{const k=el.dataset.k;const {ck}=chCkOf(k);if(!ck||!ck.cm)return;const id=el.dataset.id;delete ck.cm[id];Object.keys(ck.cm).forEach(j=>{if(ck.cm[j]&&ck.cm[j].re===id)delete ck.cm[j]});chPatch(k);chQuietSave()},
+ chCmDel:el=>{const k=el.dataset.k;const {ck}=chCkOf(k);if(!ck||!ck.cm)return;const id=el.dataset.id;const ax=[id,...Object.keys(ck.cm).filter(j=>ck.cm[j]&&ck.cm[j].re===id)].map(j=>ck.cm[j]).filter(x=>x&&x.a&&x.u===ME.uid).map(x=>x.a);if(ax.length&&!Store.demo&&sb)sb.storage.from("checkins").remove(ax).catch(()=>{});delete ck.cm[id];Object.keys(ck.cm).forEach(j=>{if(ck.cm[j]&&ck.cm[j].re===id)delete ck.cm[j]});chPatch(k);chQuietSave()},
+ recStart:el=>recStart(el.dataset.k),
+ recStop:()=>recStop(),
+ recDrop:el=>{recCleanup();chPatch(el.dataset.k)},
+ recSend:async el=>{if(!REC||!REC.blob)return;const k=el.dataset.k;const {c,u,ck}=chCkOf(k);if(!ck)return;const R=REC;el.disabled=true;el.textContent="Enviando…";
+  if(R.blob.size>1000*1024){toast("Áudio grande demais. Grave um pouco menos.");el.disabled=false;el.textContent="Enviar áudio";return}
+  const rep=UI.chCmReply&&UI.chCmReply.k===k&&(ck.cm||{})[UI.chCmReply.id]?UI.chCmReply:null;const cm={u:ME.uid,t:Date.now(),x:"",dur:R.dur,sz:R.blob.size,...(R.tx?{tx:R.tx.slice(0,600)}:{}),...(rep?{re:rep.id}:{})};
+  try{if(Store.demo||!sb){cm.ad=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(R.blob)})}
+   else{const ext=/mp4|aac|m4a/.test(R.blob.type)?"m4a":/ogg/.test(R.blob.type)?"ogg":"webm";const path=`${TEAM.id}/${c.id}/${ME.uid}/a-${rid()}.${ext}`;
+    const {error}=await sb.storage.from("checkins").upload(path,R.blob,{contentType:R.blob.type||"audio/webm",upsert:false,cacheControl:"31536000"});if(error)throw error;cm.a=path;PH.url[path]=R.url}}
+  catch(e){console.warn(e);el.disabled=false;el.textContent="Enviar áudio";toast("Não consegui enviar o áudio. Confira a internet.");return}
+  REC=null;UI.chCmReply=null;ck.cm=ck.cm||{};ck.cm[rid()]=cm;chPatch(k);chQuietSave();
+  if(typeof teamNotify==="function"){if(rep&&rep.u!==ME.uid)teamNotify([rep.u],"chal",`${TEAM.name} · ${c.name}`,`${myNick()} respondeu seu comentário com um áudio 🎤`,"chal");
+   if(u!==ME.uid&&!(rep&&rep.u===u))teamNotify([u],"chal",`${TEAM.name} · ${c.name}`,`${myNick()} mandou um áudio no seu check-in 🎤`,"chal")}},
+ audPlay:async el=>{const id=el.dataset.id;if(AUDP.el&&AUDP.id===id){if(!AUDP.el.paused){AUDP.el.pause();AUDP.id=null;document.querySelectorAll(".audbtn.on").forEach(b=>{b.classList.remove("on");b.innerHTML=b.innerHTML.replace("❚❚","▶")});return}}
+  if(AUDP.el){AUDP.el.pause()}document.querySelectorAll(".audbtn.on").forEach(b=>{b.classList.remove("on");b.innerHTML=b.innerHTML.replace("❚❚","▶")});
+  let src=el.dataset.src;try{if(src)src=await audUrl(src);else{const k=el.closest("[data-cm]").dataset.cm;const {ck}=chCkOf(k);const x=Object.values(ck.cm||{}).find(z=>String(z.t)===el.dataset.k2);src=x&&x.ad}}catch(e){toast("Não consegui abrir o áudio.");return}
+  if(!src){toast("Este áudio não está mais disponível.");return}
+  const a=new Audio(src);AUDP.el=a;AUDP.id=id;el.classList.add("on");el.innerHTML=el.innerHTML.replace("▶","❚❚");a.onended=()=>{AUDP.id=null;el.classList.remove("on");el.innerHTML=el.innerHTML.replace("❚❚","▶")};a.play().catch(()=>{toast("Não consegui tocar o áudio.");AUDP.id=null;el.classList.remove("on")})},
  chCmRxOpen:el=>{const pk=`${el.dataset.k}#${el.dataset.id}`;UI.chCmRxOpen=UI.chCmRxOpen===pk?null:pk;chPatch(el.dataset.k)},
  chCmRx:el=>{const k=el.dataset.k;const {ck}=chCkOf(k);const x=ck&&ck.cm&&ck.cm[el.dataset.id];if(!x)return;x.r=x.r||{};if(x.r[ME.uid]===el.dataset.e)delete x.r[ME.uid];else x.r[ME.uid]=el.dataset.e;UI.chCmRxOpen=null;chPatch(k);chQuietSave()},
  chCmReply:el=>{const k=el.dataset.k;UI.chCmReply={k,id:el.dataset.id,u:el.dataset.u};UI.chCmOpen=k;chPatch(k);const i=document.querySelector(`[data-cm-in="${k}"]`);if(i)i.focus({preventScroll:true})},
  chCmReplyX:el=>{UI.chCmReply=null;chPatch(el.dataset.k)},
  chalUndo:el=>{const c=CHP().items[el.dataset.c];if(!c)return;const ck=((c.checkins||{})[ME.uid]||{})[el.dataset.d];if(!ck)return;
-  if(ck.photo&&!Store.demo&&sb)sb.storage.from("checkins").remove([ck.photo]).catch(()=>{});delete c.checkins[ME.uid][el.dataset.d];if(ck.auto){c.skip=c.skip||{};c.skip[ME.uid]=c.skip[ME.uid]||{};c.skip[ME.uid][el.dataset.d]=1}closeModal();commit();toast("Check-in apagado.")},
+  const ps=ckPaths(ck);if(ps.length&&!Store.demo&&sb)sb.storage.from("checkins").remove(ps).catch(()=>{});delete c.checkins[ME.uid][el.dataset.d];if(ck.auto){c.skip=c.skip||{};c.skip[ME.uid]=c.skip[ME.uid]||{};c.skip[ME.uid][el.dataset.d]=1}closeModal();commit();toast("Check-in apagado.")},
  chalMore:()=>{UI.chFeedN=(UI.chFeedN||15)+15;render()},
  goChal:()=>{UI.tab="chal";UI.chalOpen=null;render();window.scrollTo(0,0)},
 });
-document.addEventListener("change",ev=>{const t=ev.target;if(t&&t.id==="ch_file"&&t.files&&t.files[0]){UI.chFile=t.files[0];UI.chLive=false;const u=URL.createObjectURL(t.files[0]);const p=$("#ch_prev");if(p)p.innerHTML=`<img src="${u}" alt="" style="max-height:200px;max-width:100%;border-radius:12px"><span class="tiny muted">Toque para trocar</span>`}});
+document.addEventListener("change",ev=>{const t=ev.target;if(t&&t.id==="ch_file"&&t.files&&t.files.length){UI.chPics=UI.chPics||[];const room=CH_MAXPICS-(UI.chKeep||[]).length-UI.chPics.length;const fs=[...t.files].slice(0,Math.max(0,room));
+ fs.forEach(f=>UI.chPics.push({blob:f,url:URL.createObjectURL(f),live:false}));if(t.files.length>fs.length)toast(`Cabem até ${CH_MAXPICS} fotos por check-in.`);chPicsRender()}});
 /* tocar na foto abre ela inteira (sem corte) */
-function phOpen(src){if(!src)return;phClose();const d=document.createElement("div");d.className="phbox";d.setAttribute("role","dialog");d.setAttribute("aria-label","Foto do check-in");
- d.innerHTML=`<img src="${src}" alt="Foto do check-in"><button type="button" class="phx" aria-label="Fechar">×</button>`;d.addEventListener("click",e=>{if(e.target.tagName!=="IMG"||e.target===d.querySelector("img"))phClose()});document.body.appendChild(d);document.body.style.overflow="hidden"}
+function phOpen(src,list,i){if(!src)return;phClose();list=list&&list.length?list:[src];i=Math.max(0,list.indexOf(src));PHV={list,i};const d=document.createElement("div");d.className="phbox";d.setAttribute("role","dialog");d.setAttribute("aria-label","Foto do check-in");
+ d.innerHTML=`<img src="${src}" alt="Foto do check-in">${list.length>1?`<button type="button" class="phnav l" aria-label="Foto anterior">‹</button><button type="button" class="phnav r" aria-label="Próxima foto">›</button><span class="phcount">${i+1} / ${list.length}</span>`:""}<button type="button" class="phx" aria-label="Fechar">×</button>`;
+ d.addEventListener("click",e=>{if(e.target.classList.contains("phnav")){phStep(e.target.classList.contains("r")?1:-1);return}phClose()});document.body.appendChild(d);document.body.style.overflow="hidden"}
+let PHV=null;function phStep(n){const d=document.querySelector(".phbox");if(!d||!PHV)return;PHV.i=(PHV.i+n+PHV.list.length)%PHV.list.length;d.querySelector("img").src=PHV.list[PHV.i];const c=d.querySelector(".phcount");if(c)c.textContent=`${PHV.i+1} / ${PHV.list.length}`}
 function phClose(){const d=document.querySelector(".phbox");if(d){d.remove();if(!$("#modal").innerHTML)document.body.style.overflow=""}}
-document.addEventListener("click",e=>{const i=e.target;if(i&&i.classList&&i.classList.contains("chph")&&i.src){e.preventDefault();e.stopPropagation();phOpen(i.src)}},true);
-document.addEventListener("keydown",e=>{if(e.key==="Escape")phClose()});
-document.head.insertAdjacentHTML("beforeend",`<style>.chph{cursor:zoom-in}.phbox{position:fixed;inset:0;z-index:200;background:rgba(15,10,12,.92);display:flex;align-items:center;justify-content:center;padding:calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));cursor:zoom-out}.phbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.5)}.phx{position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;font-size:28px;line-height:1;cursor:pointer}</style>`);
+document.addEventListener("click",e=>{const i=e.target;if(i&&i.classList&&i.classList.contains("chph")&&i.src){e.preventDefault();e.stopPropagation();const g=i.closest(".phgrid");phOpen(i.src,g?[...g.querySelectorAll("img.chph")].map(x=>x.src).filter(Boolean):null)}},true);
+document.addEventListener("keydown",e=>{if(!document.querySelector(".phbox"))return;if(e.key==="Escape")phClose();else if(e.key==="ArrowRight")phStep(1);else if(e.key==="ArrowLeft")phStep(-1)});
+document.head.insertAdjacentHTML("beforeend",`<style>.chph{cursor:zoom-in}.phbox{position:fixed;inset:0;z-index:200;background:rgba(15,10,12,.92);display:flex;align-items:center;justify-content:center;padding:calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));cursor:zoom-out}.phbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.5)}.phgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px;border-radius:14px;overflow:hidden}.phgrid .chph{aspect-ratio:1;min-height:0;max-height:none;height:100%;border-radius:0}.phgrid.n3 .chph:first-child{grid-row:span 2;aspect-ratio:auto}.phnav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;font-size:34px;line-height:1;cursor:pointer}.phnav.l{left:14px}.phnav.r{right:14px}.phcount{position:absolute;bottom:calc(18px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);color:#fff;font-weight:700;font-size:14px;background:rgba(0,0,0,.35);padding:4px 12px;border-radius:999px}.chthumbs{display:flex;flex-wrap:wrap;gap:8px}.chthumb{position:relative;width:84px;height:84px;border-radius:12px;overflow:hidden;background:var(--surface2)}.chthumb img{width:100%;height:100%;object-fit:cover}.chthumb button{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:16px;line-height:1;cursor:pointer}.chaddpic{width:84px;height:84px;border-radius:12px;border:2px dashed var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;background:none}
+.phx{position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;font-size:28px;line-height:1;cursor:pointer}</style>`);
 document.head.insertAdjacentHTML("beforeend",`<style>.rxpal{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;padding:6px;border-radius:14px;background:var(--surface2)}.rxpal button{border:0;background:none;font-size:22px;width:40px;height:40px;border-radius:10px;cursor:pointer}.rxpal button.on{background:var(--pig-soft)}
-.cmbox{border-top:1px solid var(--line);padding-top:8px}.cmrx{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:1px 8px;font-size:12px;cursor:pointer}.cmrx.on{background:var(--pig-soft);border-color:var(--pig)}.linkbtn{border:0;background:none;padding:0;color:var(--muted);text-align:left;cursor:pointer}
+.cmbox{border-top:1px solid var(--line);padding-top:8px}.audbtn{border:0;background:var(--pig-soft);color:var(--ink);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;cursor:pointer;margin-right:4px}.audbtn.on{background:var(--pig);color:#fff}.recdot{width:12px;height:12px;border-radius:50%;background:#E5484D;animation:recp 1s infinite}@keyframes recp{50%{opacity:.3}}
+.cmrx{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:1px 8px;font-size:12px;cursor:pointer}.cmrx.on{background:var(--pig-soft);border-color:var(--pig)}.linkbtn{border:0;background:none;padding:0;color:var(--muted);text-align:left;cursor:pointer}
 .camwrap{border-radius:14px;overflow:hidden;background:#111;aspect-ratio:3/4;max-height:52vh;display:flex;align-items:center;justify-content:center}.camwrap video{width:100%;height:100%;object-fit:cover}
 .chph{width:100%;max-height:420px;object-fit:cover;border-radius:14px;background:var(--surface2);min-height:120px;display:block}
 .chpick{display:grid;place-items:center;min-height:120px;border:2px dashed var(--line);border-radius:16px;cursor:pointer;font-size:28px;padding:12px;text-align:center}</style>`);
@@ -5126,7 +5188,7 @@ function chTeamCard(){if(!teamHas("desafios"))return"";const act=vals(CHP().item
  const ph=(e,a,b)=>"data:image/svg+xml;utf8,"+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><rect width="400" height="260" fill="url(#g)"/><text x="200" y="160" font-size="110" text-anchor="middle">${e}</text></svg>`);
  const ck={demo:{},m_ana:{},m_lucas:{}};
  for(let i=11;i>=1;i--){const d=D(-i);if(i%4)ck.demo[d]={t:Date.now()-i*864e5,note:i===2?"Treino de perna, sofri mas fui!":"",photoData:i%3===0?ph("🏋️","#F7A8BE","#E5739A"):undefined};if(i%3)ck.m_ana[d]={t:Date.now()-i*864e5+3600e3,note:i===1?"5 km no parque":"",photoData:i%2?ph("🏃‍♀️","#9AD0F5","#3F7FD9"):undefined,r:{demo:"🔥"}};if(i%5===0||i<4)ck.m_lucas[d]={t:Date.now()-i*864e5+7200e3,photoData:i===2?ph("⚽","#B5E3A1","#2F8F6B"):undefined}}
- ck.m_ana[today()]={t:Date.now()-3600e3,note:"Bora equipe!",photoData:ph("💪","#FFD98A","#E0A23B"),r:{m_lucas:"👏"}};
+ ck.m_ana[today()]={t:Date.now()-3600e3,note:"Bora equipe!",photosData:[ph("💪","#FFD98A","#E0A23B"),ph("🏃","#BFE3FF","#5A8BE0"),ph("🥗","#C8F0D4","#2F9E6E")],r:{m_lucas:"👏"}};
  TD.chal={challenges:{items:{c1:{id:"c1",name:"30 dias de treino",desc:"Treinou, fez check-in. Vale academia, caminhada, corrida e futebol.",start:D(-11),days:30,auto:"ex",prize:"Quem ficar em último paga o açaí",by:"m_ana",created:Date.now()-11*864e5,checkins:ck}}}};
  TBASE.chal=clone(TD.chal)}}
 {const _dt=demoTeams;demoTeams=function(){_dt();if(TEAMS&&TEAMS[0])TEAMS[0].features.desafios=true}}
@@ -5210,9 +5272,9 @@ function teamNotify(targets,kind,title,body,go){if(Store.demo||!sb||!Store.cloud
 {const _mt=moveTask;moveTask=function(id,to){const t0=S.tasks.items[id];const was=t0&&t0.status;const r=_mt.apply(this,arguments);
  try{const t=S.tasks.items[id];if(TEAM&&teamAg()&&t&&t.proj&&to==="done"&&was!=="done"){const pj=PJ().items[t.proj];const people=[t.who,...(t.help||[])].filter(u=>u&&u!==ME.uid);const lu=(t.updates||[]).reduce((m,u)=>Math.max(m,u.at||0),0);if(pj&&people.length&&Date.now()-lu>8000)teamNotify(people,"projupd",`${TEAM.name}: etapa concluída`,`${myNick()} concluiu "${t.title}" no projeto ${pj.name}.`,"proj")}}catch(e){}return r}}
 {const _cs=A.chalCheckSave;A.chalCheckSave=async el=>{const c=CHP().items[UI.chalOpen];const d=UI.chDay||today();const had=!!(c&&((c.checkins||{})[ME.uid]||{})[d]);await _cs(el);
- const ck=c&&((c.checkins||{})[ME.uid]||{})[d];if(!had&&ck)teamNotify("all","chal",`${TEAM.name} · ${c.name}`,`${myNick()} fez check-in${ck.note?`: ${ck.note}`:""}${ck.photo||ck.photoData?" 📸":""}`,"chal")}}
-{const _ce=A.chalEditSave;A.chalEditSave=async el=>{const c=CHP().items[UI.chalOpen];const d=UI.chEdit;const b=c&&((c.checkins||{})[ME.uid]||{})[d];const hadPh=!!(b&&(b.photo||b.photoData)),hadNote=!!(b&&b.note&&!b.auto);await _ce(el);
- const a=c&&((c.checkins||{})[ME.uid]||{})[d];if(a&&((!hadPh&&(a.photo||a.photoData))||(!hadNote&&a.note&&a.edited)))teamNotify("all","chal",`${TEAM.name} · ${c.name}`,`${myNick()} ${!hadPh&&(a.photo||a.photoData)?"postou uma foto":"comentou"} no check-in${a.note?`: ${a.note}`:""}`,"chal")}}
+ const ck=c&&((c.checkins||{})[ME.uid]||{})[d];if(!had&&ck)teamNotify("all","chal",`${TEAM.name} · ${c.name}`,`${myNick()} fez check-in${ck.note?`: ${ck.note}`:""}${ckPics(ck).length?" 📸":""}`,"chal")}}
+{const _ce=A.chalEditSave;A.chalEditSave=async el=>{const c=CHP().items[UI.chalOpen];const d=UI.chEdit;const b=c&&((c.checkins||{})[ME.uid]||{})[d];const hadPh=!!(b&&ckPics(b).length),hadNote=!!(b&&b.note&&!b.auto);await _ce(el);
+ const a=c&&((c.checkins||{})[ME.uid]||{})[d];if(a&&((!hadPh&&ckPics(a).length)||(!hadNote&&a.note&&a.edited)))teamNotify("all","chal",`${TEAM.name} · ${c.name}`,`${myNick()} ${!hadPh&&ckPics(a).length?"postou uma foto":"comentou"} no check-in${a.note?`: ${a.note}`:""}`,"chal")}}
 {const _cv=A.chalSave;A.chalSave=el=>{const isNew=!el.dataset.v;const n0=Object.keys(CHP().items).length;_cv(el);if(isNew&&Object.keys(CHP().items).length>n0){const c=CHP().items[UI.chalOpen];if(c)teamNotify("all","chal",`${TEAM.name}: novo desafio`,`${myNick()} criou o desafio "${c.name}". Bora participar?`,"chal")}}}
 
 /* ao sair da conta, este aparelho para de receber os avisos dela */

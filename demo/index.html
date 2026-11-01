@@ -2471,7 +2471,7 @@ function tourPopup(){const p=S.profile;if(p.tour1||!p.created||UI.needAuth||(UI.
  if(p.created>=today())return;
  if($("#modal").innerHTML){setTimeout(tourPopup,5000);return}
  const used=tourAreas();if(Object.values(used).filter(Boolean).length>=3){p.tour1=today();saveApp();return}
- p.tour1=today();saveApp();
+ p.tour1=today();saveApp();UI.popShown=1;
  const first=(p.name||"").split(" ")[0];const inCh=typeof TEAMS!=="undefined"&&(TEAMS||[]).some(t=>t.features&&t.features.desafios);
  const A_=[["fin","💰","Finanças","Veja para onde vai o dinheiro, controle o cartão e saiba o que falta pagar no mês."],
   ["ex","🥗","Saúde","Anote comida, água, treino e sono. Veja calorias e proteína do dia sem complicação."],
@@ -5655,6 +5655,38 @@ A.notifTest=async()=>{try{const reg=await navigator.serviceWorker.ready;await re
  const lab={on:["Ligadas","good"],off:["Desligadas","warn"],denied:["Bloqueadas","bad"],"ios-install":["Instale para ativar","warn"],nosupport:["Indisponível aqui","info"]}[PUSHST||"off"]||["…","info"];
  const btn=`<button class="card row" style="text-align:left;gap:12px;align-items:center;width:100%" data-act="notifGuide"><span style="color:var(--pig-deep);flex:none">${I.bell.replace('<svg','<svg width="22" height="22"')}</span><span class="grow stack-s" style="gap:2px"><b>Notificações</b><span class="tiny muted">Avisos de tarefas, vaquinhas e desafios</span></span><span class="pill ${lab[1]}">${lab[0]}</span></button>`;
  const k='<a class="btn line" href="https://www.instagram.com/prumovidaemordem/"';return h.includes(k)?h.replace(k,btn+k):h+btn}}
+
+/* ---------- Convite: instalar o app + ligar notificações ----------
+   Pop-up no próximo acesso (no máximo 3 vezes, uma a cada 5 dias) e um cartão
+   no Início até ficar tudo certo neste aparelho. */
+const INSK="prumo.instAsk";
+function insGet(){try{return JSON.parse(localStorage.getItem(INSK)||"{}")}catch(e){return{}}}
+function insSet(o){try{localStorage.setItem(INSK,JSON.stringify(Object.assign(insGet(),o)))}catch(e){}}
+const isMobile=()=>isIOS()||isAndroid();
+function insNeeded(st){if(Store.demo||!Store.cloud||!S.profile.created)return false;if(st==="on"||st==="nosupport")return false;if(!isMobile()&&st==="denied")return false;return true}
+function insBody(st,compact){const plat=isIOS()?"ios":isAndroid()?"android":"pc";const inst=isStandalone();
+ const step=inst||plat==="pc"?`<p class="small">Falta só um toque: ative as notificações e pronto.</p>`:`<p class="small">${plat==="ios"?"No iPhone, as notificações só funcionam com o Prumo instalado na tela de início.":"Instalado, ele abre como app, em tela cheia, e os avisos chegam mesmo com ele fechado."} Leva 1 minuto:</p><img src="${GUIDE_IMG[plat]}" alt="Passo a passo para instalar o Prumo" style="width:100%;border-radius:16px;display:block" loading="lazy">`;
+ return step}
+function insPopup(){if(UI.popShown||$("#modal").innerHTML||UI.needAuth||(UI.onb>=0&&UI.onb<3))return;const g=insGet();
+ if((g.n||0)>=3||g.no||(g.t&&Date.now()-g.t<5*864e5))return;
+ pushState().then(st=>{PUSHST=st;if(!insNeeded(st)||$("#modal").innerHTML||UI.popShown)return;UI.popShown=1;insSet({n:(g.n||0)+1,t:Date.now()});
+  const inst=isStandalone()||!isMobile();
+  openModal(inst?"Ligue as notificações":"Baixe o Prumo no celular",`<div class="stack" style="gap:12px">
+  <div class="row" style="gap:12px;align-items:center"><div style="font-size:46px;line-height:1;flex:none">${inst?"🔔":"📲"}</div><div class="stack-s" style="gap:2px"><b style="font-size:17px">${inst?"Não perca nenhum aviso":"O Prumo como app de verdade"}</b><span class="small muted">Saiba na hora quando chegar vaquinha, tarefa para você ou novidade no desafio.</span></div></div>
+  ${st==="denied"?`<div class="banner bad small">As notificações estão bloqueadas neste aparelho. Toque em "Ver como liberar".</div>`:""}
+  ${insBody(st)}
+  ${inst?`<button class="btn block" data-act="${st==="denied"?"notifGuide":"notifTurnOn"}">${st==="denied"?"Ver como liberar":"Ativar notificações"}</button>`:`<button class="btn block" data-act="notifGuide">Já instalei, ativar notificações</button>`}
+  <button class="btn ghost block" data-act="closeModal">Agora não</button>
+  <button class="linkbtn tiny muted" data-act="insNever" style="border:0;background:none">Não mostrar mais</button></div>`)})}
+A.insNever=()=>{insSet({no:1});closeModal();render()};
+A.insHide=()=>{insSet({hide:Date.now()});render()};
+{const _rs=render;let tmr=null;render=function(){_rs.apply(this,arguments);clearTimeout(tmr);tmr=setTimeout(insPopup,4500)}}
+/* cartão no Início (pessoal e equipe) enquanto faltar instalar/ativar */
+function insCard(){const st=PUSHST;if(!st||!insNeeded(st))return"";const g=insGet();if(g.no||(g.hide&&Date.now()-g.hide<3*864e5))return"";
+ const inst=isStandalone()||!isMobile();
+ return `<div class="card row" style="gap:12px;align-items:center;background:linear-gradient(135deg,var(--surface),var(--surface2))"><div style="font-size:34px;flex:none">${inst?"🔔":"📲"}</div><div class="grow stack-s" style="gap:2px"><b>${inst?"Ligue as notificações":"Instale o Prumo no celular"}</b><span class="tiny muted">${inst?"Para saber na hora de vaquinhas, tarefas e desafios.":"Vira app na tela de início e te avisa de vaquinhas, tarefas e desafios."}</span><div class="row" style="gap:6px;margin-top:6px"><button class="btn sm" data-act="notifGuide">${inst?"Ativar":"Ver como"}</button><button class="btn ghost sm" data-act="insHide">Depois</button></div></div></div>`}
+{const _vh=viewHome;viewHome=function(){const h=_vh.apply(this,arguments);if(PUSHST===null)pushStRefresh();const c=insCard();if(!c)return h;return h.replace(/(<h1[^>]*>[\s\S]*?<\/h1>)/,"$1"+c)===h?c+h:h.replace(/(<h1[^>]*>[\s\S]*?<\/h1>)/,"$1"+c)}}
+{const _vt=viewTeamHome;viewTeamHome=function(){let h=_vt.apply(this,arguments);if(PUSHST===null)pushStRefresh();const c=insCard();if(!c)return h;h=h.replace(/<div class="banner info">[\s\S]*?data-act="pushNo"[\s\S]*?<\/div><\/div><\/div>/,"");return h.replace(/(<h1[^>]*>[^<]*<\/h1>)/,"$1"+c)}}
 
 /* início */
 (function boot(){

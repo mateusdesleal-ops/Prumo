@@ -326,6 +326,11 @@ body.team-env .envbtn.cur{border-color:var(--money);background:color-mix(in srgb
 .steps{display:flex;gap:6px;justify-content:center}
 .steps i{width:28px;height:6px;border-radius:9px;background:var(--line)}
 .steps i.on{background:var(--pig-deep)}
+
+/* teclado do celular aberto: a janela ocupa só a parte visível e o campo fica no topo */
+.scrim.kb{align-items:flex-start!important;padding:0!important}
+.scrim.kb .sheet{max-height:100%!important;height:100%;border-radius:0 0 18px 18px!important;padding-bottom:16px}
+.scrim.kb .grab{display:none}
 </style>
 
 </head>
@@ -2899,7 +2904,15 @@ function onbSave(){const g=id=>{const e=$("#"+id);return e?e.value:undefined};
 /* ============================================================
    Modais e formulários
    ============================================================ */
-function openModal(title,body,onMount){const m=$("#modal");m.innerHTML=`<div class="scrim" data-act="closeScrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="grab"></div><div class="row between"><h2>${esc(title)}</h2><button class="iconbtn" data-act="closeModal" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>${body}</div></div>`;document.body.style.overflow="hidden";if(onMount)onMount(m);const f=m.querySelector("input:not([type=checkbox]),select");if(f&&f.id!=="nodfocus")setTimeout(()=>f.focus(),50)}
+/* acompanha o teclado (iPhone/Android) */
+function kbFit(){const sc=document.querySelector("#modal .scrim");if(!sc)return;const vv=window.visualViewport;if(!vv){return}
+ const kb=window.innerHeight-vv.height>120;sc.classList.toggle("kb",kb);
+ if(kb){sc.style.top=vv.offsetTop+"px";sc.style.height=vv.height+"px";sc.style.bottom="auto"}else{sc.style.top="";sc.style.height="";sc.style.bottom=""}}
+if(window.visualViewport){visualViewport.addEventListener("resize",kbFit);visualViewport.addEventListener("scroll",kbFit)}
+document.addEventListener("focusin",e=>{const t=e.target;if(!t||!t.matches||!t.matches("#modal input,#modal textarea"))return;
+ setTimeout(()=>{kbFit();const sh=t.closest(".sheet");if(!sh||!document.querySelector("#modal .scrim.kb"))return;const r=t.getBoundingClientRect(),sr=sh.getBoundingClientRect();
+  if(r.top<sr.top+8||r.bottom>sr.bottom-40)sh.scrollTop+=r.top-sr.top-70},350)});
+function openModal(title,body,onMount){setTimeout(kbFit,0);const m=$("#modal");m.innerHTML=`<div class="scrim" data-act="closeScrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="grab"></div><div class="row between"><h2>${esc(title)}</h2><button class="iconbtn" data-act="closeModal" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>${body}</div></div>`;document.body.style.overflow="hidden";if(onMount)onMount(m);const f=m.querySelector("input:not([type=checkbox]),select");if(f&&f.id!=="nodfocus")setTimeout(()=>f.focus(),50)}
 function closeModal(){$("#modal").innerHTML="";document.body.style.overflow=""}
 const v=id=>{const e=document.getElementById(id);return e?e.value:""};
 function confirmBox(id,label){return `<div id="${id}" hidden class="banner bad stack" style="flex-direction:column"><span>${label}</span><div class="row"><button class="btn danger sm" data-act="${id}Yes">Sim, apagar</button><button class="btn ghost sm" data-act="hideEl" data-v="${id}">Cancelar</button></div></div>`}

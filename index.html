@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="description" content="Prumo: Vida em ordem. Organize o dinheiro, os estudos, a saúde e a agenda.">
 <meta name="theme-color" content="#FBF6F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#171114" media="(prefers-color-scheme: dark)">
@@ -330,6 +330,10 @@ body.team-env .envbtn.cur{border-color:var(--money);background:color-mix(in srgb
 .scrim.kb{align-items:flex-start!important;padding:0!important}
 .scrim.kb .sheet{max-height:100%!important;height:100%;border-radius:0 0 18px 18px!important;padding-bottom:16px}
 .scrim.kb .grab{display:none}
+
+/* celular: sem zoom automático ao tocar num campo (iPhone dá zoom em letras menores que 16px) e sem a tela "escorregar" para o lado */
+html,body{overflow-x:clip;max-width:100%}
+@media (max-width:820px){input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea{font-size:16px}}
 </style>
 
 </head>

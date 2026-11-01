@@ -4761,6 +4761,18 @@ function mergeDiff(a,b){const out={};let any=false;a=a||{};
  for(const k in a)if(!(k in b)||b[k]===undefined){out[k]=null;any=true}
  return any?out:null}
 
+/* nome na equipe: nome e último sobrenome ("Maria da Silva Souza" vira "Maria Souza") */
+function fullNick(){const w=String(S.profile.name||"").trim().split(/\s+/).filter(Boolean);return w.length>1?w[0]+" "+w[w.length-1]:(w[0]||"")}
+let nickSyncing=false;
+async function teamNickSync(){if(Store.demo||!sb||!Store.cloud||!TEAMS||nickSyncing)return;const want=fullNick().slice(0,40);if(!want)return;nickSyncing=true;let ch=false;
+ try{for(const t of TEAMS){const m=(t.members||[]).find(x=>x.uid===ME.uid);if(m&&m.nick!==want){const {error}=await sb.rpc("set_team_nick",{p_team:t.id,p_nick:want});if(!error){m.nick=want;ch=true}}}}catch(e){}nickSyncing=false;if(ch)render()}
+function surnameAsk(){if(Store.demo||!TEAMS||!TEAMS.length||UI.popShown||$("#modal").innerHTML||S.profile.surAsk)return;const w=String(S.profile.name||"").trim().split(/\s+/).filter(Boolean);if(w.length!==1)return;
+ UI.popShown=1;S.profile.surAsk=today();saveApp();
+ openModal("Qual é o seu sobrenome?",`<div class="stack"><p class="small">Nas equipes tem gente com o mesmo nome. Com o sobrenome, todo mundo sabe que é você.</p>
+ <label class="field"><span>Nome</span><input value="${esc(w[0])}" disabled></label>
+ <label class="field"><span>Sobrenome</span><input id="sur_v" placeholder="Ex.: Santos" autocomplete="family-name"></label>
+ <button class="btn block" data-act="surSave">Salvar</button><button class="btn ghost block" data-act="closeModal">Agora não</button></div>`)}
+A.surSave=()=>{const v=String(document.getElementById("sur_v").value||"").trim();if(!v){toast("Escreva o sobrenome.");return}S.profile.name=(String(S.profile.name||"").trim()+" "+v).trim();saveApp();closeModal();render();teamNickSync();toast("Pronto! Nas equipes agora aparece "+fullNick()+".")};
 async function teamsLoad(){
  if(Store.demo){if(!TEAMS){demoTeams();render()}return}
  if(!sb||!Store.cloud||tLoading)return;tLoading=true;
@@ -4769,7 +4781,7 @@ async function teamsLoad(){
   if(TEAM){const t=TEAMS.find(x=>x.id===TEAM.id);if(!t){teamExit();toast("Você não faz mais parte dessa equipe.")}
    else{const ch=JSON.stringify(t.features)!==JSON.stringify(TEAM.features);TEAM=t;if(ch)teamSubscribe()}}
   else{const last=lsTeam();if(last&&TEAMS.find(x=>x.id===last))teamEnter(last,true)}
-  teamCounts();render();setTimeout(teamInvitePopup,400);setTimeout(teamPushPig,800)}catch(e){console.warn(e);if(TEAMS===null)TEAMS=[]}
+  teamCounts();render();setTimeout(teamInvitePopup,400);setTimeout(teamNickSync,1200);setTimeout(surnameAsk,6000);setTimeout(teamPushPig,800)}catch(e){console.warn(e);if(TEAMS===null)TEAMS=[]}
  tLoading=false}
 async function teamCounts(){if(Store.demo||!TEAMS)return;for(const t of TEAMS){if(!(t.features&&t.features.tasks))continue;
  try{const s=await Store.db.doc(`teams/${t.id}/agenda`).get();const items=s.exists&&s.data().tasks&&s.data().tasks.items||{};
@@ -4863,7 +4875,7 @@ Object.assign(A,{
  teamExit:()=>{closeModal();teamExit();window.scrollTo(0,0)},
  teamManage:el=>teamManageView(el.dataset.v||(TEAM&&TEAM.id)),
  teamCreate:async()=>{const name=v("tf_name").trim();const f=readFeats();if(!name){toast("Dê um nome para a equipe.");return}if(!Object.values(f).some(Boolean)){toast("Marque pelo menos um módulo.");return}
-  const id=await trpc("team_create",{p_name:name,p_features:f,p_nick:(S.profile.name||"").split(" ")[0]});if(!id)return;closeModal();await teamsLoad();teamEnter(id);setTimeout(()=>teamManageView(id),300);toast("Equipe criada! Agora convide as pessoas.")},
+  const id=await trpc("team_create",{p_name:name,p_features:f,p_nick:fullNick()});if(!id)return;closeModal();await teamsLoad();teamEnter(id);setTimeout(()=>teamManageView(id),300);toast("Equipe criada! Agora convide as pessoas.")},
  teamSave:async()=>{const id=UI.tmId;const f=readFeats();if(!Object.values(f).some(Boolean)){toast("Deixe pelo menos um módulo ligado.");return}
   const r=await trpc("team_update",{p_team:id,p_name:v("tf_name").trim(),p_features:f},"Equipe atualizada.");if(r){closeModal();await teamsLoad()}},
  teamInvite:async()=>{const e=v("tf_mail").trim().toLowerCase();if(!/^\S+@\S+\.\S+$/.test(e)){toast("Digite um e-mail válido.");return}
@@ -4871,7 +4883,7 @@ Object.assign(A,{
  teamUninvite:async el=>{const r=await trpc("cancel_team_invite",{p_team:UI.tmId,p_email:el.dataset.v});if(r){await teamsLoad();teamManageView(UI.tmId)}},
  teamKick:async el=>{const r=await trpc("leave_team",{p_team:UI.tmId,p_uid:el.dataset.v},"Pessoa removida da equipe.");if(r){await teamsLoad();teamManageView(UI.tmId)}},
  teamLeaveYes:async()=>{const id=UI.tmId;const r=await trpc("leave_team",{p_team:id,p_uid:null});if(!r)return;closeModal();if(TEAM&&TEAM.id===id)teamExit();await teamsLoad();toast("Pronto.")},
- teamAccept:async el=>{const id=el.dataset.v;const r=await trpc("answer_team_invite",{p_team:id,p_accept:true,p_nick:(S.profile.name||"").split(" ")[0]});if(!r)return;closeModal();await teamsLoad();teamEnter(id);toast("Você entrou na equipe!")},
+ teamAccept:async el=>{const id=el.dataset.v;const r=await trpc("answer_team_invite",{p_team:id,p_accept:true,p_nick:fullNick()});if(!r)return;closeModal();await teamsLoad();teamEnter(id);toast("Você entrou na equipe!")},
  teamDecline:async el=>{const r=await trpc("answer_team_invite",{p_team:el.dataset.v,p_accept:false,p_nick:""},"Convite recusado.");if(r){closeModal();teamsLoad()}},
  /* vaquinha */
  addVaq:()=>vaqForm(),
@@ -4964,7 +4976,7 @@ function vaqDetail(id){const r=VQ().items[id];if(!r)return;const sh=Object.entri
 
 /* ---------- Demonstração: equipe CriaMente3d ---------- */
 function demoTeams(){TEAMS=[{id:"demo-team",name:"CriaMente3d",owner:"demo",features:{agenda:true,tasks:true,fin:true,quotes:true,vaq:true,proj:true},
- members:[{uid:"demo",nick:"José",email:"jose@exemplo.com"},{uid:"m_ana",nick:"Ana",email:"ana@exemplo.com",pig:{pet:true,equip:{head:"laco",face:"oculos"},mood:"feliz",score:88}},{uid:"m_lucas",nick:"Lucas",email:"lucas@exemplo.com",pig:{pet:true,equip:{head:"bone"},mood:"ok",score:60}}],invites:["contato@exemplo.com"]}];TINV=[];TCOUNT["demo-team"]=3}
+ members:[{uid:"demo",nick:"José Silva",email:"jose@exemplo.com"},{uid:"m_ana",nick:"Ana Lima",email:"ana@exemplo.com",pig:{pet:true,equip:{head:"laco",face:"oculos"},mood:"feliz",score:88}},{uid:"m_lucas",nick:"Lucas Rocha",email:"lucas@exemplo.com",pig:{pet:true,equip:{head:"bone"},mood:"ok",score:60}}],invites:["contato@exemplo.com"]}];TINV=[];TCOUNT["demo-team"]=3}
 function demoTeamData(){const D=n=>addDays(today(),n);const k=mkey();const id=()=>rid();
  const tasks={};[["Imprimir pedido da Loja Arte & Cia",D(0),"demo","trabalho",[["Fatiar o modelo",true],["Imprimir 12 peças",false]]],["Responder orçamentos do Instagram",D(0),"m_ana","trabalho",[]],["Comprar filamento PLA branco",D(1),"m_lucas","pagar",[]],["Fotografar produtos novos",D(2),"demo","trabalho",[]],["Atualizar catálogo no site",D(3),"",  "trabalho",[]],["Revisar contas do mês",D(-1),"m_ana","trabalho",[]]]
   .forEach(([title,date,who,kind,subs],i)=>{const tid="dt"+i;tasks[tid]={id:tid,title,date,time:i===0?"14:00":"",who,by:"demo",kind,prio:i===0?"alta":"media",status:i===1?"doing":"todo",cal:true,remind:30,subs:subs.map(([t,done])=>({t,done})),created:Date.now()-i*1e6,repeat:i===4?"weekly":""}});
@@ -5505,7 +5517,7 @@ const NOTIF={list:[],loading:false,t:0};
 const pushOK=()=>"serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window;
 const isIOS=()=>/iPhone|iPad|iPod/.test(navigator.userAgent);
 const isStandalone=()=>(window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone===true;
-const myNick=()=>(S.profile.name||"").split(" ")[0]||"Alguém";
+const myNick=()=>fullNick()||"Alguém";
 function b64u(s){const p="=".repeat((4-s.length%4)%4);const b=atob((s+p).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from([...b].map(c=>c.charCodeAt(0)))}
 
 async function pushSubscribe(ask){if(!pushOK()||!sb||!Store.cloud||Store.demo)return false;

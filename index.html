@@ -5466,7 +5466,10 @@ async function notifGuide(){const st=await pushState();PUSHST=st;const plat=isIO
   denied:["bad","Bloqueadas neste aparelho","Você (ou alguém) tocou em Bloquear. Dá para liberar nas configurações:"],
   "ios-install":["warn","Falta instalar o Prumo","No iPhone, a Apple só deixa sites mandarem notificação quando estão instalados na tela de início."],
   nosupport:["bad","Este navegador não manda notificações","Os avisos continuam aparecendo no sininho do app. Para receber no celular, abra o Prumo no Safari (iPhone) ou no Chrome (Android)."]}[st];
- const unblock=plat==="ios"?`<p class="small">Abra <b>Ajustes</b> do iPhone → <b>Notificações</b> → <b>Prumo</b> → ative <b>Permitir Notificações</b>.</p>`
+ const unblock=plat==="ios"?`<p class="small">Abra <b>Ajustes</b> do iPhone → <b>Notificações</b> → <b>Prumo</b> → ative <b>Permitir Notificações</b>.</p>
+  <div class="card flat stack-s"><b class="small">Já está ligado nos Ajustes e continua bloqueado aqui?</b><p class="small">É um defeito conhecido do iPhone: a permissão fica presa. Para resolver:</p>
+  <p class="small">1. Na tela de início, segure o ícone do Prumo → <b>Remover</b> (se tiver mais de um ícone do Prumo, remova todos).<br>2. No Safari, abra prumovidaemordem.com.br → <b>Compartilhar</b> → <b>Adicionar à Tela de Início</b>, com <b>Abrir como App Web</b> ligado.<br>3. Abra pelo ícone novo, entre na conta e toque em <b>Ativar notificações</b> → <b>Permitir</b>.</p>
+  <button class="btn line sm" data-act="notifTurnOn" style="align-self:flex-start">Tentar ativar de novo</button></div>`
   :plat==="android"?`<p class="small">Segure o ícone do Prumo → <b>Informações do app</b> → <b>Notificações</b> → ative. Se usa pelo Chrome: toque no cadeado ao lado do endereço → <b>Permissões</b> → <b>Notificações</b>.</p>`
   :`<p class="small">Clique no <b>cadeado</b> ao lado do endereço do site → <b>Notificações</b> → <b>Permitir</b>. Depois recarregue a página.</p>`;
  openModal("Notificações",`<div class="stack">
@@ -5476,6 +5479,7 @@ async function notifGuide(){const st=await pushState();PUSHST=st;const plat=isIO
  ${st==="on"?`<button class="btn line block" data-act="notifTest">Mandar uma notificação de teste</button>`:""}
  ${st==="ios-install"||(plat==="ios"&&st!=="on")?img("ios"):""}
  ${plat==="android"&&!isStandalone()?`<p class="small">Dica: instale o Prumo na tela inicial. As notificações ficam mais confiáveis e ele abre como um app.</p>${img("android")}`:""}
+ <p class="tiny muted" style="text-align:center">Neste aparelho: ${isStandalone()?"app instalado":"navegador"} · permissão ${pushOK()?({granted:"concedida",denied:"negada",default:"não pedida"}[Notification.permission]||Notification.permission):"indisponível"}</p>
  <div class="card flat stack-s"><div class="label">Precisa ativar algo no celular?</div>
   <p class="small">· Só tocar em <b>Permitir</b> quando o Prumo pedir.</p>
   <p class="small">· Se estiver no modo <b>Foco</b>, <b>Não perturbe</b> ou <b>economia de bateria</b>, os avisos podem atrasar ou chegar em silêncio.</p>

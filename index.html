@@ -1466,7 +1466,12 @@ function foodUnits(f){const por=(f.por||"1 porção").trim();const out=[];
  const N=parseFloat(m[1].replace(",","."))||1,noun=m[2].trim();const fm=unForms(noun);
  if(N!==1)out.push({k:"p",per:1,one:"porção",many:"porções",step:.5,hint:por});
  if(!/^porç/.test(noun))out.push({k:"u",per:N,one:fm.one,many:fm.many,step:N>=2?1:.5});else if(N===1)out.push({k:"p",per:1,one:"porção",many:"porções",step:.5});
- if(m[3]){const G=parseFloat(m[3].replace(",","."));const un=m[4].toLowerCase();if(G>0)out.push({k:"g",per:G,one:un,many:un,step:G>=100?10:5,g:1})}
+ if(m[3]){const G=parseFloat(m[3].replace(",","."));const un=m[4].toLowerCase();if(G>0){
+  if(un==="ml"){const nn=norm(f.n||""),nv=norm(noun);const add=(k,ml,one,many)=>{if(!nv.startsWith(norm(one)))out.push({k,per:G/ml,one,many,step:.5})};
+   add("c",200,"copo","copos");add("cg",300,"copo grande","copos grandes");
+   if(/refrigerante|cerveja|suco|cha gelado|energetico|isotonico|agua de coco|guarana|kombucha/.test(nn)){add("lt",350,"lata","latas");add("gf",600,"garrafinha","garrafinhas")}
+   if(/refrigerante|guarana/.test(nn))add("g2",2000,"garrafa de 2 litros","garrafas de 2 litros")}
+  out.push({k:"g",per:G,one:un,many:un,step:G>=100?10:5,g:1})}}
  return out}
 const unFmt=(n)=>String(Math.round(n*100)/100).replace(".",",");
 function unLabel(u,n){return u.g?`${unFmt(n)} ${u.one}`:`${unFmt(n)} ${n>0&&n<=1?u.one:u.many}`}
@@ -1525,7 +1530,7 @@ function renderTray(){const b=$("#tray");if(!b)return;const t=UI.tray||[];const 
   ${us.length>1?`<select class="unsel" data-tray-u="${i}" aria-label="Medida de ${esc(x.f.n)}">${us.map((o,j)=>`<option value="${j}" ${j===(x.u||0)?"selected":""}>${esc(o.many)}</option>`).join("")}</select>`:`<span class="small muted">${esc(x.n>0&&x.n<=1?u.one:u.many)}</span>`}</div></div>`}).join("")}</div>
  <button class="btn block" data-act="traySave">Salvar ${esc(mealN.toLowerCase())} (${t.length} ${t.length===1?"item":"itens"})</button></div>`}
 document.addEventListener("change",ev=>{const e=ev.target;if(!e||!e.dataset)return;
- if(e.dataset.trayU!=null){const x=UI.tray[+e.dataset.trayU];if(!x)return;const us=foodUnits(x.f);const nu=us[+e.value]||us[0];x.u=+e.value;x.n=Math.round(x.q*nu.per*100)/100;if(nu.k==="u"&&nu.per>=2)x.n=Math.max(1,Math.round(x.n));if(nu.g)x.n=Math.round(x.n);x.q=x.n/nu.per;renderTray()}
+ if(e.dataset.trayU!=null){const x=UI.tray[+e.dataset.trayU];if(!x)return;const us=foodUnits(x.f);const nu=us[+e.value]||us[0];x.u=+e.value;x.n=Math.round(x.q*nu.per*100)/100;if(nu.k==="u"&&nu.per>=2)x.n=Math.max(1,Math.round(x.n));if(nu.g)x.n=Math.round(x.n);if(["c","cg","lt","gf","g2"].includes(nu.k))x.n=Math.max(.5,Math.round(x.n*2)/2);x.q=x.n/nu.per;renderTray()}
  });
 document.addEventListener("input",ev=>{const e=ev.target;if(!e||!e.dataset||e.dataset.trayN==null)return;const x=UI.tray[+e.dataset.trayN];if(!x)return;const us=foodUnits(x.f);const u=us[x.u]||us[0];const n=parseFloat(String(e.value).replace(",","."));if(!(n>0))return;x.n=n;x.q=n/u.per;
  if(showKcal()){const k=document.querySelector(`[data-tray-k="${e.dataset.trayN}"]`);if(k&&x.f.kcal!=null)k.textContent=Math.round(x.f.kcal*x.q)+" kcal";const tk=$("#trayK");if(tk)tk.textContent=Math.round(UI.tray.reduce((s,y)=>s+(y.f.kcal!=null?y.f.kcal*y.q:0),0))+" kcal"}});

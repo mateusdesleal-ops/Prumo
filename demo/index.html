@@ -1690,13 +1690,13 @@ const expLeft=e=>Math.max(0,(+e.v||0)-expPaidV(e));
 function monthPending(k){return monthData(k).expenses.filter(e=>expLeft(e)>0.009).sort((a,b)=>(a.date||"").localeCompare(b.date||""))}
 function monthDueCard(k){const items=[];billsList().forEach(b=>billParcels(b).forEach(p=>{if(!p.paid&&mkey(p.date)===k)items.push({b,p})}));
  const subsNext=subsList().filter(s=>s.active!==false&&(s.start||k)<=k).filter(s=>{const id=`sub_${s.id}_${k.replace("-","")}`;const m=finDocs()[mid(k)];return!(m&&m.expenses&&m.expenses[id])&&!(meta().subSkip||{})[id]});
- const invs=[];cardsList().forEach(c=>{const inv=cardInvoices(c).find(i=>i.k===k&&!i.paid);if(inv&&inv.total>0)invs.push({c,inv})});
+ const invs=[];cardsList().forEach(c=>{const inv=cardInvoices(c).find(i=>i.k===k&&!i.paid);if(inv&&inv.left>0)invs.push({c,inv})});
  const pend=monthPending(k);
  if(!items.length&&!subsNext.length&&!invs.length&&!pend.length)return"";
  return `<div class="card stack"><div class="row between"><div class="label">A pagar em ${MONTHS[+k.slice(5)-1]}</div><button class="btn ghost sm" data-act="fin" data-v="fixos">Fixos</button></div>
  ${pend.map(e=>`<div class="row between small" style="gap:8px"><button class="grow" style="border:0;background:none;text-align:left;padding:0;min-width:0" data-act="editExpense" data-v="${e.id}" data-m="${k}">${esc(e.desc||(CAT[e.cat]||CAT.outros).n)} · ${ddmm(e.date)}${e.date<today()?' <span class="pill bad">venceu</span>':""}${expSt(e)==="parcial"?` <span class="pill warn">pago ${brl0(expPaidV(e))}</span>`:""}</button><span class="row" style="gap:6px;flex:none"><b class="num">${brl(expLeft(e))}</b><button class="btn money sm" data-act="expPaid" data-v="${e.id}" data-m="${k}">Paguei</button><button class="btn ghost sm" data-act="expPart" data-v="${e.id}" data-m="${k}">Parte</button></span></div>`).join("")}
  ${items.map(({b,p})=>`<div class="row between small"><span>${esc(b.name||BILLK[b.kind])} · ${parseDate(p.date).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}${p.date<today()?' <span class="pill bad">venceu</span>':""}</span><span class="row" style="gap:8px"><b class="num">${brl(p.v)}</b><button class="btn money sm" data-act="payBill" data-v="${b.id}" data-i="${p.i}">Paguei</button></span></div>`).join("")}
- ${invs.map(({c,inv})=>`<div class="row between small"><span>Fatura ${esc(c.name)} · ${ddmm(inv.due)}${inv.due<today()?' <span class="pill bad">venceu</span>':""}</span><span class="row" style="gap:8px"><b class="num">${brl(inv.total)}</b>${inv.k<invoiceMonth(c,today())?`<button class="btn money sm" data-act="ccPaid" data-v="${c.id}" data-k="${inv.k}">Paguei</button>`:`<span class="pill info">aberta</span>`}</span></div>`).join("")}
+ ${invs.map(({c,inv})=>`<div class="row between small"><span>Fatura ${esc(c.name)} · ${ddmm(inv.due)}${inv.due<today()?' <span class="pill bad">venceu</span>':""}</span>${inv.pv>0?` <span class="pill warn">pago ${brl0(inv.pv)}</span>`:""}${inv.prev>0?` <span class="pill info">c/ saldo anterior</span>`:""}</span><span class="row" style="gap:6px;flex:none"><b class="num">${brl(inv.left)}</b>${inv.k<invoiceMonth(c,today())?`<button class="btn money sm" data-act="ccPaid" data-v="${c.id}" data-k="${inv.k}">Paguei</button><button class="btn ghost sm" data-act="ccPartial" data-v="${c.id}" data-k="${inv.k}">Parte</button>`:`<span class="pill info">aberta</span>`}</span></div>`).join("")}
  ${subsNext.length?`<p class="tiny muted">Assinaturas que ainda serão lançadas: ${subsNext.map(s=>`${esc(s.name)} (dia ${s.day})`).join(", ")}, somando ${brl0(subsNext.reduce((a,s)=>a+(+s.v||0),0))}.</p>`:""}</div>`}
 function finFixos(){const subs=subsList().filter(s=>s.active!==false);const off=subsList().filter(s=>s.active===false);const mTot=subs.reduce((s,x)=>s+(+x.v||0),0);const inc=refIncome(mkey());
  const bills=billsList().sort((a,b)=>(billParcels(a).find(p=>!p.paid)||{date:"9"}).date.localeCompare((billParcels(b).find(p=>!p.paid)||{date:"9"}).date));
@@ -3190,11 +3190,29 @@ function invoiceMonth(card,date){const close=+card.close||1,due=+card.due||10;le
 const ccKey=k=>k.replace("-","");
 function cardItems(cardId){const out=[];for(const k of allMonths())for(const e of monthData(k).expenses)if(e.card===cardId)out.push({...e,k});return out}
 function invPaid(cardId,k){return!!(((meta().cardPaid||{})[cardId]||{})[ccKey(k)])}
+/* Pagamento parcial: meta.cardPart[cartão][aaaamm] = {p: já pago, j: juros/encargos lançados}.
+   Vencida com parte paga, o resto (+ juros) vira "saldo anterior" da fatura seguinte. */
+function invPart(cardId,k){return((meta().cardPart||{})[cardId]||{})[ccKey(k)]||null}
+const r2=x=>Math.round(x*100)/100;
 function cardInvoices(card){const by={};cardItems(card.id).forEach(e=>{(by[e.k]=by[e.k]||[]).push(e)});
- return Object.keys(by).sort().map(k=>({k,items:by[k].sort((a,b)=>(a.bought||a.date).localeCompare(b.bought||b.date)),total:sum(by[k]),paid:invPaid(card.id,k),due:dayIn(k,card.due)}))}
-function cardUsed(card){return cardInvoices(card).filter(i=>!i.paid).reduce((s,i)=>s+i.total,0)}
+ Object.keys((meta().cardPart||{})[card.id]||{}).forEach(kk=>{const k=kk.slice(0,4)+"-"+kk.slice(4);by[k]=by[k]||[];by[shiftMonth(k,1)]=by[shiftMonth(k,1)]||[]});
+ let carry=0,carryFrom=null;const out=[];
+ Object.keys(by).sort().forEach(k=>{const items=by[k].sort((a,b)=>(a.bought||a.date).localeCompare(b.bought||b.date));
+  const prev=carryFrom&&carryFrom.to===k?carry:0,prevK=prev?carryFrom.k:null;carry=0;carryFrom=null;
+  const own=sum(items),total=r2(own+prev),due=dayIn(k,card.due),flag=invPaid(card.id,k),pp=invPart(card.id,k);
+  const pv=pp?+pp.p||0:0,jv=pp?+pp.j||0:0;
+  const rolled=!flag&&pv>0&&pv<total-0.009&&due<today();
+  const paid=flag||(pv>0&&pv>=total-0.009)||rolled;
+  const left=paid?0:r2(Math.max(0,total-pv));
+  if(rolled){carry=r2(total-pv+jv);carryFrom={k,to:shiftMonth(k,1)}}
+  out.push({k,items,own,prev,prevK,total,paid,rolled,pv,jv,left,rest:rolled?r2(total-pv):0,due})});
+ return out.filter(i=>i.items.length||i.prev>0)}
+function cardUsed(card){return cardInvoices(card).filter(i=>!i.paid).reduce((s,i)=>s+i.left,0)}
+function ccPrevJ(c,i){const pp=i.prevK&&invPart(c.id,i.prevK);return pp?+pp.j||0:0}
 function invStatus(card,inv){const open=invoiceMonth(card,today());
+ if(inv.rolled)return{k:"warn",t:"Resto na próxima"};
  if(inv.paid)return{k:"good",t:"Paga"};
+ if(inv.pv>0&&inv.k<=open)return{k:inv.due<today()?"bad":"warn",t:"Paga em parte"};
  if(inv.k>open)return{k:"info",t:"Futura"};
  if(inv.k===open)return{k:"info",t:"Aberta"};
  if(inv.due<today())return{k:"bad",t:"Vencida"};
@@ -3226,7 +3244,7 @@ function ccPreview(){const box=$("#f_ccprev");if(!box)return;const c=cardById(v(
 function ccControlCard(){return `<div class="card stack" style="background:var(--surface2);border-color:transparent;box-shadow:none"><div class="row" style="gap:10px;align-items:flex-start"><span style="color:var(--pig-deep);flex:none">${I.heart.replace('<svg','<svg width="22" height="22"')}</span><div class="stack-s" style="gap:4px"><b>Controle total: chato no começo, libertador depois</b><span class="small">Anotar cada compra pode parecer chato. Mas o cartão esconde o gasto: você compra hoje e só sente no mês que vem. Quem tem tudo anotado vê as parcelas se acumulando <i>antes</i> de virar dívida, e passa a gastar sem medo.</span><span class="small">Não precisa ser perfeito, só constante: lance na hora ou importe a fatura uma vez por mês.</span></div></div><button class="btn ghost sm" data-act="lesson" data-v="cc1" style="align-self:flex-start">Por que vale a pena</button></div>`}
 function ccBar(used,limit){const p=limit?used/limit:0;const col=p>0.8?"var(--bad)":p>0.5?"var(--warn)":"var(--good)";return `<div class="meter"><i style="width:${clamp(p,0,1)*100}%;background:${col}"></i></div>`}
 function ccNextMonths(cards){const open=today().slice(0,7);const ks=[];for(let i=0;i<6;i++)ks.push(shiftMonth(open,i));
- const tot=ks.map(k=>cards.reduce((s,c)=>s+cardInvoices(c).filter(x=>x.k===k&&!x.paid).reduce((a,x)=>a+x.total,0),0));const max=Math.max(1,...tot);if(!tot.some(Boolean))return"";const inc=refIncome(mkey());
+ const tot=ks.map(k=>cards.reduce((s,c)=>s+cardInvoices(c).filter(x=>x.k===k&&!x.paid).reduce((a,x)=>a+x.left,0),0));const max=Math.max(1,...tot);if(!tot.some(Boolean))return"";const inc=refIncome(mkey());
  return `<div class="card stack"><div class="label">Faturas dos próximos meses</div><p class="tiny muted">Inclui as parcelas que já estão marcadas para os meses seguintes. É o seu salário futuro que já tem dono.</p>
  <div class="stack-s">${ks.map((k,i)=>`<div class="row" style="gap:10px"><span class="tiny muted" style="width:52px;text-transform:capitalize">${mShort(k)}</span><div class="grow meter" style="height:10px"><i style="width:${tot[i]/max*100}%;background:${inc&&tot[i]>inc*0.3?"var(--warn)":"var(--pig-deep)"}"></i></div><b class="num small" style="min-width:76px;text-align:right">${brl0(tot[i])}</b></div>`).join("")}</div>
  ${inc&&tot[0]>inc*0.3?`<p class="tiny" style="color:var(--warn)">As faturas passam de 30% da sua renda. Segure novas compras parceladas até elas baixarem.</p>`:""}</div>`}
@@ -3251,14 +3269,16 @@ function ccCardBlock(c){const invs=cardInvoices(c);const used=cardUsed(c);const 
  return `<div class="card stack" style="border-top:5px solid ${c.color||"var(--pig-deep)"}">
  <div class="row between"><div class="stack-s" style="gap:1px"><b style="font-size:17px">${esc(c.name)}</b><span class="tiny muted">Fecha dia ${c.close} · vence dia ${c.due}${personName(c.by)?" · "+esc(personName(c.by)):""}</span></div><button class="btn ghost sm" data-act="editCard" data-v="${c.id}">Editar</button></div>
  ${+c.limit?`<div class="stack-s"><div class="row between small"><span>Usado ${brl0(used)} de ${brl0(c.limit)}</span><b class="num" style="color:${c.limit-used<0?"var(--bad)":"var(--good)"}">${brl0(c.limit-used)} livres</b></div>${ccBar(used,+c.limit)}</div>`:`<p class="tiny muted">Informe o limite em Editar para acompanhar quanto ainda pode usar.</p>`}
- ${toPay.map(i=>{const st=invStatus(c,i);return `<div class="banner ${st.k==="bad"?"bad":"warn"} stack" style="flex-direction:column;align-items:stretch"><div class="row between"><span><b>Fatura de ${MONTHS[+i.k.slice(5)-1]}</b> · vence ${ddmm(i.due)}</span><b class="num">${brl(i.total)}</b></div><div class="row wrap" style="gap:6px"><button class="btn money sm" data-act="ccPaid" data-v="${c.id}" data-k="${i.k}">Paguei a fatura inteira</button><button class="btn ghost sm" data-act="ccPartial" data-v="${c.id}" data-k="${i.k}">Não consegui pagar tudo</button></div></div>`}).join("")}
- <div class="row between"><div class="stack-s" style="gap:1px"><span class="tiny muted">Fatura aberta (vence ${ddmm(dayIn(open,c.due))})</span><b class="num" style="font-size:20px">${brl(openInv?openInv.total:0)}</b></div><span class="pill info">Melhor dia de compra: ${c.close}</span></div>
+ ${toPay.map(i=>{const st=invStatus(c,i);return `<div class="banner ${st.k==="bad"?"bad":"warn"} stack" style="flex-direction:column;align-items:stretch"><div class="row between"><span><b>Fatura de ${MONTHS[+i.k.slice(5)-1]}</b> · vence ${ddmm(i.due)}</span><b class="num">${brl(i.left)}</b></div>${i.pv>0||i.prev>0?`<p class="tiny">Total ${brl(i.total)}${i.prev>0?` (inclui ${brl(i.prev)} de saldo anterior)`:""}${i.pv>0?` · já pago ${brl(i.pv)} · falta ${brl(i.left)}`:""}</p>`:""}${i.pv>0?`<p class="tiny">Se não pagar o restante até o vencimento, ele passa para a próxima fatura como saldo anterior, com juros do rotativo.</p>`:""}<div class="row wrap" style="gap:6px"><button class="btn money sm" data-act="ccPaid" data-v="${c.id}" data-k="${i.k}">${i.pv>0?"Paguei o restante":"Paguei a fatura inteira"}</button><button class="btn ghost sm" data-act="ccPartial" data-v="${c.id}" data-k="${i.k}">Paguei uma parte</button></div></div>`}).join("")}
+ <div class="row between"><div class="stack-s" style="gap:1px"><span class="tiny muted">Fatura aberta (vence ${ddmm(dayIn(open,c.due))})</span><b class="num" style="font-size:20px">${brl(openInv?openInv.total:0)}</b>${openInv&&openInv.prev>0?`<span class="tiny" style="color:var(--warn)">inclui ${brl(openInv.prev)} de saldo anterior</span>`:""}</div><span class="pill info">Melhor dia de compra: ${c.close}</span></div>
  <div class="row wrap" style="gap:6px"><button class="btn line sm" data-act="ccBuy" data-v="${c.id}">Lançar compra</button><button class="btn line sm" data-act="ccImport" data-v="${c.id}">Importar fatura</button><button class="btn ghost sm" data-act="ccToggle" data-v="${c.id}">${isOpen?"Esconder faturas":"Ver faturas"}</button></div>
  ${isOpen?ccInvoiceList(c,invs):""}</div>`}
 function ccInvoiceList(c,invs){if(!invs.length)return `<p class="small muted">Nenhuma compra lançada neste cartão.</p>`;const show=invs.filter(i=>!i.paid||i.k>=shiftMonth(mkey(),-2));
  return `<div class="stack-s">${show.map(i=>{const st=invStatus(c,i);return `<div class="card flat" style="padding:8px 12px"><div class="row between" style="padding:4px 0"><b style="text-transform:capitalize">${monthLabel(i.k)}</b><span class="row" style="gap:6px"><span class="pill ${st.k}">${st.t}</span><b class="num">${brl(i.total)}</b></span></div>
+  ${i.prev>0?`<div class="row between small" style="padding:6px 0;border-bottom:1px solid var(--line)"><span class="stack-s" style="gap:0"><b>Saldo anterior</b><span class="tiny muted">Resto da fatura de ${MONTHS[+i.prevK.slice(5)-1]}${ccPrevJ(c,i)?` + ${brl(ccPrevJ(c,i))} de juros`:""}</span></span><span class="row" style="gap:6px"><button class="btn ghost sm" data-act="ccJuros" data-v="${c.id}" data-k="${i.prevK}">${ccPrevJ(c,i)?"Juros":"+ Juros"}</button><span class="amount small">${brl(i.prev)}</span></span></div>`:""}
+  ${i.pv>0?`<p class="tiny muted" style="padding:4px 0">Você pagou ${brl(i.pv)}${i.rolled?`. Os ${brl(i.rest)} restantes foram para a fatura de ${MONTHS[+shiftMonth(i.k,1).slice(5)-1]}.`:"."}${i.rolled||i.paid?` <button class="btn ghost sm" data-act="ccPartUndo" data-v="${c.id}" data-k="${i.k}">Desfazer</button>`:""}</p>`:""}
   <div class="list">${i.items.map(e=>`<button class="item" style="width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;padding:6px 0" data-act="editExpense" data-v="${e.id}" data-m="${i.k}"><div class="grow stack-s" style="gap:0"><p class="small"><b>${esc(e.desc||(CAT[e.cat]||CAT.outros).n)}</b>${parcLabel(e)?` <span class="tiny muted">${parcLabel(e)}</span>`:""}</p><p class="tiny muted">${(CAT[e.cat]||CAT.outros).n}${e.bought?" · compra em "+ddmm(e.bought):""}</p></div><span class="amount small">${brl(e.v)}</span></button>`).join("")}</div>
-  ${i.paid&&i.k<=mkey()?`<button class="btn ghost sm" data-act="ccUnpaid" data-v="${c.id}" data-k="${i.k}">Desmarcar como paga</button>`:""}</div>`}).join("")}</div>`}
+  ${i.paid&&!i.rolled&&i.k<=mkey()?`<button class="btn ghost sm" data-act="ccUnpaid" data-v="${c.id}" data-k="${i.k}">Desmarcar como paga</button>`:""}</div>`}).join("")}</div>`}
 
 /* ---------- Cadastro de cartão ---------- */
 function cardForm(c){c=c||{};const isEdit=!!c.id;UI.ccColor=c.color||CARD_COLORS[cardsList().length%CARD_COLORS.length];
@@ -3381,15 +3401,35 @@ Object.assign(A,{
  pickPay:el=>{document.querySelectorAll('[data-act="pickPay"]').forEach(b=>b.classList.toggle("on",b===el));$("#f_card").value=el.dataset.v;$("#f_ccbox").classList.toggle("hide",!el.dataset.v);ccPreview()},
  ccPaid:el=>{const c=cardById(el.dataset.v);finPatch("meta",{cardPaid:{[el.dataset.v]:{[ccKey(el.dataset.k)]:1}}});markActive();saveApp();toast(S.profile.pet?"Fatura paga! O porquinho comemora: nada de rotativo.":"Fatura marcada como paga. O limite foi liberado.",4000)},
  ccUnpaid:el=>{finPatch("meta",{cardPaid:{[el.dataset.v]:{[ccKey(el.dataset.k)]:null}}})},
- ccPartial:el=>{const c=cardById(el.dataset.v);const inv=cardInvoices(c).find(i=>i.k===el.dataset.k);if(!inv)return;
-  openModal("Não consegui pagar tudo",`<div class="stack"><p class="small">Tudo bem, acontece. O importante é não deixar o resto no rotativo por muito tempo, porque os juros são muito altos.</p>
-  <label class="field"><span>Quanto você conseguiu pagar da fatura de ${brl(inv.total)}?</span><input id="pp_v" inputmode="decimal" placeholder="0,00"></label>
-  <p class="tiny muted">O que faltar vira uma dívida em Finanças > Dívidas, com um plano para quitar. Ligue para o banco e peça para parcelar a fatura: costuma sair mais barato que o rotativo. Por lei, os juros do rotativo e do parcelamento da fatura não podem passar de 100% do valor da dívida.</p>
-  <button class="btn block" data-act="ccPartialSave" data-v="${c.id}" data-k="${inv.k}">Registrar</button></div>`)},
- ccPartialSave:el=>{const c=cardById(el.dataset.v);const inv=cardInvoices(c).find(i=>i.k===el.dataset.k);const paid=parseMoney(v("pp_v"));const left=Math.round((inv.total-paid)*100)/100;
+ ccPartial:el=>{const c=cardById(el.dataset.v);const inv=cardInvoices(c).find(i=>i.k===el.dataset.k);if(!inv)return;const late=inv.due<today();
+  openModal("Paguei uma parte da fatura",`<div class="stack"><p class="small">Fatura de ${MONTHS[+inv.k.slice(5)-1]} · ${brl(inv.total)}${inv.pv>0?` · já pago ${brl(inv.pv)}`:""}. Falta <b>${brl(inv.left)}</b>.</p>
+  <label class="field"><span>Quanto você pagou agora?</span><input id="pp_v" inputmode="decimal" placeholder="0,00"></label>
+  <div class="banner warn small">${late?"Como a fatura já venceu, o que faltar vai":"Se o restante não for pago até o vencimento, ele vai"} para a fatura de ${MONTHS[+shiftMonth(inv.k,1).slice(5)-1]} como <b>saldo anterior</b>. O banco cobra juros do rotativo sobre esse valor, um dos mais altos do país.</div>
+  <div class="card flat stack-s"><div class="label">Para não virar bola de neve</div>
+   <p class="small">· Tente quitar o resto o quanto antes, mesmo em partes.</p>
+   <p class="small">· Se não der, ligue para o banco e peça para <b>parcelar a fatura</b>: costuma sair bem mais barato que o rotativo. Por lei, os juros não podem passar de 100% do valor devido.</p>
+   <p class="small">· Até regularizar, deixe o cartão guardado e não faça compras parceladas novas.</p>
+   <p class="small">· Quando a próxima fatura chegar, lance os juros cobrados no saldo anterior para o total bater com o do banco.</p></div>
+  <button class="btn block" data-act="ccPartialSave" data-v="${c.id}" data-k="${inv.k}">Registrar pagamento</button>
+  <button class="btn ghost block" data-act="ccPartDebt" data-v="${c.id}" data-k="${inv.k}">Parcelei com o banco (mover para Dívidas)</button></div>`)},
+ ccPartialSave:el=>{const c=cardById(el.dataset.v);const inv=cardInvoices(c).find(i=>i.k===el.dataset.k);if(!inv)return;const now=parseMoney(v("pp_v"));
+  if(!(now>0)){toast("Informe quanto você pagou.");return}
+  const tot=r2(inv.pv+now);
+  if(tot>=inv.total-0.009){finPatch("meta",{cardPart:{[c.id]:{[ccKey(inv.k)]:null}}});A.ccPaid(el);closeModal();return}
+  finPatch("meta",{cardPart:{[c.id]:{[ccKey(inv.k)]:{p:tot,j:inv.jv||0}}}});markActive();saveApp();closeModal();
+  const rest=r2(inv.total-tot),nx=MONTHS[+shiftMonth(inv.k,1).slice(5)-1];
+  toast(inv.due<today()?`Anotado. Os ${brl(rest)} restantes foram para a fatura de ${nx} como saldo anterior.`:`Anotado. Falta ${brl(rest)}. Se não pagar até ${ddmm(inv.due)}, vai para a fatura de ${nx}.`,6000)},
+ ccPartDebt:el=>{const c=cardById(el.dataset.v);const inv=cardInvoices(c).find(i=>i.k===el.dataset.k);if(!inv)return;const now=parseMoney(v("pp_v"))||0;const left=r2(inv.left-now);
   if(left<=0){A.ccPaid(el);closeModal();return}
-  const id=rid();finPatch("meta",{debts:{[id]:{name:`Fatura ${c.name} (${MONTHS[+inv.k.slice(5)-1]})`,kind:"cartao",balance:left,rate:14,min:Math.ceil(left/6),inst:6,late:false,created:today()}},cardPaid:{[c.id]:{[ccKey(inv.k)]:1}}});
-  saveApp();closeModal();UI.fin="dividas";render();toast(`Faltaram ${brl(left)}. Cadastrei como dívida para você montar o plano. Ajuste os juros com o valor que o banco informar.`,6000)},
+  const id=rid();finPatch("meta",{debts:{[id]:{name:`Fatura ${c.name} (${MONTHS[+inv.k.slice(5)-1]})`,kind:"cartao",balance:left,rate:9,min:Math.ceil(left/6),inst:6,late:false,created:today()}},cardPaid:{[c.id]:{[ccKey(inv.k)]:1}},cardPart:{[c.id]:{[ccKey(inv.k)]:null}}});
+  saveApp();closeModal();UI.fin="dividas";render();toast(`Cadastrei ${brl(left)} como dívida. Ajuste juros e parcelas com o que o banco informou.`,6000)},
+ ccJuros:el=>{const c=cardById(el.dataset.v);const k=el.dataset.k;const pp=invPart(c.id,k);if(!pp)return;
+  openModal("Juros no saldo anterior",`<div class="stack"><p class="small">Quanto o banco cobrou de juros, IOF e encargos sobre o resto da fatura de ${MONTHS[+k.slice(5)-1]}? Está na fatura nova, geralmente como "encargos" ou "juros do rotativo".</p>
+  <label class="field"><span>Valor dos juros e encargos</span><input id="pj_v" inputmode="decimal" value="${pp.j?String(pp.j).replace(".",","):""}" placeholder="0,00"></label>
+  <button class="btn block" data-act="ccJurosSave" data-v="${c.id}" data-k="${k}">Salvar</button></div>`)},
+ ccJurosSave:el=>{const c=cardById(el.dataset.v);const k=el.dataset.k;const pp=invPart(c.id,k);if(!pp)return;const j=Math.max(0,parseMoney(v("pj_v"))||0);
+  finPatch("meta",{cardPart:{[c.id]:{[ccKey(k)]:{p:pp.p,j:r2(j)}}}});saveApp();closeModal();toast(j?`Juros de ${brl(j)} somados ao saldo anterior.`:"Juros removidos.")},
+ ccPartUndo:el=>{finPatch("meta",{cardPart:{[el.dataset.v]:{[ccKey(el.dataset.k)]:null}}});saveApp();toast("Pagamento parcial desfeito.")},
  impParse:()=>{const t=v("imp_text");if(!t.trim()){toast("Cole as linhas da fatura.");return}let raw=parseText(t);if(!raw.length&&/[;,]/.test(t))raw=parseCSV(t);impLoad(raw,"text")},
  impBack:()=>{UI.imp.rows=null;impRefresh()},
  impSave:()=>{const im=UI.imp;const c=cardById(im.card);const rows=im.rows.filter(r=>r.on);if(!rows.length)return;const all={};const td=today();

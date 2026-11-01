@@ -2318,6 +2318,32 @@ function storyAskPopup(){if(S.profile.storyAsk===false||!S.profile.created||UI.n
  <button class="linkbtn tiny muted" data-act="storyNever" style="border:0;background:none">Não perguntar mais</button></div>`);
  const sc=document.querySelector("#modal .scrim");if(sc)sc.classList.add("center")}
 {const _rs=render;let tmr=null;render=function(){_rs.apply(this,arguments);clearTimeout(tmr);tmr=setTimeout(storyAskPopup,1500)}}
+/* Banner "O Prumo é mais que o desafio": aparece uma vez para quem usa pouco o resto do app */
+function tourAreas(){return withPersonal(()=>{const n=o=>Object.keys(o||{}).length>0;
+ const fin=allMonths().some(k=>{const m=monthData(k);return(m.expenses||[]).length||(m.incomes||[]).length});
+ return{fin,ex:n(S.ex&&S.ex.logs)||n(S.food&&S.food.logs),study:n(S.study&&S.study.logs)||n(S.study&&S.study.books)||n(VOC().words),agenda:n(S.tasks&&S.tasks.items)}})}
+function tourPopup(){const p=S.profile;if(p.tour1||!p.created||UI.needAuth||(UI.onb>=0&&UI.onb<3))return;
+ if(p.created>=today())return;
+ if($("#modal").innerHTML){setTimeout(tourPopup,5000);return}
+ const used=tourAreas();if(Object.values(used).filter(Boolean).length>=3){p.tour1=today();saveApp();return}
+ p.tour1=today();saveApp();
+ const first=(p.name||"").split(" ")[0];const inCh=typeof TEAMS!=="undefined"&&(TEAMS||[]).some(t=>t.features&&t.features.desafios);
+ const A_=[["fin","💰","Finanças","Veja para onde vai o dinheiro, controle o cartão e saiba o que falta pagar no mês."],
+  ["ex","🥗","Saúde","Anote comida, água, treino e sono. Veja calorias e proteína do dia sem complicação."],
+  ["study","📚","Estudos","Uma palavra nova por dia, seus livros e o tempo de estudo, tudo somando pontos."],
+  ["agenda","🗓️","Agenda","Tarefas, compromissos e projetos num lugar só, com lembretes."]];
+ if(p.pet)A_.push(["pig","🐷","Seu porquinho","Cada área que você cuida deixa ele mais feliz e rende moedas para roupinhas e acessórios."]);
+ openModal("Tem muito mais aqui",`<div class="stack" style="gap:12px">
+ <div class="stack-s" style="align-items:center;text-align:center;gap:6px">${p.pet?`<div style="width:110px;border-radius:18px;overflow:hidden">${(()=>{try{return pigSVG({score:100,mood:"feliz",equip:effectiveEquip(),env:Math.max(2,envLevel()),dry:false,peace:prayerPeace()})}catch(e){return'<div style="font-size:56px">🐷</div>'}})()}</div>`:`<div style="font-size:52px;line-height:1">🐷</div>`}
+ <h2 style="margin:0">${first?esc(first)+", o":"O"} Prumo é muito mais ${inCh?"que o desafio":"do que você já viu"}</h2>
+ <p class="small">Você já está cuidando ${inCh?"de um hábito":"de uma parte da sua vida"}. Que tal colocar o resto da vida em ordem também? Leva 1 minuto por dia.</p></div>
+ <div class="stack-s">${A_.map(([id,e,t,d])=>`<button class="card row" style="text-align:left;gap:12px;padding:12px;align-items:center;width:100%" data-act="tourGo" data-v="${id}"><span style="font-size:28px;flex:none">${e}</span><span class="grow stack-s" style="gap:2px"><b>${t}${used[id]?' <span class="pill good">você já usa</span>':""}</b><span class="tiny muted">${d}</span></span><span style="flex:none;color:var(--muted)">›</span></button>`).join("")}</div>
+ <p class="tiny muted" style="text-align:center">Sem anúncios. Seus dados são só seus.</p>
+ <button class="btn block" data-act="tourGo" data-v="${used.fin?(used.ex?"study":"ex"):"fin"}">Começar por ${used.fin?(used.ex?"Estudos":"Saúde"):"Finanças"}</button>
+ <button class="btn ghost block" data-act="closeModal">Agora não</button></div>`);
+ const sc=document.querySelector("#modal .scrim");if(sc)sc.classList.add("center")}
+{const _rs=render;let tmr=null;render=function(){_rs.apply(this,arguments);clearTimeout(tmr);tmr=setTimeout(tourPopup,2500)}}
+
 
 function viewHome(){
  const h=pigHealth();const t=totals(mkey(),false);const inc=refIncome(mkey());
@@ -3381,6 +3407,7 @@ document.addEventListener("change",ev=>{const el=ev.target;if(!UI.imp)return;
 document.addEventListener("input",ev=>{const id=ev.target&&ev.target.id;if(id==="f_v"||id==="f_date")ccPreview()});
 document.addEventListener("change",ev=>{const id=ev.target&&ev.target.id;if(id==="f_n"||id==="f_date")ccPreview()});
 
+A.tourGo=el=>{closeModal();if(typeof TEAM!=="undefined"&&TEAM&&typeof teamExit==="function")teamExit();UI.tab=el.dataset.v;if(UI.tab==="fin")UI.fin="mes";window.scrollTo(0,0);render()};
 Object.assign(A,{
  ccBuy:el=>expenseForm({card:el.dataset.v||(cardsList()[0]||{}).id,date:today()},null),
  ccImport:el=>ccImportForm(el.dataset.v),
@@ -4417,7 +4444,7 @@ if(DEMO_ON)Store.demo=true;
 {const _ls=lsPut;lsPut=function(){if(Store.demo)return;_ls()}}
 function demoBuild(){const td=today();const D=n=>addDays(td,n);const K=n=>shiftMonth(mkey(),n);let seq=0;const id=p=>p+"_"+(++seq);
  const s=defaultState();
- Object.assign(s.profile,{name:"José da Silva",income:6500,pet:true,age:34,weight:82.1,height:176,level:"intermediario",cleared:true,created:D(-95),studyGoal:25,limit48:150,prayer:true,focus:["fin","saude"],why:"Juntar para viajar com a família",remindAt:"21:00",shareAsked:1});
+ Object.assign(s.profile,{name:"José da Silva",income:6500,pet:true,age:34,weight:82.1,height:176,level:"intermediario",cleared:true,tour1:D(0),created:D(-95),studyGoal:25,limit48:150,prayer:true,focus:["fin","saude"],why:"Juntar para viajar com a família",remindAt:"21:00",shareAsked:1});
 
  // atividade: 23 dias seguidos + dias espalhados antes
  for(let i=0;i<23;i++)s.activity[D(-i)]=1;for(let i=24;i<95;i++)if(i%3!==0)s.activity[D(-i)]=1;

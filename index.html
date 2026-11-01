@@ -1682,11 +1682,18 @@ function syncSubs(){if(subsSyncing)return;const cur=mkey(),td=today();const skip
  const ks=Object.keys(patches);if(!ks.length)return;subsSyncing=true;setTimeout(()=>{ks.forEach(k=>finPatch(mid(k),{expenses:patches[k]}));subsSyncing=false},0)}
 function billParcels(b){const n=Math.max(1,+b.n||1);const each=Math.round((+b.total||0)/n*100)/100;const out=[];for(let i=0;i<n;i++){const d=parseDate(b.due);d.setMonth(d.getMonth()+i);out.push({i,date:ymd(d),v:i===n-1?Math.round(((+b.total||0)-each*(n-1))*100)/100:each,paid:!!(b.paid&&b.paid[i])})}return out}
 function billSaveMonthly(b){const next=billParcels(b).find(p=>!p.paid);if(!next)return 0;const d=parseDate(today()),due=parseDate(next.date);const months=Math.max(1,(due.getFullYear()-d.getFullYear())*12+due.getMonth()-d.getMonth());const left=billParcels(b).filter(p=>!p.paid).reduce((s,p)=>s+p.v,0);return +b.n>1?0:Math.ceil(left/months)}
+/* situação de um gasto: pago (padrão), a pagar ou pago em parte */
+const expSt=e=>e&&!e.card&&(e.st==="apagar"||e.st==="parcial")?e.st:"pago";
+const expPaidV=e=>expSt(e)==="pago"?(+e.v||0):expSt(e)==="parcial"?Math.min(+e.v||0,+e.pv||0):0;
+const expLeft=e=>Math.max(0,(+e.v||0)-expPaidV(e));
+function monthPending(k){return monthData(k).expenses.filter(e=>expLeft(e)>0.009).sort((a,b)=>(a.date||"").localeCompare(b.date||""))}
 function monthDueCard(k){const items=[];billsList().forEach(b=>billParcels(b).forEach(p=>{if(!p.paid&&mkey(p.date)===k)items.push({b,p})}));
  const subsNext=subsList().filter(s=>s.active!==false&&(s.start||k)<=k).filter(s=>{const id=`sub_${s.id}_${k.replace("-","")}`;const m=finDocs()[mid(k)];return!(m&&m.expenses&&m.expenses[id])&&!(meta().subSkip||{})[id]});
  const invs=[];cardsList().forEach(c=>{const inv=cardInvoices(c).find(i=>i.k===k&&!i.paid);if(inv&&inv.total>0)invs.push({c,inv})});
- if(!items.length&&!subsNext.length&&!invs.length)return"";
- return `<div class="card stack"><div class="row between"><div class="label">A vencer em ${MONTHS[+k.slice(5)-1]}</div><button class="btn ghost sm" data-act="fin" data-v="fixos">Fixos</button></div>
+ const pend=monthPending(k);
+ if(!items.length&&!subsNext.length&&!invs.length&&!pend.length)return"";
+ return `<div class="card stack"><div class="row between"><div class="label">A pagar em ${MONTHS[+k.slice(5)-1]}</div><button class="btn ghost sm" data-act="fin" data-v="fixos">Fixos</button></div>
+ ${pend.map(e=>`<div class="row between small" style="gap:8px"><button class="grow" style="border:0;background:none;text-align:left;padding:0;min-width:0" data-act="editExpense" data-v="${e.id}" data-m="${k}">${esc(e.desc||(CAT[e.cat]||CAT.outros).n)} · ${ddmm(e.date)}${e.date<today()?' <span class="pill bad">venceu</span>':""}${expSt(e)==="parcial"?` <span class="pill warn">pago ${brl0(expPaidV(e))}</span>`:""}</button><span class="row" style="gap:6px;flex:none"><b class="num">${brl(expLeft(e))}</b><button class="btn money sm" data-act="expPaid" data-v="${e.id}" data-m="${k}">Paguei</button><button class="btn ghost sm" data-act="expPart" data-v="${e.id}" data-m="${k}">Parte</button></span></div>`).join("")}
  ${items.map(({b,p})=>`<div class="row between small"><span>${esc(b.name||BILLK[b.kind])} · ${parseDate(p.date).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}${p.date<today()?' <span class="pill bad">venceu</span>':""}</span><span class="row" style="gap:8px"><b class="num">${brl(p.v)}</b><button class="btn money sm" data-act="payBill" data-v="${b.id}" data-i="${p.i}">Paguei</button></span></div>`).join("")}
  ${invs.map(({c,inv})=>`<div class="row between small"><span>Fatura ${esc(c.name)} · ${ddmm(inv.due)}${inv.due<today()?' <span class="pill bad">venceu</span>':""}</span><span class="row" style="gap:8px"><b class="num">${brl(inv.total)}</b>${inv.k<invoiceMonth(c,today())?`<button class="btn money sm" data-act="ccPaid" data-v="${c.id}" data-k="${inv.k}">Paguei</button>`:`<span class="pill info">aberta</span>`}</span></div>`).join("")}
  ${subsNext.length?`<p class="tiny muted">Assinaturas que ainda serão lançadas: ${subsNext.map(s=>`${esc(s.name)} (dia ${s.day})`).join(", ")}, somando ${brl0(subsNext.reduce((a,s)=>a+(+s.v||0),0))}.</p>`:""}</div>`}
@@ -2396,6 +2403,23 @@ function scopeBanner(){if(finScope()==="t")return `<div class="banner info">${I.
  return `<div class="banner info">${I.people.replace('<svg','<svg width="20" height="20" style="flex:none"')}<span>Finanças compartilhadas entre ${nm||"vocês"}. Os dois veem e lançam tudo aqui.</span></div>
  <div class="chips">${[["all","Todos"],["me","Só eu"],["other","Parceiro(a)"]].map(([id,n])=>`<button class="chip ${UI.filter===id?"on":""}" data-act="filter" data-v="${id}">${n}</button>`).join("")}</div>`}
 function personName(by){if(finScope()==="t"&&by)return teamNick(by);if(finScope()!=="h"||!by)return"";if(by===ME.uid)return"Você";const m=HH&&HH.members&&HH.members[by];return m?(m.nick||"Parceiro(a)"):"Parceiro(a)"}
+function budgetAlert(t){if(!(t.income>0))return"";const over=t.spent-t.income;
+ if(over>0.5)return `<div class="banner bad stack-s" style="gap:6px;align-items:stretch"><span><b>As contas deste mês passam da renda em ${brl0(over)}.</b> Calma: dá para se organizar.</span><button class="btn sm" data-act="cantPay" style="align-self:flex-start">O que fazer agora</button></div>`;
+ const free=t.income-t.spent;if(free<t.income*.1)return `<div class="banner warn"><span><b>Orçamento apertado:</b> sobram só ${brl0(free)} até o fim do mês. Antes de um gasto novo, pergunte: é essencial?</span></div>`;return""}
+function cantPayView(){openModal("Não vou conseguir pagar tudo",`<div class="stack prose">
+ <p>Acontece com muita gente, e tem saída. Siga esta ordem:</p>
+ <div class="card flat stack" style="gap:10px">
+ <p><b>1. Liste tudo.</b> Marque aqui cada conta como paga, a pagar ou paga em parte, com o vencimento. Ver o tamanho real do problema tira o peso da cabeça.</p>
+ <p><b>2. Pague primeiro o essencial.</b> Moradia, água, luz, gás, comida, remédios e o transporte para trabalhar. Isso mantém a vida funcionando.</p>
+ <p><b>3. Fuja do rotativo e do cheque especial.</b> São os juros mais caros do país. Se não der para pagar a fatura inteira, compare o parcelamento da fatura com um empréstimo mais barato, olhando o custo total (CET).</p>
+ <p><b>4. Negocie antes de vencer.</b> Ligue ou chame no app da empresa e peça outra data ou parcelamento. Escola, aluguel, condomínio e contas de consumo costumam aceitar quando você avisa antes.</p>
+ <p><b>5. Corte por um tempo o que não é essencial.</b> Pause assinaturas, delivery e compras por impulso até o mês fechar.</p>
+ <p><b>6. Faça um dinheiro extra rápido.</b> Vender algo parado, um bico no fim de semana, cobrar quem te deve.</p>
+ <p><b>7. Dívidas que já atrasaram:</b> procure os feirões de renegociação dos bancos e do Serasa. Muitas vezes há desconto grande para pagar à vista ou em parcelas que cabem.</p>
+ <p><b>8. Não tape um buraco abrindo outro.</b> Evite pegar empréstimo caro só para pagar conta do dia a dia sem um plano.</p>
+ </div>
+ <p class="small muted">Se isso acontece todo mês, o problema é o plano, não você. Vale rever a divisão da renda na aba Plano e as contas fixas.</p>
+ <div class="grid2"><button class="btn ghost" data-act="fin" data-v="fixos">Ver contas fixas</button><button class="btn ghost" data-act="fin" data-v="plano">Ver meu plano</button></div></div>`)}
 function finMonth(){
  const k=UI.month;const t=totals(k,true);const inc=refIncome(k);const plan=planFor(inc);
  const prevFixed=monthData(shiftMonth(k,-1)).expenses.filter(e=>e.fixed);
@@ -2406,6 +2430,8 @@ function finMonth(){
  return `${scopeBanner()}
  <div class="row between"><button class="iconbtn" data-act="month" data-v="-1" aria-label="Mês anterior">${I.left}</button><h2 style="text-transform:capitalize">${monthLabel(k)}</h2><button class="iconbtn" data-act="month" data-v="1" aria-label="Próximo mês">${I.right}</button></div>
  <div class="card stack"><div class="grid3"><div class="stack-s"><span class="tiny muted">Renda</span><b class="num pos">${brl0(t.income)}</b></div><div class="stack-s"><span class="tiny muted">Gastos</span><b class="num">${brl0(t.spent)}</b></div><div class="stack-s"><span class="tiny muted">Saldo</span><b class="num" style="color:${t.income-t.spent>=0?"var(--good)":"var(--bad)"}">${brl0(t.income-t.spent)}</b></div></div>
+  ${(()=>{const pe=t.expenses.filter(e=>expLeft(e)>0.009);if(!pe.length)return"";const left=pe.reduce((s,e)=>s+expLeft(e),0);return `<div class="row between small" style="background:var(--surface2);border-radius:12px;padding:8px 12px"><span>Já pago <b class="num">${brl0(t.spent-left)}</b></span><span>Falta pagar <b class="num" style="color:var(--bad)">${brl0(left)}</b></span></div>`})()}
+  ${budgetAlert(t)}
   ${inc?bucketBars(t.b,inc,plan,false):`<p class="small muted">Lance a renda do mês para ver quanto cabe em cada fatia.</p>`}
   <div class="grid2"><button class="btn money" data-act="addIncome">Lançar renda</button><button class="btn" data-act="addExpense">Lançar gasto</button></div>
   ${showSalary?`<button class="btn ghost" data-act="quickSalary">Lançar salário de ${brl0(S.profile.income)}</button>`:""}
@@ -2420,7 +2446,7 @@ function txItem(x){const c=x.kind==="in"?null:(CAT[x.cat]||CAT.outros);const who
  const color=x.kind==="in"?"var(--good)":BUCKETS[c.b].color;
  return `<button class="item" style="width:100%;border-left:0;border-right:0;border-top:0;background:none;text-align:left;padding-inline:0" data-act="${x.kind==="in"?"editIncome":"editExpense"}" data-v="${x.id}" data-m="${mkey(x.date)}">
  <span class="ico" style="background:color-mix(in srgb,${color} 16%,transparent);color:${color}">${x.kind==="in"?"R$":c.i}</span>
- <div class="grow stack-s" style="gap:1px"><p><b>${esc(x.desc||(c?c.n:"Renda"))}</b></p><p class="tiny muted">${x.kind==="in"?"Renda":c.n}${x.fixed?" · fixa":""}${x.sub?" · assinatura":""}${x.card?" · "+esc((cardById(x.card)||{name:"cartão"}).name)+(+x.n>1?" "+x.i+"/"+x.n:""):""}${who?" · "+esc(who):""}</p></div>
+ <div class="grow stack-s" style="gap:1px"><p><b>${esc(x.desc||(c?c.n:"Renda"))}</b></p><p class="tiny muted">${x.kind==="in"?"Renda":c.n}${x.fixed?" · fixa":""}${x.sub?" · assinatura":""}${x.kind!=="in"&&expSt(x)==="apagar"?` · <span style="color:var(--bad);font-weight:700">a pagar</span>`:x.kind!=="in"&&expSt(x)==="parcial"?` · <span style="color:var(--warn);font-weight:700">falta ${brl0(expLeft(x))}</span>`:""}${x.card?" · "+esc((cardById(x.card)||{name:"cartão"}).name)+(+x.n>1?" "+x.i+"/"+x.n:""):""}${who?" · "+esc(who):""}</p></div>
  <span class="amount ${x.kind==="in"?"pos":"neg"}">${x.kind==="in"?"+":"−"} ${brl(x.v)}</span></button>`}
 function trendChart(){const ms=[];for(let i=5;i>=0;i--)ms.push(shiftMonth(UI.month,-i));const data=ms.map(k=>{const t=totals(k,true);return{k,inc:t.income,sp:t.spent}});
  const max=Math.max(1,...data.map(d=>Math.max(d.inc,d.sp)));if(!data.some(d=>d.inc||d.sp))return"";
@@ -2738,10 +2764,16 @@ function expenseForm(e,month){try{syncCats()}catch(x){}e=e||{};const debtsOpen=d
   <button type="button" class="btn sm" data-act="catCreate">Criar e usar</button>${catMineList()}</div></div><input type="hidden" id="f_cat" value="${curCat}"><p class="tiny muted" id="f_bdesc">${BUCKETS[(CAT[curCat]||CAT.outros).b].name}: ${BUCKETS[(CAT[curCat]||CAT.outros).b].desc} <button type="button" class="btn ghost sm" data-act="bucketInfo" data-v="${(CAT[curCat]||CAT.outros).b}" style="min-height:26px;padding:2px 8px">Saber mais</button></p></div>
  <label class="field ${curCat==="divida"?"":"hide"}" id="debtField"><span>Qual dívida?</span><select id="f_debt"><option value="">Nenhuma específica</option>${debtsOpen.map(d=>`<option value="${d.id}" ${d.id===e.debtId?"selected":""}>${esc(d.name)} (${brl0(d.left)})</option>`).join("")}</select></label>
  <div class="grid2"><label class="field"><span id="f_dlab">${isCard?"Data da compra":"Data"}</span><input id="f_date" type="date" value="${showD||(month&&month!==mkey()?month+"-01":today())}"></label><label class="field ${isCard?"hide":""}" id="f_fixedwrap"><span>&nbsp;</span><label class="check" style="min-height:44px;align-items:center"><input type="checkbox" id="f_fixed" ${e.fixed?"checked":""}><span>Conta fixa todo mês</span></label></label></div>
+ <div class="field" id="f_stwrap"><span>Situação</span><div class="chips">${[["pago","Pago"],["apagar","A pagar"],["parcial","Paguei uma parte"]].map(([k,n])=>`<button type="button" class="chip ${(e.st&&!e.card?e.st:"pago")===k?"on":""}" data-act="pickSt" data-v="${k}">${n}</button>`).join("")}</div><input type="hidden" id="f_st" value="${e.st&&!e.card?e.st:"pago"}">
+  <label class="field ${e.st==="parcial"?"":"hide"}" id="f_pvwrap" style="margin-top:6px"><span>Quanto já pagou</span><input id="f_pv" inputmode="decimal" placeholder="0,00" value="${e.pv?String(e.pv).replace(".",","):""}"></label></div>
  <div id="f_warn"></div>
  <button class="btn block" data-act="saveExpense" data-v="${e.id||""}" data-m="${month||""}">${isEdit?"Salvar":"Lançar gasto"}</button>
  ${isEdit?`<button class="btn danger" data-act="askDel">Apagar gasto</button>${confirmBox("delExp","Apagar este gasto?")}`:""}</div>`,()=>{
-  const vi=$("#f_v");const warn=()=>{const val=parseMoney(vi.value);const lim=+S.profile.limit48||0;const c=CAT[v("f_cat")];$("#f_warn").innerHTML=(!isEdit&&lim&&val>=lim&&c&&c.b==="D")?`<div class="banner warn">É uma compra não planejada? Pela regra das 48 horas, espere dois dias antes de comprar acima de ${brl0(lim)}.</div>`:""};vi.addEventListener("input",warn);UI._warn=warn;ccPreview()})}
+  const vi=$("#f_v");const warn=()=>{const val=parseMoney(vi.value);const lim=+S.profile.limit48||0;const c=CAT[v("f_cat")];let h=(!isEdit&&lim&&val>=lim&&c&&c.b==="D")?`<div class="banner warn">É uma compra não planejada? Pela regra das 48 horas, espere dois dias antes de comprar acima de ${brl0(lim)}.</div>`:"";
+   if(!isEdit&&val>0&&!(c&&c.b==="F")){const mk=mkey(v("f_date")||today());const tt=totals(mk,false);if(tt.income>0){const after=tt.income-tt.spent-val;
+    if(after<0)h+=`<div class="banner bad"><span>Com este gasto, ${mk===mkey()?"o mês":"esse mês"} passa da renda em <b>${brl0(-after)}</b>. Dá para adiar ou pagar de outro jeito?</span></div>`;
+    else if(after<tt.income*.1)h+=`<div class="banner warn"><span>Depois deste gasto, sobram só <b>${brl0(after)}</b> ${mk===mkey()?"até o fim do mês":"nesse mês"}.</span></div>`}}
+   $("#f_warn").innerHTML=h};vi.addEventListener("input",warn);UI._warn=warn;ccPreview()})}
 function incomeForm(e,month){e=e||{};const isEdit=!!e.id;
  openModal(isEdit?"Editar renda":"Nova renda",`<div class="stack">
  <label class="field"><span>Valor líquido</span><input id="f_v" inputmode="decimal" placeholder="0,00" value="${e.v?String(e.v).replace(".",","):""}" style="font-size:24px;font-weight:700"></label>
@@ -2862,7 +2894,7 @@ const A={
  addExpense:()=>expenseForm(null,UI.tab==="fin"?UI.month:null),
  addIncome:()=>incomeForm(null,UI.tab==="fin"?UI.month:null),
  quickSalary:()=>{const id=rid();const k=UI.month;finPatch(mid(k),{incomes:{[id]:{v:+S.profile.income,desc:"Salário",date:k===mkey()?today():k+"-05",by:ME.uid,t:Date.now()}}});markActive();saveApp();toast("Salário lançado.")},
- copyFixed:()=>{const k=UI.month;const prev=monthData(shiftMonth(k,-1)).expenses.filter(e=>e.fixed);const patch={expenses:{}};prev.forEach(e=>{const id=rid();const day=e.date.slice(8);const [y,m]=k.split("-").map(Number);const dim=new Date(y,m,0).getDate();patch.expenses[id]={v:e.v,desc:e.desc,cat:e.cat,date:k+"-"+pad(Math.min(+day,dim)),fixed:true,by:ME.uid,t:Date.now(),added:today(),debtId:e.debtId||null}});finPatch(mid(k),patch);markActive();saveApp();toast(`${prev.length} conta(s) fixa(s) lançada(s).`)},
+ copyFixed:()=>{const k=UI.month;const prev=monthData(shiftMonth(k,-1)).expenses.filter(e=>e.fixed);const patch={expenses:{}};prev.forEach(e=>{const id=rid();const day=e.date.slice(8);const [y,m]=k.split("-").map(Number);const dim=new Date(y,m,0).getDate();patch.expenses[id]={v:e.v,desc:e.desc,cat:e.cat,date:k+"-"+pad(Math.min(+day,dim)),fixed:true,by:ME.uid,t:Date.now(),added:today(),debtId:e.debtId||null,st:"apagar"}});finPatch(mid(k),patch);markActive();saveApp();toast(`${prev.length} conta(s) fixa(s) lançada(s).`)},
  catNewToggle:()=>{const b=$("#catNew");b.classList.toggle("hide");if(!b.classList.contains("hide"))$("#cn_name").focus()},
  catCreate:()=>{const n=v("cn_name").trim();const b=v("cn_b");if(!n){toast("Dê um nome para a categoria.");return}
   if(CATS.some(c=>c.n.toLowerCase()===n.toLowerCase()&&c.b===b)){toast("Essa categoria já existe.");return}
@@ -2880,9 +2912,17 @@ const A={
     markActive();saveApp();closeModal();const k=invoiceMonth(card,date);toast(`${old?"Compra atualizada":"Compra lançada"} no ${card.name}. ${n>1?`${n} parcelas, a 1ª na fatura`:"Entra na fatura"} que vence em ${ddmm(dayIn(k,card.due))}.`,4500);return}
    const e={v:val,desc:v("f_desc").trim(),cat:v("f_cat"),date,fixed:$("#f_fixed").checked,by:old.by,t:old.t,added:old.added,debtId:null};finPatch(mid(mkey(date)),{expenses:{[rid()]:e}});markActive();saveApp();closeModal();toast("Gasto atualizado.");return}
   const pb=UI.payBy;UI.payBy=null;const dId=v("f_cat")==="divida"?(v("f_debt")||null):null;
-  const e={v:val,desc:v("f_desc").trim(),cat:v("f_cat"),date,fixed:$("#f_fixed").checked,by:old?old.by:(pb&&pb.debt===dId?pb.u:ME.uid),t:old?old.t:Date.now(),added:old?old.added:today(),debtId:dId};
+  const st=v("f_st")||"pago";const pv=st==="parcial"?parseMoney(v("f_pv")):0;if(st==="parcial"&&!(pv>0&&pv<val)){toast("Informe quanto já pagou (menos que o valor total).");return}
+  const e={v:val,desc:v("f_desc").trim(),cat:v("f_cat"),date,fixed:$("#f_fixed").checked,by:old?old.by:(pb&&pb.debt===dId?pb.u:ME.uid),t:old?old.t:Date.now(),added:old?old.added:today(),debtId:dId,st:st==="pago"?null:st,pv:st==="parcial"?pv:null};
   if(old&&mkey(old.date)!==mkey(date))finPatch(mid(mkey(old.date)),{expenses:{[id]:null}});
-  finPatch(mid(mkey(date)),{expenses:{[id]:e}});markActive();saveApp();closeModal();toast(old?"Gasto atualizado.":"Gasto lançado.")},
+  finPatch(mid(mkey(date)),{expenses:{[id]:e}});markActive();saveApp();closeModal();toast(old?"Gasto atualizado.":st==="apagar"?"Conta anotada como a pagar.":st==="parcial"?`Anotado: falta pagar ${brl0(val-pv)}.`:"Gasto lançado.")},
+ pickSt:el=>{document.querySelectorAll('[data-act="pickSt"]').forEach(c=>c.classList.toggle("on",c===el));$("#f_st").value=el.dataset.v;$("#f_pvwrap").classList.toggle("hide",el.dataset.v!=="parcial");if(el.dataset.v==="parcial")setTimeout(()=>$("#f_pv").focus(),30)},
+ expPaid:el=>{const e=findTx("expenses",el.dataset.v,el.dataset.m);if(!e)return;finPatch(mid(el.dataset.m),{expenses:{[el.dataset.v]:{st:null,pv:null}}});markActive();saveApp();toast("Conta paga! Uma a menos.")},
+ expPart:el=>{const e=findTx("expenses",el.dataset.v,el.dataset.m);if(!e)return;openModal("Paguei uma parte",`<div class="stack"><p class="small">${esc(e.desc||(CAT[e.cat]||CAT.outros).n)} · total ${brl(e.v)}${expSt(e)==="parcial"?` · já pago ${brl(expPaidV(e))}`:""}</p>
+  <label class="field"><span>Quanto você pagou agora?</span><input id="pp_v" inputmode="decimal" placeholder="0,00"></label><button class="btn block" data-act="expPartSave" data-v="${el.dataset.v}" data-m="${el.dataset.m}">Salvar</button></div>`)},
+ expPartSave:el=>{const e=findTx("expenses",el.dataset.v,el.dataset.m);if(!e)return;const x=parseMoney(v("pp_v"));if(!(x>0)){toast("Informe o valor pago.");return}const tot=expPaidV(e)+x;
+  finPatch(mid(el.dataset.m),{expenses:{[el.dataset.v]:tot>=(+e.v||0)-0.009?{st:null,pv:null}:{st:"parcial",pv:Math.round(tot*100)/100}}});markActive();saveApp();closeModal();toast(tot>=(+e.v||0)-0.009?"Conta quitada!":`Anotado. Falta pagar ${brl0((+e.v||0)-tot)}.`)},
+ cantPay:()=>cantPayView(),
  editExpense:el=>{const e=findTx("expenses",el.dataset.v,el.dataset.m);if(e)expenseForm(e,el.dataset.m)},
  delExpYes:()=>{const id=document.querySelector('[data-act="saveExpense"]').dataset.v;const e=findTx("expenses",id);if(e&&e.grp){ccRemoveGroup(e.grp);closeModal();toast(+e.n>1?"Compra e todas as parcelas apagadas.":"Compra apagada.");return}if(e){finPatch(mid(mkey(e.date)),{expenses:{[id]:null}});if(e.subId)finPatch("meta",{subSkip:{[id]:1}})}closeModal();toast("Gasto apagado.")},
  saveIncome:el=>{const val=parseMoney(v("f_v"));if(!val){toast("Informe o valor da renda.");return}const date=v("f_date")||today();const id=el.dataset.v||rid();const old=el.dataset.v?findTx("incomes",id):null;

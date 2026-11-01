@@ -1691,9 +1691,10 @@ function monthPending(k){return monthData(k).expenses.filter(e=>expLeft(e)>0.009
 function monthDueCard(k){const items=[];billsList().forEach(b=>billParcels(b).forEach(p=>{if(!p.paid&&mkey(p.date)===k)items.push({b,p})}));
  const subsNext=subsList().filter(s=>s.active!==false&&(s.start||k)<=k).filter(s=>{const id=`sub_${s.id}_${k.replace("-","")}`;const m=finDocs()[mid(k)];return!(m&&m.expenses&&m.expenses[id])&&!(meta().subSkip||{})[id]});
  const invs=[];cardsList().forEach(c=>{const inv=cardInvoices(c).find(i=>i.k===k&&!i.paid);if(inv&&inv.left>0)invs.push({c,inv})});
- const pend=monthPending(k);
- if(!items.length&&!subsNext.length&&!invs.length&&!pend.length)return"";
+ const pend=monthPending(k);const vqx=typeof vqxDueRows==="function"?vqxDueRows(k):"";
+ if(!items.length&&!subsNext.length&&!invs.length&&!pend.length&&!vqx)return"";
  return `<div class="card stack"><div class="row between"><div class="label">A pagar em ${MONTHS[+k.slice(5)-1]}</div><button class="btn ghost sm" data-act="fin" data-v="fixos">Fixos</button></div>
+ ${vqx}
  ${pend.map(e=>`<div class="row between small" style="gap:8px"><button class="grow" style="border:0;background:none;text-align:left;padding:0;min-width:0" data-act="editExpense" data-v="${e.id}" data-m="${k}">${esc(e.desc||(CAT[e.cat]||CAT.outros).n)} · ${ddmm(e.date)}${e.date<today()?' <span class="pill bad">venceu</span>':""}${expSt(e)==="parcial"?` <span class="pill warn">pago ${brl0(expPaidV(e))}</span>`:""}</button><span class="row" style="gap:6px;flex:none"><b class="num">${brl(expLeft(e))}</b><button class="btn money sm" data-act="expPaid" data-v="${e.id}" data-m="${k}">Paguei</button><button class="btn ghost sm" data-act="expPart" data-v="${e.id}" data-m="${k}">Parte</button></span></div>`).join("")}
  ${items.map(({b,p})=>`<div class="row between small"><span>${esc(b.name||BILLK[b.kind])} · ${parseDate(p.date).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}${p.date<today()?' <span class="pill bad">venceu</span>':""}</span><span class="row" style="gap:8px"><b class="num">${brl(p.v)}</b><button class="btn money sm" data-act="payBill" data-v="${b.id}" data-i="${p.i}">Paguei</button></span></div>`).join("")}
  ${invs.map(({c,inv})=>`<div class="row between small"><span>Fatura ${esc(c.name)} · ${ddmm(inv.due)}${inv.due<today()?' <span class="pill bad">venceu</span>':""}</span>${inv.pv>0?` <span class="pill warn">pago ${brl0(inv.pv)}</span>`:""}${inv.prev>0?` <span class="pill info">c/ saldo anterior</span>`:""}</span><span class="row" style="gap:6px;flex:none"><b class="num">${brl(inv.left)}</b>${inv.k<invoiceMonth(c,today())?`<button class="btn money sm" data-act="ccPaid" data-v="${c.id}" data-k="${inv.k}">Paguei</button><button class="btn ghost sm" data-act="ccPartial" data-v="${c.id}" data-k="${inv.k}">Parte</button>`:`<span class="pill info">aberta</span>`}</span></div>`).join("")}
@@ -4860,6 +4861,28 @@ async function teamPushPig(){if(Store.demo||!sb||!Store.cloud||!TEAMS||!TEAMS.le
  try{const {error}=await sb.rpc("set_my_pig",{p:sig});if(!error)try{localStorage.setItem("prumo.pigsig",key)}catch(e){}}catch(e){}}
 {const _ca=A.acc;if(_ca)A.acc=el=>{_ca(el);MYPIG=null;setTimeout(teamPushPig,1500)}}
 
+/* ---------- Vaquinhas no Prumo pessoal ----------
+   Minhas partes em aberto aparecem em Finanças > Mês > "A pagar". O "Paguei" grava
+   direto na vaquinha da equipe, então fica pago nos dois lugares. */
+const VQX={};let vqxT=0,vqxBusy=false;
+async function vqxLoad(force){if(Store.demo||!Store.cloud||!TEAMS||vqxBusy)return;if(!force&&Date.now()-vqxT<60000)return;vqxT=Date.now();vqxBusy=true;let ch=false;
+ try{for(const t of TEAMS){if(!(t.features&&t.features.vaq)){if(VQX[t.id]){delete VQX[t.id];ch=true}continue}
+  try{const s=await Store.db.doc(`teams/${t.id}/fin/vaq`).get();const d=s.exists?(s.data()||{}):{};const js=JSON.stringify(d.items||{});if(!VQX[t.id]||VQX[t.id].js!==js){VQX[t.id]={js,items:d.items||{}};ch=true}}catch(e){}}}finally{vqxBusy=false}
+ if(ch&&!TEAM)render()}
+const tNick=(t,u)=>{if(u===ME.uid)return"você";const m=((t&&t.members)||[]).find(x=>x.uid===u);return m?(m.nick||(m.email||"").split("@")[0]||"alguém"):"alguém"};
+function vqxMine(){const out=[];for(const t of TEAMS||[]){const x=TEAM&&TEAM.id===t.id?{items:VQ().items}:VQX[t.id];if(!x)continue;
+ for(const r of Object.values(x.items||{})){if(!r)continue;const my=(r.shares||{})[ME.uid];if(my==null||!(+my>0)||r.payer===ME.uid||(r.paid||{})[ME.uid])continue;out.push({t,r,v:+my})}}
+ return out.sort((a,b)=>(a.r.date||"").localeCompare(b.r.date||""))}
+function vqxDueRows(k){if(TEAM||Store.demo||k!==mkey())return"";setTimeout(()=>vqxLoad(),0);
+ return vqxMine().map(({t,r,v})=>`<div class="row between small" style="gap:8px"><span class="grow stack-s" style="min-width:0;gap:0"><span>🐮 ${esc(r.title)} <span class="pill info">vaquinha</span></span><span class="tiny muted">${esc(t.name)}${r.payer?` · pagar para ${esc(tNick(t,r.payer))}`:""}${r.note?` · ${esc(r.note.slice(0,60))}`:""}</span></span><span class="row" style="gap:6px;flex:none"><b class="num">${brl(v)}</b><button class="btn money sm" data-act="vqxPaid" data-t="${t.id}" data-v="${r.id}">Paguei</button></span></div>`).join("")}
+A.vqxPaid=async el=>{const t=(TEAMS||[]).find(x=>x.id===el.dataset.t);const x=VQX[el.dataset.t];const id=el.dataset.v;if(!t||!x||!x.items[id])return;
+ el.disabled=true;const d=today();
+ try{await Store.db.doc(`teams/${t.id}/fin/vaq`).update({items:{[id]:{paid:{[ME.uid]:d}}}});
+  x.items[id]=deepMerge(x.items[id],{paid:{[ME.uid]:d}});x.js=JSON.stringify(x.items);markActive();render();
+  const r=x.items[id];toast(`Pago! Marquei na vaquinha "${r.title}" de ${t.name}. 🐷`,4000);
+  if(typeof vqNotifyPaid==="function")vqNotifyPaid(t.id,r,ME.uid,true)}
+ catch(e){console.warn(e);el.disabled=false;toast("Não consegui marcar agora. Confira a internet e tente de novo.")}};
+
 /* ============================================================
    Apoios por Pix: a pessoa avisa que doou e o administrador confirma.
    O selo de Apoiador e os acessórios só ficam ativos depois da confirmação.
@@ -5341,7 +5364,8 @@ async function pushSubscribe(ask){if(!pushOK()||!sb||!Store.cloud||Store.demo)re
   const j=sub.toJSON();const {error}=await sb.from("push_subs").upsert({endpoint:j.endpoint,uid:ME.uid,p256dh:j.keys.p256dh,auth:j.keys.auth},{onConflict:"endpoint"});
   return !error}catch(e){console.warn(e);return false}}
 A.enableNotif=async()=>{
- if(isIOS()&&!isStandalone()){openModal("Notificações no iPhone",`<div class="stack"><p>No iPhone, as notificações só funcionam com o Prumo instalado na tela de início:</p><p class="small">1. Toque em <b>Compartilhar</b> (o quadrado com a seta) no Safari.<br>2. Escolha <b>Adicionar à Tela de Início</b>.<br>3. Abra o Prumo pelo ícone novo e toque de novo em <b>Ativar notificações</b>.</p><button class="btn block" data-act="closeModal">Entendi</button></div>`);return}
+ if(isIOS()&&!isStandalone()){notifGuide();return}
+ if(false){openModal("Notificações no iPhone",`<div class="stack"><p>No iPhone, as notificações só funcionam com o Prumo instalado na tela de início:</p><p class="small">1. Toque em <b>Compartilhar</b> (o quadrado com a seta) no Safari.<br>2. Escolha <b>Adicionar à Tela de Início</b>.<br>3. Abra o Prumo pelo ícone novo e toque de novo em <b>Ativar notificações</b>.</p><button class="btn block" data-act="closeModal">Entendi</button></div>`);return}
  if(!pushOK()){toast("Este navegador não permite notificações. Os avisos continuam aparecendo no sininho do app.");return}
  const ok=await pushSubscribe(true);
  toast(ok?"Notificações ativadas! Você vai ser avisado das suas equipes.":Notification.permission==="denied"?"As notificações estão bloqueadas. Libere nas configurações do navegador para este site.":"Não consegui ativar agora. Tente de novo.");render()};
@@ -5366,7 +5390,7 @@ function notifRoute(u){try{const q=new URL(u,location.origin).searchParams;const
 function notifApply(){const p=UI.pendTeam;if(!p)return;if(!TEAMS){if(typeof teamsLoad==="function")teamsLoad();return}
  UI.pendTeam=null;const tm=TEAMS.find(x=>x.id===p.id);if(!tm){toast("Você não faz mais parte dessa equipe.");return}
  if(!TEAM||TEAM.id!==tm.id)teamEnter(tm.id,true);
- if(p.go==="chal"){UI.tab="chal";UI.chalOpen=null}else if(p.go==="tasks"){UI.tab="agenda";UI.agendaSub="tasks";UI.teamWho="eu"}else if(p.go==="proj"){UI.tab="agenda";UI.agendaSub="proj";UI.projOpen=null;UI.projF="minhas"}else UI.tab="home";
+ if(p.go==="chal"){UI.tab="chal";UI.chalOpen=null}else if(p.go==="tasks"){UI.tab="agenda";UI.agendaSub="tasks";UI.teamWho="eu"}else if(p.go==="proj"){UI.tab="agenda";UI.agendaSub="proj";UI.projOpen=null;UI.projF="minhas"}else if(p.go==="vaq"&&teamHas("vaq")){UI.tab="vaq";UI.vqF="abertas"}else UI.tab="home";
  window.scrollTo(0,0);render()}
 /* link da notificação (?t=equipe&go=aba) */
 try{const q=new URLSearchParams(location.search);if(q.get("t")){UI.pendTeam={id:q.get("t"),go:q.get("go")||"home"};history.replaceState({},"",location.pathname)}}catch(e){}
@@ -5387,8 +5411,30 @@ let pushChecked=false;
 A.pushNo=()=>{try{localStorage.setItem("prumo.pushAsk","no")}catch(e){}render()};
 
 /* ---------- disparos ---------- */
-function teamNotify(targets,kind,title,body,go){if(Store.demo||!sb||!Store.cloud||!TEAM)return;
- sb.functions.invoke("notify",{body:{team_id:TEAM.id,targets,kind,title,body,url:`/?t=${TEAM.id}&go=${go}`}}).catch(e=>console.warn(e))}
+function teamNotify(targets,kind,title,body,go){if(!TEAM)return;notifyTeamId(TEAM.id,targets,kind,title,body,go)}
+function notifyTeamId(tid,targets,kind,title,body,go){if(Store.demo||!sb||!Store.cloud||!tid||!targets||(Array.isArray(targets)&&!targets.length))return;
+ sb.functions.invoke("notify",{body:{team_id:tid,targets,kind,title,body,url:`/?t=${tid}&go=${go}`}}).catch(e=>console.warn(e))}
+
+/* ---------- vaquinha: avisos ---------- */
+const vqBrl=v=>brl(+v||0);
+function vqNotifyNew(tid,tname,r,onlyUids){const owe=Object.entries(r.shares||{}).filter(([u,v])=>v!=null&&+v>0&&u!==ME.uid&&u!==r.payer&&!(r.paid||{})[u]&&(!onlyUids||onlyUids.includes(u)));
+ const by={};owe.forEach(([u,v])=>{(by[v]=by[v]||[]).push(u)});
+ const tail=r.note?` · ${r.note.slice(0,80)}`:"";
+ Object.entries(by).forEach(([v,us])=>notifyTeamId(tid,us,"vaq",`🐮 Vaquinha: ${r.title}`,`${myNick()} criou uma vaquinha em ${tname}. Sua parte: ${vqBrl(v)}${tail}`,"vaq"));
+ if(r.payer&&r.payer!==ME.uid&&(!onlyUids||onlyUids.includes(r.payer)))notifyTeamId(tid,[r.payer],"vaq",`🐮 Vaquinha: ${r.title}`,`${myNick()} criou uma vaquinha em ${tname} para você receber ${vqBrl(r.total)}. Vou avisando conforme cada um pagar.`,"vaq")}
+function vqNotifyPaid(tid,r,u,actorIsU){const who=u===ME.uid?myNick():(typeof tNick==="function"?tNick((TEAMS||[]).find(t=>t.id===tid)||{},u):"Alguém");
+ const pend=Object.entries(r.shares||{}).filter(([x,v])=>v!=null&&+v>0&&x!==r.payer&&!(r.paid||{})[x]&&x!==ME.uid);
+ const by={};pend.forEach(([x,v])=>{(by[v]=by[v]||[]).push(x)});
+ Object.entries(by).forEach(([v,us])=>notifyTeamId(tid,us,"vaq",`🐷 ${r.title}`,`${who} já pagou a vaquinha. E você? Sua parte é ${vqBrl(v)}.`,"vaq"));
+ const left=Object.entries(r.shares||{}).filter(([x,v])=>v!=null&&+v>0&&x!==r.payer&&!(r.paid||{})[x]).length;
+ if(r.payer&&r.payer!==ME.uid)notifyTeamId(tid,[r.payer],"vaq",`🐮 ${r.title}`,left?`${who} pagou a parte (${vqBrl((r.shares||{})[u])}). Falta${left>1?"m":""} ${left} pessoa${left>1?"s":""}.`:`${who} pagou e a vaquinha fechou! Todo mundo pagou. 🎉`,"vaq");
+ if(!actorIsU&&u!==ME.uid)notifyTeamId(tid,[u],"vaq",`🐮 ${r.title}`,`${myNick()} marcou a sua parte como paga. Obrigado!`,"vaq")}
+{const _vs=A.vaqSave;if(_vs)A.vaqSave=el=>{const id=el.dataset.v;const before=id&&VQ().items[id]?Object.keys(VQ().items[id].shares||{}).filter(u=>VQ().items[id].shares[u]!=null):null;const n0=Object.keys(VQ().items).length;
+ _vs(el);if(!TEAM)return;
+ try{if(!id){if(Object.keys(VQ().items).length>n0){const r=vals(VQ().items).sort((a,b)=>(b.created||0)-(a.created||0))[0];if(r&&r.by===ME.uid)vqNotifyNew(TEAM.id,TEAM.name,r)}}
+  else{const r=VQ().items[id];if(r){const now=Object.keys(r.shares||{}).filter(u=>r.shares[u]!=null);const nw=now.filter(u=>!before.includes(u));if(nw.length)vqNotifyNew(TEAM.id,TEAM.name,r,nw)}}}catch(e){console.warn(e)}}}
+{const _vp=A.vaqPaid;if(_vp)A.vaqPaid=el=>{const r0=VQ().items[el.dataset.v];const u=el.dataset.u;const was=!!(r0&&(r0.paid||{})[u]);_vp(el);
+ if(!TEAM||was)return;const r=VQ().items[el.dataset.v];if(r&&(r.paid||{})[u])vqNotifyPaid(TEAM.id,r,u,u===ME.uid)}}
 {const _st=A.saveTask;A.saveTask=el=>{if(!TEAM||!teamAg())return _st(el);const before={};vals(S.tasks.items).forEach(t=>before[t.id]={who:t.who||"",help:(t.help||[]).slice(),upd:(t.updates||[]).length,final:t.final||"",status:t.status});_st(el);
  setTimeout(()=>{vals(S.tasks.items).forEach(t=>{const b=before[t.id]||{who:"",help:[],upd:0,final:"",status:""};const pj=t.proj&&PJ().items[t.proj];const kd=pj?"proj":"task",go=pj?"proj":"tasks";const what=pj?`"${t.title}" (projeto ${pj.name})`:`"${t.title}"`;
   if(t.who&&t.who!==ME.uid&&b.who!==t.who&&t.status!=="done")teamNotify([t.who],kd,`${TEAM.name}: ${pj?"etapa":"tarefa"} para você`,`${myNick()} colocou você como responsável em ${what}${t.date?` · até ${ddmm(t.date)}`:""}`,go);
@@ -5406,6 +5452,46 @@ function teamNotify(targets,kind,title,body,go){if(Store.demo||!sb||!Store.cloud
 
 /* ao sair da conta, este aparelho para de receber os avisos dela */
 {const _so=A.signOut;A.signOut=async()=>{try{if(pushOK()&&sb){const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub){await sb.from("push_subs").delete().eq("endpoint",sub.endpoint);await sub.unsubscribe()}}}catch(e){}return _so()}}
+
+/* ---------- Perfil: Notificações (estado + passo a passo) ---------- */
+const isAndroid=()=>/Android/i.test(navigator.userAgent);
+async function pushState(){if(!pushOK())return"nosupport";if(isIOS()&&!isStandalone())return"ios-install";
+ const p=Notification.permission;if(p==="denied")return"denied";if(p!=="granted")return"off";
+ try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();return sub?"on":"off"}catch(e){return"off"}}
+let PUSHST=null;function pushStRefresh(){pushState().then(st=>{if(st!==PUSHST){PUSHST=st;if(UI.tab==="profile")render()}})}
+const GUIDE_IMG={ios:"img/notificacoes-iphone.jpg",android:"img/notificacoes-android.jpg"};
+async function notifGuide(){const st=await pushState();PUSHST=st;const plat=isIOS()?"ios":isAndroid()?"android":"pc";
+ const img=k=>`<img src="${GUIDE_IMG[k]}" alt="Passo a passo" style="width:100%;border-radius:16px;display:block" loading="lazy">`;
+ const head={on:["good","Ligadas neste aparelho ✓","Você vai receber os avisos das equipes, vaquinhas e desafios, mesmo com o app fechado."],
+  off:["warn","Desligadas neste aparelho","Toque no botão abaixo e depois em Permitir."],
+  denied:["bad","Bloqueadas neste aparelho","Você (ou alguém) tocou em Bloquear. Dá para liberar nas configurações:"],
+  "ios-install":["warn","Falta instalar o Prumo","No iPhone, a Apple só deixa sites mandarem notificação quando estão instalados na tela de início."],
+  nosupport:["bad","Este navegador não manda notificações","Os avisos continuam aparecendo no sininho do app. Para receber no celular, abra o Prumo no Safari (iPhone) ou no Chrome (Android)."]}[st];
+ const unblock=plat==="ios"?`<p class="small">Abra <b>Ajustes</b> do iPhone → <b>Notificações</b> → <b>Prumo</b> → ative <b>Permitir Notificações</b>.</p>`
+  :plat==="android"?`<p class="small">Segure o ícone do Prumo → <b>Informações do app</b> → <b>Notificações</b> → ative. Se usa pelo Chrome: toque no cadeado ao lado do endereço → <b>Permissões</b> → <b>Notificações</b>.</p>`
+  :`<p class="small">Clique no <b>cadeado</b> ao lado do endereço do site → <b>Notificações</b> → <b>Permitir</b>. Depois recarregue a página.</p>`;
+ openModal("Notificações",`<div class="stack">
+ <div class="banner ${head[0]} stack-s" style="flex-direction:column;align-items:stretch;gap:4px"><b>${head[1]}</b><span class="small">${head[2]}</span></div>
+ ${st==="denied"?unblock:""}
+ ${st==="off"?`<button class="btn block" data-act="notifTurnOn">Ativar notificações</button>`:""}
+ ${st==="on"?`<button class="btn line block" data-act="notifTest">Mandar uma notificação de teste</button>`:""}
+ ${st==="ios-install"||(plat==="ios"&&st!=="on")?img("ios"):""}
+ ${plat==="android"&&!isStandalone()?`<p class="small">Dica: instale o Prumo na tela inicial. As notificações ficam mais confiáveis e ele abre como um app.</p>${img("android")}`:""}
+ <div class="card flat stack-s"><div class="label">Precisa ativar algo no celular?</div>
+  <p class="small">· Só tocar em <b>Permitir</b> quando o Prumo pedir.</p>
+  <p class="small">· Se estiver no modo <b>Foco</b>, <b>Não perturbe</b> ou <b>economia de bateria</b>, os avisos podem atrasar ou chegar em silêncio.</p>
+  <p class="small">· Vale para este aparelho. No computador ou em outro celular, ative de novo lá.</p></div>
+ ${plat!=="ios"&&st!=="ios-install"?`<button class="linkbtn tiny" data-act="notifOther" data-v="${plat==="android"?"ios":"android"}" style="border:0;background:none;color:var(--pig-deep)">Ver o passo a passo para ${plat==="android"?"iPhone":"Android"}</button>`:`<button class="linkbtn tiny" data-act="notifOther" data-v="android" style="border:0;background:none;color:var(--pig-deep)">Ver o passo a passo para Android</button>`}
+ </div>`)}
+A.notifGuide=()=>notifGuide();
+A.notifOther=el=>{const k=el.dataset.v;openModal(k==="ios"?"Instalar no iPhone":"Instalar no Android",`<div class="stack"><img src="${GUIDE_IMG[k]}" alt="Passo a passo" style="width:100%;border-radius:16px;display:block"><button class="btn ghost block" data-act="notifGuide">Voltar</button></div>`)};
+A.notifTurnOn=async()=>{if(isIOS()&&!isStandalone()){notifGuide();return}const ok=await pushSubscribe(true);PUSHST=null;
+ toast(ok?"Notificações ativadas! 🐷":Notification.permission==="denied"?"Ficou bloqueado. Veja como liberar logo abaixo.":"Não consegui ativar agora. Tente de novo.",4500);notifGuide();pushStRefresh()};
+A.notifTest=async()=>{try{const reg=await navigator.serviceWorker.ready;await reg.showNotification("Prumo 🐷",{body:"Oinc! As notificações estão funcionando.",icon:"icons/icon-192.png",badge:"icons/icon-192.png",tag:"teste"});toast("Enviei. Deu para ver?")}catch(e){toast("Não consegui mostrar a notificação de teste.")}};
+{const _vp=viewProfile;viewProfile=function(){const h=_vp.apply(this,arguments);if(Store.demo)return h;if(PUSHST===null)pushStRefresh();
+ const lab={on:["Ligadas","good"],off:["Desligadas","warn"],denied:["Bloqueadas","bad"],"ios-install":["Instale para ativar","warn"],nosupport:["Indisponível aqui","info"]}[PUSHST||"off"]||["…","info"];
+ const btn=`<button class="card row" style="text-align:left;gap:12px;align-items:center;width:100%" data-act="notifGuide"><span style="color:var(--pig-deep);flex:none">${I.bell.replace('<svg','<svg width="22" height="22"')}</span><span class="grow stack-s" style="gap:2px"><b>Notificações</b><span class="tiny muted">Avisos de tarefas, vaquinhas e desafios</span></span><span class="pill ${lab[1]}">${lab[0]}</span></button>`;
+ const k='<a class="btn line" href="https://www.instagram.com/prumovidaemordem/"';return h.includes(k)?h.replace(k,btn+k):h+btn}}
 
 /* início */
 (function boot(){

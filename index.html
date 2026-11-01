@@ -3677,7 +3677,7 @@ function qViewNew(){const q=qDraft();const t=qTotals(q);const c=QS().cfg;
   <input data-qi="${k}" data-qk="d" value="${esc(i.d||"")}" placeholder="Descrição do serviço ou produto">
   <div style="display:grid;grid-template-columns:70px 100px 1fr;gap:8px"><label class="field"><span>Qtd</span><input data-qi="${k}" data-qk="q" inputmode="decimal" value="${String(i.q??1).replace(".",",")}"></label><label class="field"><span>Unidade</span><select data-qi="${k}" data-qk="u">${[...new Set([...Q_UNITS,i.u||"un"])].map(u=>`<option ${u===(i.u||"un")?"selected":""}>${esc(u)}</option>`).join("")}</select></label><label class="field"><span>Valor unitário</span><input data-qi="${k}" data-qk="v" inputmode="decimal" value="${+i.v?String(i.v).replace(".",","):""}" placeholder="R$ 0,00"></label></div>
   <div class="row between small"><span class="muted">Subtotal</span><b class="num" id="q_sub_${k}">${brl((+i.q||0)*(+i.v||0))}</b></div></div>`;
- return `${!c.name?`<div class="banner info"><span class="small">Primeiro, coloque o nome do seu negócio, sua logo e seu PIX em <b>Config</b>. Eles aparecem em todos os orçamentos.</span><button class="btn ghost sm" data-act="qTab" data-v="cfg" style="flex:none">Config</button></div>`:""}
+ return `${!c.name?`<div class="banner info"><span class="small">Primeiro, coloque o nome do seu negócio, sua logo e seu PIX em <b>Config</b>. Eles aparecem em todos os orçamentos.</span>${(qOtherCfg()||{}).name?`<button class="btn sm" data-act="qCfgFill" style="flex:none">Usar meus dados</button>`:`<button class="btn ghost sm" data-act="qTab" data-v="cfg" style="flex:none">Config</button>`}</div>`:""}
  ${q.id?`<div class="banner warn"><span class="small">Editando o orçamento nº ${qNum(q)}.</span><button class="btn ghost sm" data-act="qNew" style="flex:none">Novo</button></div>`:""}
  <div class="card stack"><h3>Cliente</h3><label class="field"><span>Nome do cliente *</span><input data-qf="client.name" value="${esc(q.client.name)}" placeholder="Ex.: Maria Silva"></label><label class="field"><span>Telefone / WhatsApp (opcional)</span><input data-qf="client.phone" inputmode="tel" value="${esc(q.client.phone)}" placeholder="Ex.: (44) 99999-9999"></label></div>
  <div class="card stack"><div class="row between"><h3>Serviços e produtos</h3><button class="btn ghost sm" data-act="qSaveTpl">Salvar como modelo</button></div>
@@ -3713,7 +3713,8 @@ function qHistItem(q){const t=qTotals(q);const st=Q_ST[q.status]||Q_ST.pendente;
 /* ---------- Config ---------- */
 function qViewCfg(){const c=QS().cfg;const sh=Object.assign({logo:true,phone:false,address:false,wa:true,validity:true,pix:true},c.show||{});const col=c.color||"#2F5D57";
  const COLS=["#2F5D57","#1A73E8","#7C3AED","#C0392B","#E06A1B","#2E9D4F","#3E8AB0","#6366F1","#111111","#D9577E"];
- return `<div class="card stack"><h3>Logo</h3><p class="tiny muted">Aparece no topo do orçamento e do PDF.</p><div class="row" style="gap:12px"><div style="width:72px;height:72px;border:1.5px dashed var(--line);border-radius:14px;display:grid;place-items:center;overflow:hidden;background:#fff;flex:none">${c.logo?`<img src="${c.logo}" alt="Logo" style="width:100%;height:100%;object-fit:contain">`:'<span class="tiny muted">sem logo</span>'}</div>
+ const oc=qOtherCfg();const miss=oc?QCFG_KEYS.filter(k=>!c[k]&&oc[k]):[];
+ return `${miss.length?`<div class="banner info stack-s" style="flex-direction:column;align-items:stretch;gap:6px"><span class="small">Os orçamentos da equipe têm uma configuração própria. Faltam aqui dados que você já tem no seu Prumo pessoal (${miss.map(k=>({logo:"logo",name:"nome",doc:"CPF/CNPJ",phone:"telefone",wa:"WhatsApp",address:"endereço",city:"cidade",pixType:"tipo do PIX",pixKey:"chave PIX",pixName:"nome do PIX",color:"cor",validity:"validade"})[k]).join(", ")}).</span><button class="btn sm" data-act="qCfgFill" style="align-self:flex-start">Completar com os meus dados</button></div>`:""}<div class="card stack"><h3>Logo</h3><p class="tiny muted">Aparece no topo do orçamento e do PDF.</p><div class="row" style="gap:12px"><div style="width:72px;height:72px;border:1.5px dashed var(--line);border-radius:14px;display:grid;place-items:center;overflow:hidden;background:#fff;flex:none">${c.logo?`<img src="${c.logo}" alt="Logo" style="width:100%;height:100%;object-fit:contain">`:'<span class="tiny muted">sem logo</span>'}</div>
   <div class="stack-s"><label class="btn sm" style="cursor:pointer">${c.logo?"Trocar logo":"Enviar logo"}<input type="file" id="qLogoFile" accept="image/*" style="display:none"></label>${c.logo?`<button class="btn ghost sm" data-act="qLogoDel">Remover</button>`:""}</div></div></div>
  <div class="card stack"><h3>Dados do seu negócio</h3>
   <label class="field"><span>Nome do negócio ou profissional</span><input id="qc_name" value="${esc(c.name||"")}" placeholder="Ex.: CriaMente Studio 3D"></label>
@@ -3817,13 +3818,17 @@ Object.assign(A,{
  qRetryLink:el=>{const b=$("#qLinkBox");if(b)b.innerHTML=`<button class="btn block" disabled style="background:#25D366">Preparando o link…</button>`;qPrepareLink(el.dataset.v)},
  qShareLink:async el=>{try{await navigator.share({title:"Orçamento",text:UI.qMsg?UI.qMsg.split("\n")[0]:"Orçamento",url:UI.qUrl});qMarkSent(el.dataset.v);closeModal()}catch(e){}},
  qCopyLink:async el=>{const q=QS().items[el.dataset.v];if(!q)return;try{const url=await qPublish(q);await navigator.clipboard.writeText(url);qMarkSent(q.id);toast("Link copiado. Cole na conversa com o cliente.")}catch(e){toast("Não foi possível copiar: "+((e&&e.message)||"erro"))}},
- qColor:el=>{$("#qc_color").value=el.dataset.v;qColorPrev(el.dataset.v)},
+ qColor:el=>{const e=$("#qc_color");e.value=el.dataset.v;qColorPrev(el.dataset.v);qCfgAutosave(e)},
+ qCfgFill:()=>{const c=QS().cfg,o=qOtherCfg();if(!o)return;let n=0;QCFG_KEYS.forEach(k=>{if(!c[k]&&o[k]){c[k]=clone(o[k]);n++}});if(!c.show&&o.show)c.show=clone(o.show);commit();toast(n?"Pronto! Completei com os dados do seu Prumo pessoal.":"Nada para completar.")},
  qLogoDel:()=>{QS().cfg.logo=null;commit()},
  qSaveCfg:()=>{const c=QS().cfg;["name","doc","phone","wa","address","city","pixType","pixKey","pixName"].forEach(k=>c[k]=v("qc_"+k).trim());c.color=v("qc_color")||"#2F5D57";c.validity=parseInt(v("qc_validity"))||0;c.show={};document.querySelectorAll(".qShow").forEach(x=>c.show[x.dataset.k]=x.checked);
   if(UI.qd){UI.qd.showPix=c.show.pix&&!!c.pixKey;UI.qd.showWa=c.show.wa&&!!c.wa;if(!UI.qd.id)UI.qd.validity=c.validity}commit();toast("Configurações salvas.")}
 });
 {const _rq=render;render=function(){_rq();const b=document.querySelector(".subtabs button.on");if(b&&b.parentElement){const p=b.parentElement;const x=b.offsetLeft-(p.clientWidth-b.offsetWidth)/2;if(Math.abs(p.scrollLeft-x)>4)p.scrollLeft=x}}}
 function qColorPrev(col){const p=$("#qColorPrev");if(p)p.style.background=col;document.querySelectorAll('[data-act="qColor"]').forEach(b=>b.style.borderColor=b.dataset.v===col?"var(--ink)":"transparent")}
+/* rascunho da Config: o que foi digitado/escolhido não se perde se a tela se redesenhar antes de salvar */
+const QCFG_KEYS=["logo","name","doc","phone","wa","address","city","pixType","pixKey","pixName","color","validity"];
+function qOtherCfg(){if(typeof TEAM==="undefined"||!TEAM||typeof personalS!=="function")return null;const ps=personalS();return ps===S?null:((ps.quotes||{}).cfg||null)}
 document.addEventListener("input",ev=>{const id=ev.target&&ev.target.id;if(id==="qc_color")qColorPrev(ev.target.value);if(id==="qSearch"){UI.qs=ev.target.value;clearTimeout(UI._qst);UI._qst=setTimeout(()=>{const p=ev.target.selectionStart;render();const e=$("#qSearch");if(e){e.focus();try{e.setSelectionRange(p,p)}catch(x){}}},250)}});
 document.addEventListener("change",ev=>{const el=ev.target;if(!el)return;if(el.id==="qStF"){UI.qst=el.value;render()}if(el.id==="qFrom"){UI.qFrom=el.value;render()}if(el.id==="qTo"){UI.qTo=el.value;render()}
  if(el.id==="qLogoFile"&&el.files&&el.files[0]){const f=el.files[0];const img=new Image();const url=URL.createObjectURL(f);img.onload=()=>{const m=320,sc=Math.min(1,m/Math.max(img.width,img.height));const cv=document.createElement("canvas");cv.width=Math.round(img.width*sc);cv.height=Math.round(img.height*sc);cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);QS().cfg.logo=cv.toDataURL("image/png");URL.revokeObjectURL(url);commit();toast("Logo atualizada.")};img.onerror=()=>toast("Não consegui ler essa imagem.");img.src=url}});
@@ -4895,7 +4900,7 @@ Object.assign(A,{
   on.forEach(c=>{const u=c.dataset.u;shares[u]=parseMoney((document.querySelector(`.vq_v[data-u="${u}"]`)||{}).value||"")||0});
   const sum=on.reduce((s,c)=>s+(shares[c.dataset.u]||0),0);if(Math.abs(sum-total)>0.05&&!confirm2(el))return;
   const payer=v("vq_payer")||"";
-  vaqPatch({items:{[id]:{id,title,total,date:v("vq_date")||today(),payer,shares,paid:old.paid||{},by:old.by||ME.uid,created:old.created||Date.now(),note:v("vq_note").trim()}}});closeModal();toast(old.id?"Vaquinha atualizada.":"Vaquinha criada. Muuu!")},
+  vaqPatch({items:{[id]:{id,title,total,date:v("vq_date")||today(),payer,shares,paid:old.paid||{},by:old.by||ME.uid,created:old.created||Date.now(),note:v("vq_note").trim(),pix:v("vq_pix").trim()}}});{const px=v("vq_pix").trim();if(px&&px!==S.profile.vqPix){S.profile.vqPix=px;saveApp()}}closeModal();toast(old.id?"Vaquinha atualizada.":"Vaquinha criada. Muuu!")},
  vaqPaid:el=>{const r=VQ().items[el.dataset.v];if(!r)return;const u=el.dataset.u;const was=!!(r.paid||{})[u];vaqPatch({items:{[r.id]:{paid:{[u]:was?null:today()}}}});
   if(!was){const r2=VQ().items[r.id];if(!vqOpen(r2))toast("Todo mundo pagou! Vaquinha fechada. 🐮");else toast(`${nm(u)} pagou a parte.`)}vaqDetail(r.id)},
  vaqDelYes:()=>{const id=UI.vqDel;closeModal();vaqPatch({items:{[id]:null}});toast("Vaquinha apagada.")},
@@ -4965,10 +4970,12 @@ function vaqForm(r){r=r||{};const isEdit=!!r.id;const sh=r.shares||{};
  <div class="field"><span>Quem participa e quanto paga</span><span class="tiny muted">Começa dividido igual. Quer valores diferentes? Digite o valor de alguém e o restante é dividido entre os outros. Ex.: total R$ 100, Mateus R$ 80, Ana e José ficam com R$ 10 cada.</span>
  ${teamMembers().map(m=>{const sv=isEdit?sh[m.uid]:0;return `<div class="row" style="gap:8px"><label class="check grow" style="margin:0"><input type="checkbox" class="vq_on" data-u="${m.uid}" ${!isEdit||sv!=null?"checked":""}><span class="small">${esc(m.uid===ME.uid?"Eu":teamNick(m.uid))}</span></label><input class="vq_v" data-u="${m.uid}" data-man="${isEdit&&sv!=null?"1":""}" inputmode="decimal" style="max-width:130px" placeholder="0,00" value="${isEdit&&sv!=null?String(sv).replace(".",","):""}"></div>`}).join("")}
  <div class="row between"><button type="button" class="btn ghost sm" data-act="vqEqual">Dividir igualmente</button><span class="tiny muted" id="vq_sum"></span></div></div>
- <label class="field"><span>Observação (opcional)</span><input id="vq_note" value="${esc(r.note||"")}" placeholder="Ex.: PIX para a Ana"></label>
+ <label class="field"><span>Chave Pix para receber (opcional)</span><input id="vq_pix" value="${esc(isEdit?(r.pix||""):(S.profile.vqPix||""))}" placeholder="CPF, telefone, e-mail ou chave aleatória"><span class="tiny muted">${!isEdit&&S.profile.vqPix?"Preenchida com a última que você usou. Pode trocar à vontade.":"Fica salva para as próximas vaquinhas. Pode trocar quando quiser."}</span></label>
+ <label class="field"><span>Observação (opcional)</span><input id="vq_note" value="${esc(r.note||"")}" placeholder="Ex.: pagar até sexta"></label>
  <button class="btn block" data-act="vaqSave" data-v="${r.id||""}">${isEdit?"Salvar":"Criar vaquinha"}</button></div>`)}
 function vaqDetail(id){const r=VQ().items[id];if(!r)return;const sh=Object.entries(r.shares||{}).filter(([,v])=>v!=null);UI.vqDel=id;
  openModal(r.title,`<div class="stack"><div class="row" style="gap:12px">${cowPig(64)}<div class="stack-s" style="gap:2px"><b class="num" style="font-size:22px">${brl(r.total)}</b><span class="tiny muted">${dayLabel(r.date)}${r.payer?` · ${esc(nm(r.payer))} pagou a conta`:""}</span>${r.note?`<span class="small">${esc(r.note)}</span>`:""}</div></div>
+ ${r.pix?`<div class="row between" style="gap:8px;background:var(--surface2);border-radius:12px;padding:10px 12px"><span class="stack-s" style="gap:0;min-width:0"><span class="tiny muted">Pix para pagar${r.payer?" · "+esc(nm(r.payer)):""}</span><b style="word-break:break-all">${esc(r.pix)}</b></span><button class="btn ghost sm" data-act="vqCopyPix" data-v="${esc(r.pix)}" style="flex:none">Copiar</button></div>`:""}
  <div class="card list">${sh.map(([u,val])=>{const ok=!!(r.paid||{})[u]||u===r.payer;return `<div class="item"><span class="avatar" style="${ok?"background:var(--good)":""}">${teamInitials(u)}</span><div class="grow stack-s" style="gap:0"><b>${esc(nm(u))}</b><span class="tiny ${ok?"":"muted"}" style="${ok?"color:#2f6fdb;font-weight:600":""}">${u===r.payer?"Pagou a conta":ok?"Pagou em "+ddmm((r.paid||{})[u]):"Falta pagar"}</span></div><b class="num">${brl(+val||0)}</b>${u===r.payer?"":`<button class="btn ${ok?"ghost":"line"} sm" data-act="vaqPaid" data-v="${r.id}" data-u="${u}">${ok?"Desfazer":"Pagou"}</button>`}</div>`}).join("")}</div>
  <button class="btn ghost" data-act="vaqEdit" data-v="${r.id}">Editar</button>
  <button class="btn danger sm" data-act="askDel" style="align-self:center">Apagar vaquinha</button>${confirmBox("vaqDel","Apagar esta vaquinha para toda a equipe?")}</div>`)}
@@ -5036,7 +5043,7 @@ function vqxMine(){const out=[];for(const t of TEAMS||[]){const x=TEAM&&TEAM.id=
  for(const r of Object.values(x.items||{})){if(!r)continue;const my=(r.shares||{})[ME.uid];if(my==null||!(+my>0)||r.payer===ME.uid||(r.paid||{})[ME.uid])continue;out.push({t,r,v:+my})}}
  return out.sort((a,b)=>(a.r.date||"").localeCompare(b.r.date||""))}
 function vqxDueRows(k){if(TEAM||Store.demo||k!==mkey())return"";setTimeout(()=>vqxLoad(),0);
- return vqxMine().map(({t,r,v})=>`<div class="row between small" style="gap:8px"><span class="grow stack-s" style="min-width:0;gap:0"><span>🐮 ${esc(r.title)} <span class="pill info">vaquinha</span></span><span class="tiny muted">${esc(t.name)}${r.payer?` · pagar para ${esc(tNick(t,r.payer))}`:""}${r.note?` · ${esc(r.note.slice(0,60))}`:""}</span></span><span class="row" style="gap:6px;flex:none"><b class="num">${brl(v)}</b><button class="btn money sm" data-act="vqxPaid" data-t="${t.id}" data-v="${r.id}">Paguei</button></span></div>`).join("")}
+ return vqxMine().map(({t,r,v})=>`<div class="row between small" style="gap:8px"><span class="grow stack-s" style="min-width:0;gap:0"><span>🐮 ${esc(r.title)} <span class="pill info">vaquinha</span></span><span class="tiny muted">${esc(t.name)}${r.payer?` · pagar para ${esc(tNick(t,r.payer))}`:""}${r.pix?` · Pix ${esc(r.pix)}`:""}${r.note?` · ${esc(r.note.slice(0,60))}`:""}</span></span><span class="row" style="gap:6px;flex:none"><b class="num">${brl(v)}</b><button class="btn money sm" data-act="vqxPaid" data-t="${t.id}" data-v="${r.id}">Paguei</button></span></div>`).join("")}
 A.vqxPaid=async el=>{const t=(TEAMS||[]).find(x=>x.id===el.dataset.t);const x=VQX[el.dataset.t];const id=el.dataset.v;if(!t||!x||!x.items[id])return;
  el.disabled=true;const d=today();
  try{await Store.db.doc(`teams/${t.id}/fin/vaq`).update({items:{[id]:{paid:{[ME.uid]:d}}}});
@@ -5044,6 +5051,8 @@ A.vqxPaid=async el=>{const t=(TEAMS||[]).find(x=>x.id===el.dataset.t);const x=VQ
   const r=x.items[id];toast(`Pago! Marquei na vaquinha "${r.title}" de ${t.name}. 🐷`,4000);
   if(typeof vqNotifyPaid==="function")vqNotifyPaid(t.id,r,ME.uid,true)}
  catch(e){console.warn(e);el.disabled=false;toast("Não consegui marcar agora. Confira a internet e tente de novo.")}};
+
+A.vqCopyPix=el=>copyText(el.dataset.v,"Chave Pix copiada. Cole no app do seu banco.");
 
 /* ============================================================
    Apoios por Pix: a pessoa avisa que doou e o administrador confirma.
@@ -5589,7 +5598,7 @@ function notifyTeamId(tid,targets,kind,title,body,go){if(Store.demo||!sb||!Store
 const vqBrl=v=>brl(+v||0);
 function vqNotifyNew(tid,tname,r,onlyUids){const owe=Object.entries(r.shares||{}).filter(([u,v])=>v!=null&&+v>0&&u!==ME.uid&&u!==r.payer&&!(r.paid||{})[u]&&(!onlyUids||onlyUids.includes(u)));
  const by={};owe.forEach(([u,v])=>{(by[v]=by[v]||[]).push(u)});
- const tail=r.note?` · ${r.note.slice(0,80)}`:"";
+ const tail=(r.pix?` · Pix: ${r.pix}`:"")+(r.note?` · ${r.note.slice(0,80)}`:"");
  Object.entries(by).forEach(([v,us])=>notifyTeamId(tid,us,"vaq",`🐮 Vaquinha: ${r.title}`,`${myNick()} criou uma vaquinha em ${tname}. Sua parte: ${vqBrl(v)}${tail}`,`vaq&i=${r.id}`));
  if(r.payer&&r.payer!==ME.uid&&(!onlyUids||onlyUids.includes(r.payer)))notifyTeamId(tid,[r.payer],"vaq",`🐮 Vaquinha: ${r.title}`,`${myNick()} criou uma vaquinha em ${tname} para você receber ${vqBrl(r.total)}. Vou avisando conforme cada um pagar.`,`vaq&i=${r.id}`)}
 function vqNotifyPaid(tid,r,u,actorIsU){const who=u===ME.uid?myNick():(typeof tNick==="function"?tNick((TEAMS||[]).find(t=>t.id===tid)||{},u):"Alguém");

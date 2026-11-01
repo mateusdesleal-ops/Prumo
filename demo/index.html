@@ -333,8 +333,10 @@ body.team-env .envbtn.cur{border-color:var(--money);background:color-mix(in srgb
 .scrim.kb .grab{display:none}
 
 /* celular: sem zoom automático ao tocar num campo (iPhone dá zoom em letras menores que 16px) e sem a tela "escorregar" para o lado */
-html,body{overflow-x:clip;max-width:100%}
+#app{overflow-x:clip;max-width:100%}
 @media (max-width:820px){input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea{font-size:16px}}
+
+.flash{animation:flashc 2.2s ease}@keyframes flashc{0%,30%{box-shadow:0 0 0 4px var(--pig)}100%{box-shadow:0 0 0 0 transparent}}
 </style>
 
 </head>
@@ -5428,8 +5430,8 @@ Object.assign(A,{
   const rep=UI.chCmReply&&UI.chCmReply.k===k&&(ck.cm||{})[UI.chCmReply.id]?UI.chCmReply:null;
   ck.cm=ck.cm||{};ck.cm[rid()]={u:ME.uid,t:Date.now(),x:x.slice(0,300),...(rep?{re:rep.id}:{})};UI.chCmReply=null;chPatch(k);chQuietSave();const ni=document.querySelector(`[data-cm-in="${k}"]`);if(ni)ni.focus({preventScroll:true});
   if(typeof teamNotify==="function"){const to=new Set();if(u!==ME.uid)to.add(u);if(rep&&rep.u!==ME.uid)to.add(rep.u);
-   if(rep&&rep.u!==ME.uid)teamNotify([rep.u],"chal",`${TEAM.name} · ${c.name}`,`${myNick()} respondeu seu comentário: ${x.slice(0,80)}`,"chal");
-   if(u!==ME.uid&&!(rep&&rep.u===u))teamNotify([u],"chal",`${TEAM.name} · ${c.name}`,`${myNick()} comentou no seu check-in: ${x.slice(0,80)}`,"chal")}},
+   if(rep&&rep.u!==ME.uid)teamNotify([rep.u],"chal",`${TEAM.name} · ${c.name}`,`${myNick()} respondeu seu comentário: ${x.slice(0,80)}`,`chal&i=${c.id}&k=${encodeURIComponent(k)}`);
+   if(u!==ME.uid&&!(rep&&rep.u===u))teamNotify([u],"chal",`${TEAM.name} · ${c.name}`,`${myNick()} comentou no seu check-in: ${x.slice(0,80)}`,`chal&i=${c.id}&k=${encodeURIComponent(k)}`)}},
  chCmDel:el=>{const k=el.dataset.k;const {ck}=chCkOf(k);if(!ck||!ck.cm)return;const id=el.dataset.id;const ax=[id,...Object.keys(ck.cm).filter(j=>ck.cm[j]&&ck.cm[j].re===id)].map(j=>ck.cm[j]).filter(x=>x&&x.a&&x.u===ME.uid).map(x=>x.a);if(ax.length&&!Store.demo&&sb)sb.storage.from("checkins").remove(ax).catch(()=>{});delete ck.cm[id];Object.keys(ck.cm).forEach(j=>{if(ck.cm[j]&&ck.cm[j].re===id)delete ck.cm[j]});chPatch(k);chQuietSave()},
  recStart:el=>recStart(el.dataset.k),
  recStop:()=>recStop(),
@@ -5442,8 +5444,8 @@ Object.assign(A,{
     const {error}=await sb.storage.from("checkins").upload(path,R.blob,{contentType:R.blob.type||"audio/webm",upsert:false,cacheControl:"31536000"});if(error)throw error;cm.a=path;PH.url[path]=R.url}}
   catch(e){console.warn(e);el.disabled=false;el.textContent="Enviar áudio";toast("Não consegui enviar o áudio. Confira a internet.");return}
   REC=null;UI.chCmReply=null;const ck2=chCkOf(k).ck||ck;ck2.cm=ck2.cm||{};ck2.cm[rid()]=cm;chPatch(k);chQuietSave();
-  if(typeof teamNotify==="function"){if(rep&&rep.u!==ME.uid)teamNotify([rep.u],"chal",`${TEAM.name} · ${c.name}`,`${myNick()} respondeu seu comentário com um áudio 🎤`,"chal");
-   if(u!==ME.uid&&!(rep&&rep.u===u))teamNotify([u],"chal",`${TEAM.name} · ${c.name}`,`${myNick()} mandou um áudio no seu check-in 🎤`,"chal")}},
+  if(typeof teamNotify==="function"){if(rep&&rep.u!==ME.uid)teamNotify([rep.u],"chal",`${TEAM.name} · ${c.name}`,`${myNick()} respondeu seu comentário com um áudio 🎤`,`chal&i=${c.id}&k=${encodeURIComponent(k)}`);
+   if(u!==ME.uid&&!(rep&&rep.u===u))teamNotify([u],"chal",`${TEAM.name} · ${c.name}`,`${myNick()} mandou um áudio no seu check-in 🎤`,`chal&i=${c.id}&k=${encodeURIComponent(k)}`)}},
  audPlay:async el=>{const id=el.dataset.id;if(AUDP.el&&AUDP.id===id){if(!AUDP.el.paused){AUDP.el.pause();AUDP.id=null;document.querySelectorAll(".audbtn.on").forEach(b=>{b.classList.remove("on");b.innerHTML=b.innerHTML.replace("❚❚","▶")});return}}
   if(AUDP.el){AUDP.el.pause()}document.querySelectorAll(".audbtn.on").forEach(b=>{b.classList.remove("on");b.innerHTML=b.innerHTML.replace("❚❚","▶")});
   let src=el.dataset.src;try{if(src)src=await audUrl(src);else{const k=el.closest("[data-cm]").dataset.cm;const {ck}=chCkOf(k);const x=Object.values(ck.cm||{}).find(z=>String(z.t)===el.dataset.k2);src=x&&x.ad}}catch(e){toast("Não consegui abrir o áudio.");return}
@@ -5535,14 +5537,22 @@ function notifView(){const L=NOTIF.list;
  if(L.some(x=>!x.read_at)){sb.rpc("mark_notifications_read",{p_ids:null}).then(()=>{L.forEach(x=>{if(!x.read_at)x.read_at=new Date().toISOString()});render()}).catch(()=>{})}}
 A.notifOpen=()=>notifView();
 A.notifGo=el=>{const n=NOTIF.list.find(x=>x.id===el.dataset.v);closeModal();if(!n)return;notifRoute(n.url||"/")};
-function notifRoute(u){try{const q=new URL(u,location.origin).searchParams;const t=q.get("t"),go=q.get("go");if(t)UI.pendTeam={id:t,go:go||"home"}}catch(e){}notifApply()}
+function notifRoute(u){try{const q=new URL(u,location.origin).searchParams;const t=q.get("t"),go=q.get("go");if(t)UI.pendTeam={id:t,go:go||"home",i:q.get("i"),k:q.get("k")}}catch(e){}notifApply()}
+/* abre o item exato do aviso; espera os dados da equipe chegarem (até ~8 s) */
+function notifDeep(ready,act){let n=0;const tick=()=>{let ok=false;try{ok=ready()}catch(e){}if(ok){try{act()}catch(e){console.warn(e)}return}if(++n<27)setTimeout(tick,300)};setTimeout(tick,150)}
+function notifScrollTo(sel){const el=document.querySelector(sel);if(!el)return false;const card=el.closest(".card")||el;const y=card.getBoundingClientRect().top+window.scrollY-90;window.scrollTo({top:Math.max(0,y),behavior:"smooth"});card.classList.add("flash");setTimeout(()=>card.classList.remove("flash"),2200);return true}
 function notifApply(){const p=UI.pendTeam;if(!p)return;if(!TEAMS){if(typeof teamsLoad==="function")teamsLoad();return}
  UI.pendTeam=null;const tm=TEAMS.find(x=>x.id===p.id);if(!tm){toast("Você não faz mais parte dessa equipe.");return}
  if(!TEAM||TEAM.id!==tm.id)teamEnter(tm.id,true);
- if(p.go==="chal"){UI.tab="chal";UI.chalOpen=null}else if(p.go==="tasks"){UI.tab="agenda";UI.agendaSub="tasks";UI.teamWho="eu"}else if(p.go==="proj"){UI.tab="agenda";UI.agendaSub="proj";UI.projOpen=null;UI.projF="minhas"}else if(p.go==="vaq"&&teamHas("vaq")){UI.tab="vaq";UI.vqF="abertas"}else UI.tab="home";
- window.scrollTo(0,0);render()}
+ closeModal();
+ if(p.go==="chal"){UI.tab="chal";UI.chalOpen=p.i||null;if(p.k)UI.chCmOpen=p.k}else if(p.go==="tasks"){UI.tab="agenda";UI.agendaSub="tasks";UI.teamWho="eu"}else if(p.go==="proj"){UI.tab="agenda";UI.agendaSub="proj";UI.projOpen=p.i||null;UI.projF="minhas"}else if(p.go==="vaq"&&teamHas("vaq")){UI.tab="vaq";UI.vqF="abertas"}else UI.tab="home";
+ window.scrollTo(0,0);render();
+ if(p.go==="chal"&&p.i){notifDeep(()=>!!CHP().items[p.i],()=>{if(UI.chalOpen!==p.i){UI.chalOpen=p.i;render()}if(p.k)notifDeep(()=>!!document.querySelector(`[data-rx="${CSS.escape(p.k)}"]`),()=>{UI.chCmOpen=p.k;chPatch(p.k);notifScrollTo(`[data-rx="${CSS.escape(p.k)}"]`)})})}
+ else if(p.go==="proj"&&p.i){notifDeep(()=>!!PJ().items[p.i],()=>{UI.projOpen=p.i;render();if(p.k)notifDeep(()=>!!document.querySelector(`[data-v="${CSS.escape(p.k)}"]`),()=>notifScrollTo(`[data-v="${CSS.escape(p.k)}"]`))})}
+ else if(p.go==="tasks"&&p.i){notifDeep(()=>!!S.tasks.items[p.i],()=>{const t=S.tasks.items[p.i];if(t)taskForm(t)})}
+ else if(p.go==="vaq"&&p.i){notifDeep(()=>!!(VQ().items||{})[p.i],()=>vaqDetail(p.i))}}
 /* link da notificação (?t=equipe&go=aba) */
-try{const q=new URLSearchParams(location.search);if(q.get("t")){UI.pendTeam={id:q.get("t"),go:q.get("go")||"home"};history.replaceState({},"",location.pathname)}}catch(e){}
+try{const q=new URLSearchParams(location.search);if(q.get("t")){UI.pendTeam={id:q.get("t"),go:q.get("go")||"home",i:q.get("i"),k:q.get("k")};history.replaceState({},"",location.pathname)}}catch(e){}
 if(navigator.serviceWorker)navigator.serviceWorker.addEventListener("message",ev=>{if(ev.data&&ev.data.type==="prumo-open")notifRoute(ev.data.url);if(ev.data&&ev.data.type==="prumo-push"){NOTIF.loading=false;notifLoad()}});
 
 let pushChecked=false;
@@ -5569,15 +5579,15 @@ const vqBrl=v=>brl(+v||0);
 function vqNotifyNew(tid,tname,r,onlyUids){const owe=Object.entries(r.shares||{}).filter(([u,v])=>v!=null&&+v>0&&u!==ME.uid&&u!==r.payer&&!(r.paid||{})[u]&&(!onlyUids||onlyUids.includes(u)));
  const by={};owe.forEach(([u,v])=>{(by[v]=by[v]||[]).push(u)});
  const tail=r.note?` · ${r.note.slice(0,80)}`:"";
- Object.entries(by).forEach(([v,us])=>notifyTeamId(tid,us,"vaq",`🐮 Vaquinha: ${r.title}`,`${myNick()} criou uma vaquinha em ${tname}. Sua parte: ${vqBrl(v)}${tail}`,"vaq"));
- if(r.payer&&r.payer!==ME.uid&&(!onlyUids||onlyUids.includes(r.payer)))notifyTeamId(tid,[r.payer],"vaq",`🐮 Vaquinha: ${r.title}`,`${myNick()} criou uma vaquinha em ${tname} para você receber ${vqBrl(r.total)}. Vou avisando conforme cada um pagar.`,"vaq")}
+ Object.entries(by).forEach(([v,us])=>notifyTeamId(tid,us,"vaq",`🐮 Vaquinha: ${r.title}`,`${myNick()} criou uma vaquinha em ${tname}. Sua parte: ${vqBrl(v)}${tail}`,`vaq&i=${r.id}`));
+ if(r.payer&&r.payer!==ME.uid&&(!onlyUids||onlyUids.includes(r.payer)))notifyTeamId(tid,[r.payer],"vaq",`🐮 Vaquinha: ${r.title}`,`${myNick()} criou uma vaquinha em ${tname} para você receber ${vqBrl(r.total)}. Vou avisando conforme cada um pagar.`,`vaq&i=${r.id}`)}
 function vqNotifyPaid(tid,r,u,actorIsU){const who=u===ME.uid?myNick():(typeof tNick==="function"?tNick((TEAMS||[]).find(t=>t.id===tid)||{},u):"Alguém");
  const pend=Object.entries(r.shares||{}).filter(([x,v])=>v!=null&&+v>0&&x!==r.payer&&!(r.paid||{})[x]&&x!==ME.uid);
  const by={};pend.forEach(([x,v])=>{(by[v]=by[v]||[]).push(x)});
- Object.entries(by).forEach(([v,us])=>notifyTeamId(tid,us,"vaq",`🐷 ${r.title}`,`${who} já pagou a vaquinha. E você? Sua parte é ${vqBrl(v)}.`,"vaq"));
+ Object.entries(by).forEach(([v,us])=>notifyTeamId(tid,us,"vaq",`🐷 ${r.title}`,`${who} já pagou a vaquinha. E você? Sua parte é ${vqBrl(v)}.`,`vaq&i=${r.id}`));
  const left=Object.entries(r.shares||{}).filter(([x,v])=>v!=null&&+v>0&&x!==r.payer&&!(r.paid||{})[x]).length;
- if(r.payer&&r.payer!==ME.uid)notifyTeamId(tid,[r.payer],"vaq",`🐮 ${r.title}`,left?`${who} pagou a parte (${vqBrl((r.shares||{})[u])}). Falta${left>1?"m":""} ${left} pessoa${left>1?"s":""}.`:`${who} pagou e a vaquinha fechou! Todo mundo pagou. 🎉`,"vaq");
- if(!actorIsU&&u!==ME.uid)notifyTeamId(tid,[u],"vaq",`🐮 ${r.title}`,`${myNick()} marcou a sua parte como paga. Obrigado!`,"vaq")}
+ if(r.payer&&r.payer!==ME.uid)notifyTeamId(tid,[r.payer],"vaq",`🐮 ${r.title}`,left?`${who} pagou a parte (${vqBrl((r.shares||{})[u])}). Falta${left>1?"m":""} ${left} pessoa${left>1?"s":""}.`:`${who} pagou e a vaquinha fechou! Todo mundo pagou. 🎉`,`vaq&i=${r.id}`);
+ if(!actorIsU&&u!==ME.uid)notifyTeamId(tid,[u],"vaq",`🐮 ${r.title}`,`${myNick()} marcou a sua parte como paga. Obrigado!`,`vaq&i=${r.id}`)}
 {const _vs=A.vaqSave;if(_vs)A.vaqSave=el=>{const id=el.dataset.v;const before=id&&VQ().items[id]?Object.keys(VQ().items[id].shares||{}).filter(u=>VQ().items[id].shares[u]!=null):null;const n0=Object.keys(VQ().items).length;
  _vs(el);if(!TEAM)return;
  try{if(!id){if(Object.keys(VQ().items).length>n0){const r=vals(VQ().items).sort((a,b)=>(b.created||0)-(a.created||0))[0];if(r&&r.by===ME.uid)vqNotifyNew(TEAM.id,TEAM.name,r)}}
@@ -5585,19 +5595,19 @@ function vqNotifyPaid(tid,r,u,actorIsU){const who=u===ME.uid?myNick():(typeof tN
 {const _vp=A.vaqPaid;if(_vp)A.vaqPaid=el=>{const r0=VQ().items[el.dataset.v];const u=el.dataset.u;const was=!!(r0&&(r0.paid||{})[u]);_vp(el);
  if(!TEAM||was)return;const r=VQ().items[el.dataset.v];if(r&&(r.paid||{})[u])vqNotifyPaid(TEAM.id,r,u,u===ME.uid)}}
 {const _st=A.saveTask;A.saveTask=el=>{if(!TEAM||!teamAg())return _st(el);const before={};vals(S.tasks.items).forEach(t=>before[t.id]={who:t.who||"",help:(t.help||[]).slice(),upd:(t.updates||[]).length,final:t.final||"",status:t.status});_st(el);
- setTimeout(()=>{vals(S.tasks.items).forEach(t=>{const b=before[t.id]||{who:"",help:[],upd:0,final:"",status:""};const pj=t.proj&&PJ().items[t.proj];const kd=pj?"proj":"task",go=pj?"proj":"tasks";const what=pj?`"${t.title}" (projeto ${pj.name})`:`"${t.title}"`;
+ setTimeout(()=>{vals(S.tasks.items).forEach(t=>{const b=before[t.id]||{who:"",help:[],upd:0,final:"",status:""};const pj=t.proj&&PJ().items[t.proj];const kd=pj?"proj":"task",go=pj?`proj&i=${pj.id}&k=${t.id}`:`tasks&i=${t.id}`;const what=pj?`"${t.title}" (projeto ${pj.name})`:`"${t.title}"`;
   if(t.who&&t.who!==ME.uid&&b.who!==t.who&&t.status!=="done")teamNotify([t.who],kd,`${TEAM.name}: ${pj?"etapa":"tarefa"} para você`,`${myNick()} colocou você como responsável em ${what}${t.date?` · até ${ddmm(t.date)}`:""}`,go);
   const nh=(t.help||[]).filter(u=>u!==ME.uid&&!b.help.includes(u)&&u!==t.who);if(nh.length&&t.status!=="done")teamNotify(nh,kd,`${TEAM.name}: você foi chamado para apoiar`,`${myNick()} colocou você como apoio em ${what}${t.date?` · até ${ddmm(t.date)}`:""}`,go);
   if(pj){const people=[t.who,...(t.help||[])].filter(u=>u&&u!==ME.uid);const nu=(t.updates||[]).slice(b.upd);
    if(people.length&&nu.length){const last=nu[nu.length-1];teamNotify(people,"projupd",`${TEAM.name}: atualização em ${t.title}`,`${myNick()}${last.status?` encerrou a etapa como "${last.status}"`:" registrou uma atualização"} no projeto ${pj.name}: ${last.txt}`,go)}}})},0)}}
 /* etapa concluída pelo botão ou pelo quadro também avisa o responsável e o apoio */
 {const _mt=moveTask;moveTask=function(id,to){const t0=S.tasks.items[id];const was=t0&&t0.status;const r=_mt.apply(this,arguments);
- try{const t=S.tasks.items[id];if(TEAM&&teamAg()&&t&&t.proj&&to==="done"&&was!=="done"){const pj=PJ().items[t.proj];const people=[t.who,...(t.help||[])].filter(u=>u&&u!==ME.uid);const lu=(t.updates||[]).reduce((m,u)=>Math.max(m,u.at||0),0);if(pj&&people.length&&Date.now()-lu>8000)teamNotify(people,"projupd",`${TEAM.name}: etapa concluída`,`${myNick()} concluiu "${t.title}" no projeto ${pj.name}.`,"proj")}}catch(e){}return r}}
+ try{const t=S.tasks.items[id];if(TEAM&&teamAg()&&t&&t.proj&&to==="done"&&was!=="done"){const pj=PJ().items[t.proj];const people=[t.who,...(t.help||[])].filter(u=>u&&u!==ME.uid);const lu=(t.updates||[]).reduce((m,u)=>Math.max(m,u.at||0),0);if(pj&&people.length&&Date.now()-lu>8000)teamNotify(people,"projupd",`${TEAM.name}: etapa concluída`,`${myNick()} concluiu "${t.title}" no projeto ${pj.name}.`,`proj&i=${pj.id}&k=${t.id}`)}}catch(e){}return r}}
 {const _cs=A.chalCheckSave;A.chalCheckSave=async el=>{const c=CHP().items[UI.chalOpen];const d=UI.chDay||today();const had=!!(c&&((c.checkins||{})[ME.uid]||{})[d]);await _cs(el);
- const cN=c&&(CHP().items[c.id]||c);const ck=cN&&((cN.checkins||{})[ME.uid]||{})[d];if(!had&&ck)teamNotify("all","chal",`${TEAM.name} · ${c.name}`,`${myNick()} fez check-in${ck.note?`: ${ck.note}`:""}${ckPics(ck).length?" 📸":""}`,"chal")}}
+ const cN=c&&(CHP().items[c.id]||c);const ck=cN&&((cN.checkins||{})[ME.uid]||{})[d];if(!had&&ck)teamNotify("all","chal",`${TEAM.name} · ${c.name}`,`${myNick()} fez check-in${ck.note?`: ${ck.note}`:""}${ckPics(ck).length?" 📸":""}`,`chal&i=${c.id}&k=${encodeURIComponent(c.id+"|"+ME.uid+"|"+d)}`)}}
 {const _ce=A.chalEditSave;A.chalEditSave=async el=>{const c=CHP().items[UI.chalOpen];const d=UI.chEdit;const b=c&&((c.checkins||{})[ME.uid]||{})[d];const hadPh=!!(b&&ckPics(b).length),hadNote=!!(b&&b.note&&!b.auto);await _ce(el);
- const cN=c&&(CHP().items[c.id]||c);const a=cN&&((cN.checkins||{})[ME.uid]||{})[d];if(a&&((!hadPh&&ckPics(a).length)||(!hadNote&&a.note&&a.edited)))teamNotify("all","chal",`${TEAM.name} · ${c.name}`,`${myNick()} ${!hadPh&&ckPics(a).length?"postou uma foto":"comentou"} no check-in${a.note?`: ${a.note}`:""}`,"chal")}}
-{const _cv=A.chalSave;A.chalSave=el=>{const isNew=!el.dataset.v;const n0=Object.keys(CHP().items).length;_cv(el);if(isNew&&Object.keys(CHP().items).length>n0){const c=CHP().items[UI.chalOpen];if(c)teamNotify("all","chal",`${TEAM.name}: novo desafio`,`${myNick()} criou o desafio "${c.name}". Bora participar?`,"chal")}}}
+ const cN=c&&(CHP().items[c.id]||c);const a=cN&&((cN.checkins||{})[ME.uid]||{})[d];if(a&&((!hadPh&&ckPics(a).length)||(!hadNote&&a.note&&a.edited)))teamNotify("all","chal",`${TEAM.name} · ${c.name}`,`${myNick()} ${!hadPh&&ckPics(a).length?"postou uma foto":"comentou"} no check-in${a.note?`: ${a.note}`:""}`,`chal&i=${c.id}&k=${encodeURIComponent(c.id+"|"+ME.uid+"|"+d)}`)}}
+{const _cv=A.chalSave;A.chalSave=el=>{const isNew=!el.dataset.v;const n0=Object.keys(CHP().items).length;_cv(el);if(isNew&&Object.keys(CHP().items).length>n0){const c=CHP().items[UI.chalOpen];if(c)teamNotify("all","chal",`${TEAM.name}: novo desafio`,`${myNick()} criou o desafio "${c.name}". Bora participar?`,`chal&i=${c.id}`)}}}
 
 /* ao sair da conta, este aparelho para de receber os avisos dela */
 {const _so=A.signOut;A.signOut=async()=>{try{if(pushOK()&&sb){const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub){await sb.from("push_subs").delete().eq("endpoint",sub.endpoint);await sub.unsubscribe()}}}catch(e){}return _so()}}

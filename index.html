@@ -1919,7 +1919,13 @@ function taskDue(t){if(!t.date)return"";const td=today();let l=t.date===td?"Hoje
  const late=t.status!=="done"&&(t.date<td||(t.date===td&&t.time&&toMin(t.time)<new Date().getHours()*60+new Date().getMinutes()));
  return `<span class="${late?"pill bad":"tiny muted"}">${late&&t.date<td?"Atrasada · ":""}${l}${t.time?" · "+esc(t.time):""}</span>`}
 function taskSort(a,b){if(a.status==="done")return(b.doneAt||0)-(a.doneAt||0);const pr={alta:0,media:1,baixa:2};return (a.date||"9999").localeCompare(b.date||"9999")||(a.time||"99").localeCompare(b.time||"99")||(pr[a.prio]??1)-(pr[b.prio]??1)||(a.created||0)-(b.created||0)}
-function taskAreaFn(t){if(teamAg()){const w=UI.teamWho||"tudo";return w==="tudo"?true:w==="eu"?t.who===ME.uid:w==="livre"?!t.who:t.who===w}if(UI.taskArea===undefined){try{UI.taskArea=localStorage.getItem("prumo.taskArea")||"tudo"}catch(e){UI.taskArea="tudo"}}const a=UI.taskArea;if(a==="trabalho")return t.kind==="trabalho";if(a==="fora")return t.kind!=="trabalho";return true}
+function taskAreaFn(t){if(teamAg()){const w=UI.teamWho||"tudo";return w==="tudo"?true:w==="eu"?t.who===ME.uid:w==="livre"?!t.who:t.who===w}const sel=taskSrcSel();if(!sel.length)return true;return sel.includes(taskSrcKey(t))}
+/* filtro de áreas e equipes (várias ao mesmo tempo; nenhuma marcada = todas) */
+function taskSrcSel(){if(!Array.isArray(UI.taskSrc)){let v=[];try{v=JSON.parse(localStorage.getItem("prumo.taskSrc")||"null")}catch(e){}if(!Array.isArray(v)){let a="tudo";try{a=localStorage.getItem("prumo.taskArea")||"tudo"}catch(e){}v=a==="tudo"?[]:[a]}UI.taskSrc=v}return UI.taskSrc}
+const taskSrcKey=t=>t._tt?"team:"+t._tt.team.id:(t.kind==="trabalho"?"trabalho":"fora");
+function taskSrcChips(){const sel=taskSrcSel();const teams=typeof ttTeamList==="function"?ttTeamList():[];
+ const opts=[["trabalho","Trabalho",TASK_KINDS.trabalho.c],["fora","Fora do trabalho",null],...teams.map(t=>["team:"+t.id,t.name,"var(--money)"])];
+ return `<div class="chips" style="margin-top:-4px;flex-wrap:wrap"><button class="chip ${sel.length?"":"on"}" data-act="taskSrc" data-v="">Todas</button>${opts.map(([id,n,c])=>`<button class="chip ${sel.includes(id)?"on":""}" data-act="taskSrc" data-v="${esc(id)}" aria-pressed="${sel.includes(id)}">${c?`<i class="dot" style="background:${c};margin-right:5px;display:inline-block;vertical-align:middle"></i>`:""}${esc(n)}</button>`).join("")}</div>`}
 function taskFilterFn(t){const f=UI.taskFilter||"all",td=today();if(f==="hoje")return t.date&&t.date<=td||t.status==="doing";if(f==="semana")return t.date&&t.date<=addDays(td,6);if(f==="atrasadas")return t.status!=="done"&&t.date&&t.date<td;if(f==="semdata")return!t.date;return true}
 function taskCard(t){if(t._tt&&typeof ttCard==="function")return ttCard(t);const k=TASK_KINDS[t.kind]||TASK_KINDS.outro;const subs=t.subs||[];const sd=subs.filter(x=>x.done).length;
  const mv=t.status==="todo"?`<button class="btn ghost sm" data-act="taskMove" data-v="${t.id}" data-to="doing">Começar</button><button class="btn line sm" data-act="taskMove" data-v="${t.id}" data-to="done">${I.check.replace('<svg','<svg width="14" height="14"')} Feito</button>`
@@ -1940,7 +1946,7 @@ function tasksView(){const all=[...taskList(),...(!TEAM&&typeof ttItems==="funct
   ${S.profile.pet&&nextR?`<p class="tiny muted">Faltam ${nextR.tasks-tot} tarefas concluídas para o porquinho ganhar: ${nextR.n.toLowerCase()}.</p>`:""}</div>
  ${taskWarning()}<div class="chips">${[["all","Todas"],["hoje","Hoje"],["semana","Próximos 7 dias"],["atrasadas","Atrasadas"],["semdata","Sem data"]].map(([id,n])=>`<button class="chip ${(UI.taskFilter||"all")===id?"on":""}" data-act="taskFilter" data-v="${id}">${n}</button>`).join("")}</div>
  ${teamAg()?`<div class="chips" style="margin-top:-4px">${[["tudo","Todos"],["eu","Para mim"],["livre","Sem responsável"],...teamMembers().filter(m=>m.uid!==ME.uid).map(m=>[m.uid,teamNick(m.uid)])].map(([id,n])=>`<button class="chip ${(UI.teamWho||"tudo")===id?"on":""}" data-act="teamWho" data-v="${id}">${esc(n)}</button>`).join("")}</div>`:""}
- <div class="chips ${teamAg()?"hide":""}" style="margin-top:-4px">${[["tudo","Todas as áreas"],["trabalho","Trabalho"],["fora","Fora do trabalho"]].map(([id,n])=>`<button class="chip ${(UI.taskArea||"tudo")===id?"on":""}" data-act="taskArea" data-v="${id}" style="${id==="trabalho"?"border-color:"+TASK_KINDS.trabalho.c:""}">${id==="trabalho"?`<i class="dot" style="background:${TASK_KINDS.trabalho.c};margin-right:5px;display:inline-block;vertical-align:middle"></i>`:""}${n}</button>`).join("")}</div>
+ ${teamAg()?"":taskSrcChips()}
  <div class="kanban" role="list">${TCOLS.map(([st,n])=>{let list=all.filter(t=>t.status===st&&taskFilterFn(t)).sort(taskSort);const more=st==="done"&&list.length>15;if(more)list=list.slice(0,15);
   return `<section class="kcol" data-col="${st}" aria-label="${n}"><div class="row between"><b>${n}</b><span class="pill info num">${all.filter(t=>t.status===st&&taskFilterFn(t)).length}</span></div>
   ${list.length?list.map(taskCard).join(""):`<p class="tiny muted" style="text-align:center;padding:14px 4px">${st==="todo"?"Nada por fazer. Toque em Nova tarefa.":st==="doing"?"Arraste ou toque em Começar numa tarefa.":"As tarefas concluídas aparecem aqui."}</p>`}
@@ -2008,7 +2014,7 @@ function moveTask(id,to){const t=S.tasks.items[id];if(!t||t.status===to)return;c
 document.addEventListener("dragstart",e=>{const c=e.target.closest&&e.target.closest(".kcard");if(!c)return;e.dataTransfer.setData("text/plain",c.dataset.task);e.dataTransfer.effectAllowed="move"});
 document.addEventListener("dragover",e=>{const col=e.target.closest&&e.target.closest(".kcol");if(!col)return;e.preventDefault();document.querySelectorAll(".kcol.over").forEach(x=>x!==col&&x.classList.remove("over"));col.classList.add("over")});
 document.addEventListener("dragleave",e=>{const col=e.target.closest&&e.target.closest(".kcol");if(col&&!col.contains(e.relatedTarget))col.classList.remove("over")});
-document.addEventListener("drop",e=>{const col=e.target.closest&&e.target.closest(".kcol");if(!col)return;e.preventDefault();col.classList.remove("over");const id=e.dataTransfer.getData("text/plain");if(id)moveTask(id,col.dataset.col)});
+document.addEventListener("drop",e=>{const col=e.target.closest&&e.target.closest(".kcol");if(!col)return;e.preventDefault();col.classList.remove("over");const id=e.dataTransfer.getData("text/plain");if(!id)return;if(id.startsWith("tt:")&&typeof ttMove==="function"){const [,tid,xid]=id.split(":");ttMove(tid,xid,col.dataset.col);return}moveTask(id,col.dataset.col)});
 const TASK_REWARDS=[{tasks:10,id:"lapis",n:"Lápis na orelha"},{tasks:25,id:"escuros",n:"Óculos escuros"},{tasks:50,id:"faixa",n:"Medalha de campeão"}];
 
 /* ============================================================
@@ -3197,7 +3203,8 @@ const A={
  goTasks:()=>{UI.tab="agenda";UI.agendaSub="tasks";window.scrollTo(0,0);render()},
  taskFilter:el=>{UI.taskFilter=el.dataset.v;render()},
  calRange:el=>{UI.calRange=el.dataset.v;render()},
- taskArea:el=>{UI.taskArea=el.dataset.v;try{localStorage.setItem("prumo.taskArea",el.dataset.v)}catch(e){}render()},
+ taskArea:el=>{UI.taskSrc=el.dataset.v==="tudo"?[]:[el.dataset.v];try{localStorage.setItem("prumo.taskSrc",JSON.stringify(UI.taskSrc))}catch(e){}render()},
+ taskSrc:el=>{const v=el.dataset.v;let sel=taskSrcSel().slice();if(!v)sel=[];else sel=sel.includes(v)?sel.filter(x=>x!==v):[...sel,v];UI.taskSrc=sel;try{localStorage.setItem("prumo.taskSrc",JSON.stringify(sel))}catch(e){}render()},
  addTask:el=>taskForm(null,UI.tab==="agenda"&&UI.agendaSub!=="tasks"?{date:UI.calDay}:null),
  editTask:el=>{const t=S.tasks.items[el.dataset.v];if(t)taskForm(t)},
  tkHelp:el=>{const id=el.dataset.v;UI.tkHelp=UI.tkHelp||[];const i=UI.tkHelp.indexOf(id);if(i>=0)UI.tkHelp.splice(i,1);else UI.tkHelp.push(id);el.classList.toggle("on",i<0);el.setAttribute("aria-pressed",i<0)},
@@ -5841,7 +5848,7 @@ function ttItems(){ttEnsure();const wk=Date.now()-7*864e5;return myTeamTasks(tru
 function ttCard(t){const o=t._tt,x=o.x;const k=TASK_KINDS[x.kind]||TASK_KINDS.outro;const subs=x.subs||[];const sd=subs.filter(z=>z.done).length;const a=`data-t="${o.team.id}" data-v="${x.id}"`;
  const mv=x.status==="todo"?`<button class="btn ghost sm" data-act="ttStart" ${a}>Começar</button><button class="btn line sm" data-act="ttDone" ${a}>${I.check.replace('<svg','<svg width="14" height="14"')} Feito</button>`
   :x.status==="doing"?`<button class="btn money sm" data-act="ttDone" ${a}>${I.check.replace('<svg','<svg width="14" height="14"')} Concluir</button>`:"";
- return `<div class="kcard ${x.status==="done"?"kdone":""}" style="border-left:4px solid var(--money)">
+ return `<div class="kcard ${x.status==="done"?"kdone":""}" draggable="true" data-task="tt:${o.team.id}:${x.id}" style="border-left:4px solid var(--money)">
  <button class="ktitle" data-act="ttOpen" ${a}><span class="row" style="gap:6px;flex-wrap:wrap"><i class="dot" style="background:${k.c}"></i><span class="pill" style="padding:1px 8px;background:color-mix(in srgb,var(--money) 18%,transparent)">${esc(o.team.name)}</span>${o.pj?`<span class="pill" style="padding:1px 8px;background:color-mix(in srgb,${o.pj.color||"var(--pig)"} 22%,transparent)">${esc(o.pj.name)}</span>`:""}${x.prio&&x.prio!=="media"&&PRIO[x.prio]?`<span class="pill ${PRIO[x.prio].k}" style="padding:1px 8px">${PRIO[x.prio].n}</span>`:""}</span><b>${esc(x.title)}</b><span class="tiny muted">${o.role==="resp"?"Você é responsável":"Você está no apoio"}</span></button>
  ${x.date||subs.length?`<div class="row wrap" style="gap:8px">${taskDue(x)}${subs.length?`<span class="tiny muted">${I.check.replace('<svg','<svg width="12" height="12"')} ${sd}/${subs.length}</span>`:""}</div>`:""}
  ${mv?`<div class="row" style="gap:6px;flex-wrap:wrap">${mv}</div>`:""}</div>`}
@@ -5868,6 +5875,22 @@ Object.assign(A,{
    render();toast(pj?"Etapa concluída! A equipe já vê.":"Tarefa concluída! A equipe já vê.")}
   catch(e){console.warn(e);el.disabled=false;toast("Não consegui salvar agora. Confira a internet.")}}
 });
+
+/* equipes que aparecem no filtro do quadro pessoal: as que têm alguma tarefa sua */
+function ttTeamList(){if(TEAM||!TEAMS)return[];const ids=new Set(myTeamTasks(true).map(o=>o.team.id));return TEAMS.filter(t=>ids.has(t.id))}
+/* arrastar ou tocar: muda o status da tarefa na equipe */
+async function ttMove(tid,id,to){const doc=REMT[tid];const x0=doc&&((doc.tasks||{}).items||{})[id];if(!x0||x0.status===to)return;
+ if(to==="done"&&x0.repeat){notifRoute(`/?t=${tid}&go=tasks&i=${id}`);toast("Tarefa que se repete: conclua dentro da equipe para criar a próxima.",4500);return}
+ const was=x0.status;const patch=to==="done"?{status:"done",doneAt:Date.now(),doneBy:ME.uid}:{status:to,doneAt:null};
+ try{const x=await ttWrite(tid,id,patch);
+  if(to==="done"&&!S.profile.ttNoPig){S.tasks.doneTotal=(+S.tasks.doneTotal||0)+1;markActive();saveApp()}
+  if(was==="done"&&to!=="done"&&!S.profile.ttNoPig){S.tasks.doneTotal=Math.max(0,(+S.tasks.doneTotal||0)-1);saveApp()}
+  const t=TEAMS.find(z=>z.id===tid);const pj=x.proj&&((doc.projects||{}).items||{})[x.proj];
+  if(to==="done"&&pj){const people=[x.who,...(x.help||[])].filter(u=>u&&u!==ME.uid);if(people.length)notifyTeamId(tid,people,"projupd",`${t?t.name:"Equipe"}: etapa concluída`,`${myNick()} concluiu "${x.title}" no projeto ${pj.name}.`,`proj&i=${pj.id||x.proj}&k=${x.id}`)}
+  render();toast(to==="done"?(pj?"Etapa concluída! A equipe já vê.":"Tarefa concluída! A equipe já vê."):to==="doing"?"Marcado como fazendo na equipe.":"Voltou para A fazer na equipe.")}
+ catch(e){console.warn(e);toast("Não consegui salvar agora. Confira a internet.");render()}}
+A.ttDone=el=>{el.disabled=true;ttMove(el.dataset.t,el.dataset.v,"done")};
+A.ttStart=el=>{el.disabled=true;ttMove(el.dataset.t,el.dataset.v,"doing")};
 
 /* início */
 (function boot(){

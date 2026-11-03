@@ -4228,7 +4228,7 @@ function projView(){if(UI.projOpen&&PJ().items[UI.projOpen])return projDetail(UI
  <div class="chips">${chips.map(([id,n])=>`<button class="chip ${f===id?"on":""}" data-act="projFilter" data-v="${id}">${n}</button>`).join("")}</div>
  ${body}
  <button class="btn line" data-act="addProject">${I.plus.replace('<svg','<svg width="16" height="16"')} Novo projeto</button></div>`}
-function stepHelpTag(t){const h=(t.help||[]).filter(Boolean);if(!teamAg()||!h.length)return"";return `<span class="row" style="gap:3px">· apoio ${h.map(u=>`<span class="avatar" style="width:18px;height:18px;font-size:8px;margin:0" title="${esc(u===ME.uid?"você":teamNick(u))}">${teamInitials(u)}</span>`).join("")}</span>`}
+function stepHelpTag(t){const h=(t.help||[]).filter(Boolean);if(!teamAg()||!h.length)return"";return `<span class="row" style="gap:4px;flex-wrap:wrap">· apoio ${h.map((u,i)=>`<span class="row" style="gap:3px"><span class="avatar" style="width:18px;height:18px;font-size:8px;margin:0">${teamInitials(u)}</span>${esc(u===ME.uid?"você":teamNick(u))}${i<h.length-1?",":""}</span>`).join("")}</span>`}
 function stepExtra(t,c){const pc=stepPct(t);const fin=t.final?`<span class="pill ${t.final==="cancelada"?"bad":t.final==="pendencias"?"warn":"good"}" style="padding:0 8px;align-self:flex-start">${STEP_FINAL[t.final]}</span>`:"";
  return `${pc!=null?`<span class="row" style="gap:6px;margin-top:3px"><span class="meter" style="height:6px;width:90px;flex:none"><i style="width:${Math.round(pc*100)}%;background:${c}"></i></span><span class="tiny num muted">${Math.round(pc*100)}%</span>${fin}</span>`:fin}
  ${t.block&&t.status!=="done"?`<span class="tiny" style="color:var(--bad);font-weight:700;margin-top:2px">⛔ Impedimento: ${esc(t.block)}</span>`:""}

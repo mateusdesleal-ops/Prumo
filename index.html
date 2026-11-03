@@ -336,6 +336,8 @@ body.team-env .envbtn.cur{border-color:var(--money);background:color-mix(in srgb
 @media (max-width:820px){input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea{font-size:16px}}
 
 .flash{animation:flashc 2.2s ease}@keyframes flashc{0%,30%{box-shadow:0 0 0 4px var(--pig)}100%{box-shadow:0 0 0 0 transparent}}
+
+.searchbox{position:relative;display:flex;align-items:center}.searchbox input{width:100%;padding-left:40px;padding-right:44px;background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2718%27 height=%2718%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%238A7A82%27 stroke-width=%272.2%27 stroke-linecap=%27round%27%3E%3Ccircle cx=%2711%27 cy=%2711%27 r=%277%27/%3E%3Cpath d=%27M20 20l-3.5-3.5%27/%3E%3C/svg%3E") no-repeat 13px center}.searchbox .iconbtn{position:absolute;right:4px;width:36px;height:36px;font-size:20px}.searchbox input::-webkit-search-cancel-button{display:none}
 </style>
 
 </head>
@@ -1926,7 +1928,10 @@ const taskSrcKey=t=>t._tt?"team:"+t._tt.team.id:(t.kind==="trabalho"?"trabalho":
 function taskSrcChips(){const sel=taskSrcSel();const teams=typeof ttTeamList==="function"?ttTeamList():[];
  const opts=[["trabalho","Trabalho",TASK_KINDS.trabalho.c],["fora","Fora do trabalho",null],...teams.map(t=>["team:"+t.id,t.name,"var(--money)"])];
  return `<div class="chips" style="margin-top:-4px;flex-wrap:wrap"><button class="chip ${sel.length?"":"on"}" data-act="taskSrc" data-v="">Todas</button>${opts.map(([id,n,c])=>`<button class="chip ${sel.includes(id)?"on":""}" data-act="taskSrc" data-v="${esc(id)}" aria-pressed="${sel.includes(id)}">${c?`<i class="dot" style="background:${c};margin-right:5px;display:inline-block;vertical-align:middle"></i>`:""}${esc(n)}</button>`).join("")}</div>`}
-function taskFilterFn(t){const f=UI.taskFilter||"all",td=today();if(f==="hoje")return t.date&&t.date<=td||t.status==="doing";if(f==="semana")return t.date&&t.date<=addDays(td,6);if(f==="atrasadas")return t.status!=="done"&&t.date&&t.date<td;if(f==="semdata")return!t.date;return true}
+/* pesquisa de tarefas: título, observações, subtarefas, projeto e equipe */
+function taskQMatch(t){const q=norm(UI.taskQ||"").trim();if(!q)return true;const o=t._tt;const pj=o?o.pj:(t.proj&&PJ().items[t.proj]);
+ const hay=norm([t.title,t.notes,t.place,(t.subs||[]).map(x=>x.t).join(" "),pj&&pj.name,o&&o.team.name].filter(Boolean).join(" "));return q.split(/\s+/).every(w=>hay.includes(w))}
+function taskFilterFn(t){if(!taskQMatch(t))return false;const f=UI.taskFilter||"all",td=today();if(f==="hoje")return t.date&&t.date<=td||t.status==="doing";if(f==="semana")return t.date&&t.date<=addDays(td,6);if(f==="atrasadas")return t.status!=="done"&&t.date&&t.date<td;if(f==="semdata")return!t.date;return true}
 function taskCard(t){if(t._tt&&typeof ttCard==="function")return ttCard(t);const k=TASK_KINDS[t.kind]||TASK_KINDS.outro;const subs=t.subs||[];const sd=subs.filter(x=>x.done).length;
  const mv=t.status==="todo"?`<button class="btn ghost sm" data-act="taskMove" data-v="${t.id}" data-to="doing">Começar</button><button class="btn line sm" data-act="taskMove" data-v="${t.id}" data-to="done">${I.check.replace('<svg','<svg width="14" height="14"')} Feito</button>`
   :t.status==="doing"?`<button class="btn ghost sm" data-act="taskMove" data-v="${t.id}" data-to="todo" aria-label="Voltar para A fazer">${I.left.replace('<svg','<svg width="14" height="14"')}</button><button class="btn money sm" data-act="taskMove" data-v="${t.id}" data-to="done">${I.check.replace('<svg','<svg width="14" height="14"')} Concluir</button>`
@@ -1947,6 +1952,8 @@ function tasksView(){const all=[...taskList(),...(!TEAM&&typeof ttItems==="funct
  ${taskWarning()}<div class="chips">${[["all","Todas"],["hoje","Hoje"],["semana","Próximos 7 dias"],["atrasadas","Atrasadas"],["semdata","Sem data"]].map(([id,n])=>`<button class="chip ${(UI.taskFilter||"all")===id?"on":""}" data-act="taskFilter" data-v="${id}">${n}</button>`).join("")}</div>
  ${teamAg()?`<div class="chips" style="margin-top:-4px">${[["tudo","Todos"],["eu","Para mim"],["livre","Sem responsável"],...teamMembers().filter(m=>m.uid!==ME.uid).map(m=>[m.uid,teamNick(m.uid)])].map(([id,n])=>`<button class="chip ${(UI.teamWho||"tudo")===id?"on":""}" data-act="teamWho" data-v="${id}">${esc(n)}</button>`).join("")}</div>`:""}
  ${teamAg()?"":taskSrcChips()}
+ <div class="searchbox"><input id="taskQ" type="search" placeholder="Pesquisar tarefa" value="${esc(UI.taskQ||"")}" autocomplete="off" aria-label="Pesquisar tarefa">${UI.taskQ?`<button class="iconbtn" data-act="clearQ" data-v="taskQ" aria-label="Limpar pesquisa">×</button>`:""}</div>
+ ${UI.taskQ&&!all.some(taskFilterFn)?`<p class="small muted">Nenhuma tarefa com “${esc(UI.taskQ)}”. Confira os filtros acima.</p>`:""}
  <div class="kanban" role="list">${TCOLS.map(([st,n])=>{let list=all.filter(t=>t.status===st&&taskFilterFn(t)).sort(taskSort);const more=st==="done"&&list.length>15;if(more)list=list.slice(0,15);
   return `<section class="kcol" data-col="${st}" aria-label="${n}"><div class="row between"><b>${n}</b><span class="pill info num">${all.filter(t=>t.status===st&&taskFilterFn(t)).length}</span></div>
   ${list.length?list.map(taskCard).join(""):`<p class="tiny muted" style="text-align:center;padding:14px 4px">${st==="todo"?"Nada por fazer. Toque em Nova tarefa.":st==="doing"?"Arraste ou toque em Começar numa tarefa.":"As tarefas concluídas aparecem aqui."}</p>`}
@@ -2784,6 +2791,15 @@ function exHistory(){const ls=exLogs();const groups={};ls.slice(0,150).forEach(l
 
 /* ---------- Agenda ---------- */
 function calCount(s){return eventsOn(s).filter(e=>e.repeat!=="daily").length}
+function calSearchView(){const q=norm(UI.calQ||"").trim();if(!q)return"";const has=x=>q.split(/\s+/).every(w=>norm(x).includes(w));const td=today();const out=[];
+ vals(S.agenda.events).forEach(e=>{if(!e||!has([e.title,e.place,e.notes].filter(Boolean).join(" ")))return;let d=e.date;if(e.repeat&&e.repeat!=="none"){for(let i=0;i<400;i++){const dd=addDays(td,i);if(occursOn(e,dd)){d=dd;break}}}out.push({d,t:e.time||"",title:e.title,sub:[e.place,e.repeat&&e.repeat!=="none"?{daily:"diário",weekly:"semanal",monthly:"mensal",yearly:"anual"}[e.repeat]:""].filter(Boolean).join(" · "),act:`data-act="editEvent" data-v="${e.id}"`,kind:"compromisso"})});
+ [...taskList(),...(!TEAM&&typeof ttItems==="function"?ttItems():[])].forEach(t=>{if(!t.date||!has([t.title,t.notes,t.place,t._tt&&t._tt.team.name].filter(Boolean).join(" ")))return;out.push({d:t.date,t:t.time||"",title:t.title,sub:(t._tt?t._tt.team.name+" · ":"")+(t.status==="done"?"concluída":"tarefa"),act:t._tt?`data-act="ttOpen" data-t="${t._tt.team.id}" data-v="${t._tt.x.id}"`:`data-act="editTask" data-v="${t.id}"`,kind:"tarefa"})});
+ const fut=out.filter(x=>x.d>=td).sort((a,b)=>(a.d+a.t).localeCompare(b.d+b.t)),past=out.filter(x=>x.d<td).sort((a,b)=>(b.d+b.t).localeCompare(a.d+a.t));
+ const row=x=>`<button class="item" style="width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;padding-inline:0" ${x.act}><span class="ico" style="background:var(--pig-soft);color:var(--pig-deep);flex-direction:column;font-size:11px;line-height:1.1;text-align:center">${ddmm(x.d)}${x.t?"<br>"+esc(x.t):""}</span><div class="grow stack-s" style="gap:1px"><p><b>${esc(x.title)}</b></p><p class="tiny muted">${dayLabel(x.d)}${x.sub?" · "+esc(x.sub):""}</p></div></button>`;
+ if(!out.length)return `<div class="card"><p class="small muted">Nada encontrado com “${esc(UI.calQ)}”.</p></div>`;
+ return `<div class="card stack" style="gap:4px">${fut.length?`<div class="label">Próximos · ${fut.length}</div><div class="list">${fut.slice(0,30).map(row).join("")}</div>`:""}${past.length?`<div class="label" style="margin-top:8px">Já passaram · ${past.length}</div><div class="list">${past.slice(0,20).map(row).join("")}</div>`:""}</div>`}
+/* campos de pesquisa: atualizam a tela sem perder o foco nem o cursor */
+document.addEventListener("input",ev=>{const id=ev.target&&ev.target.id;if(id!=="taskQ"&&id!=="calQ")return;UI[id]=ev.target.value;clearTimeout(UI._sqT);UI._sqT=setTimeout(()=>{const p=ev.target.selectionStart;render();const e=document.getElementById(id);if(e){e.focus({preventScroll:true});try{e.setSelectionRange(p,p)}catch(x){}}},220)});
 function viewAgenda(){if(UI.agendaSub==="tasks")return tasksView();if(UI.agendaSub==="proj")return projView();const k=UI.calMonth;const [y,m]=k.split("-").map(Number);const first=new Date(y,m-1,1);const start=new Date(first);start.setDate(1-first.getDay());
  const rg=UI.calRange||"dia";const wk0=(()=>{const d=parseDate(UI.calDay);d.setDate(d.getDate()-d.getDay());return ymd(d)})();
  let cells="";for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const s=ymd(d);const has=calCount(s);const inWk=rg==="semana"&&s>=wk0&&s<=addDays(wk0,6);
@@ -2792,6 +2808,8 @@ function viewAgenda(){if(UI.agendaSub==="tasks")return tasksView();if(UI.agendaS
  const daily=[];const groups=days.map(d=>({d,evs:eventsOn(d).filter(e=>{if(rg!=="dia"&&e.repeat==="daily"){if(!daily.find(x=>x.id===e.id))daily.push(e);return false}return true})})).filter(g=>g.evs.length||rg==="dia");
  const title=rg==="dia"?dayLabel(UI.calDay):rg==="semana"?`Semana de ${parseDate(wk0).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})} a ${parseDate(addDays(wk0,6)).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}`:monthLabel(k);
  return `<div class="stack">${agendaHead()}
+ <div class="searchbox"><input id="calQ" type="search" placeholder="Pesquisar compromisso ou tarefa" value="${esc(UI.calQ||"")}" autocomplete="off" aria-label="Pesquisar na agenda">${UI.calQ?`<button class="iconbtn" data-act="clearQ" data-v="calQ" aria-label="Limpar pesquisa">×</button>`:""}</div>
+ ${UI.calQ?calSearchView():""}
  <div class="card stack"><div class="row between"><button class="iconbtn" data-act="calMonth" data-v="-1" aria-label="Mês anterior">${I.left}</button><h3 style="text-transform:capitalize">${monthLabel(k)}</h3><button class="iconbtn" data-act="calMonth" data-v="1" aria-label="Próximo mês">${I.right}</button></div>
  <div class="cal">${DOW.map(d=>`<span class="dow">${d}</span>`).join("")}${cells}</div>
  <div class="row tiny muted" style="gap:12px;flex-wrap:wrap"><span class="row" style="gap:6px"><i class="calleg has"></i>Dia com compromisso</span><span class="row" style="gap:6px"><i class="calleg today"></i>Hoje</span></div></div>
@@ -3229,6 +3247,7 @@ const A={
   S.tasks.items[id]=t;let ns=$("#tk_status")?v("tk_status"):t.status;if(t.final&&!old.final)ns="done";closeModal();if(ns!==t.status)moveTask(id,ns);else{commit();toast(old.id?"Tarefa salva.":"Tarefa criada.")}},
  delTaskYes:()=>{const lb=taskDecay().lost;setTimeout(()=>taskLostToast(lb),0);const id=document.querySelector('[data-act="saveTask"]').dataset.v;delete S.tasks.items[id];commit();closeModal();toast("Tarefa apagada.")},
  taskMove:el=>moveTask(el.dataset.v,el.dataset.to),
+ clearQ:el=>{UI[el.dataset.v]="";render();const e=document.getElementById(el.dataset.v);if(e)e.focus()},
  clearDone:()=>{taskList().filter(t=>t.status==="done"&&!(t.proj&&PJ().items[t.proj])).forEach(t=>delete S.tasks.items[t.id]);commit();toast("Concluídas removidas do quadro. Elas continuam contando para o porquinho.")},
  prTick:el=>{const id=el.dataset.v;const d=today();const l=S.prayer.log[d]=S.prayer.log[d]||{};const before=prayerPeace();if(l[id])delete l[id];else{l[id]=1;markActive()}commit();
   if($("#modal").innerHTML&&document.querySelector('.sheet [data-act="prTick"]'))prOpenView(id);

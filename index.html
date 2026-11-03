@@ -514,11 +514,26 @@ const ENV_LEVELS=[
 ];
 
 const EX_TYPES=[
- {id:"caminhada_leve",n:"Caminhada leve",met:2.8,int:"leve"},
- {id:"caminhada",n:"Caminhada rápida",met:4.3,int:"moderada"},
- {id:"corrida",n:"Corrida",met:8,int:"vigorosa"},
- {id:"bike",n:"Bicicleta",met:6,int:"moderada"},
- {id:"natacao",n:"Natação",met:6,int:"moderada"},
+ {id:"caminhada_leve",n:"Caminhada leve",met:2.8,int:"leve",q:{u:"passos",one:"passo",per:90}},
+ {id:"caminhada",n:"Caminhada rápida",met:4.3,int:"moderada",q:{u:"passos",one:"passo",per:115}},
+ {id:"corrida",n:"Corrida",met:8,int:"vigorosa",q:{u:"km",one:"km",per:.16,dec:1}},
+ {id:"corda",n:"Pular corda",met:11.8,int:"vigorosa",q:{u:"saltos",one:"salto",per:100}},
+ {id:"polichinelo",n:"Polichinelo",met:8,int:"vigorosa",q:{u:"polichinelos",one:"polichinelo",per:60}},
+ {id:"flexao",n:"Flexões, abdominais e agachamentos",met:5,int:"moderada",q:{u:"repetições",one:"repetição",per:25}},
+ {id:"escada",n:"Subir escada",met:8.8,int:"vigorosa",q:{u:"andares",one:"andar",per:3}},
+ {id:"hiit",n:"Treino funcional / HIIT",met:8,int:"vigorosa"},
+ {id:"crossfit",n:"Crossfit",met:8,int:"vigorosa"},
+ {id:"bike",n:"Bicicleta",met:6,int:"moderada",q:{u:"km",one:"km",per:.3,dec:1}},
+ {id:"spinning",n:"Spinning / bike ergométrica",met:7,int:"vigorosa"},
+ {id:"eliptico",n:"Elíptico / transport",met:5,int:"moderada"},
+ {id:"natacao",n:"Natação",met:6,int:"moderada",q:{u:"metros",one:"metro",per:30}},
+ {id:"pilates",n:"Pilates",met:3,int:"leve"},
+ {id:"lutas",n:"Lutas / artes marciais",met:10,int:"vigorosa"},
+ {id:"tenis",n:"Tênis / beach tennis",met:7,int:"vigorosa"},
+ {id:"volei",n:"Vôlei",met:4,int:"moderada"},
+ {id:"basquete",n:"Basquete",met:6.5,int:"vigorosa"},
+ {id:"trilha",n:"Trilha",met:6,int:"moderada",q:{u:"km",one:"km",per:.07,dec:1}},
+ {id:"patins",n:"Patins / skate",met:7,int:"vigorosa"},
  {id:"hidro",n:"Hidroginástica",met:4,int:"moderada"},
  {id:"forca",n:"Musculação / força",met:5,int:"moderada"},
  {id:"danca",n:"Dança",met:5,int:"moderada"},
@@ -861,7 +876,17 @@ function exPlan(){
  if(age<18)days.forEach(x=>{x.items=[{n:"Brincadeiras ativas, esportes ou caminhada",min:60,int:"moderada"}]});
  const lvName={sedentario:"Começando agora",iniciante:"Iniciante",intermediario:"Intermediário",avancado:"Avançado"}[level];
  return{target,days,notes,level,lvName,parq,lowImpact,daily:Math.round(target/7)}}
-const kcal=(l)=>{const met=(EXT[l.type]||EXT.outro).met;const w=+S.profile.weight||70;return Math.round(met*3.5*w/200*(+l.min||0))};
+/* calorias: com a contagem (saltos, passos, km…) calcula pelo trabalho feito; sem ela, pelo tempo */
+const exWorkMin=l=>{const t=EXT[l.type]||EXT.outro;const n=+l.n||0;return t.q&&n>0?n/t.q.per:(+l.min||0)};
+const kcal=(l)=>{const met=(EXT[l.type]||EXT.outro).met;const w=+S.profile.weight||70;return Math.round(met*3.5*w/200*exWorkMin(l))};
+const exQtyFmt=(t,n)=>{if(!t||!t.q||!(+n>0))return"";const v=t.q.dec?String(Math.round(n*10)/10).replace(".",","):Math.round(n).toLocaleString("pt-BR");return `${v} ${+n===1?t.q.one:t.q.u}`};
+/* frase que mostra o tamanho do esforço */
+function exInsight(type,min,n){const t=EXT[type]||EXT.outro;min=+min||0;n=+n||0;if(!min&&!n)return"";const l={type,min,n};const k=kcal(l);const walk=Math.round(k/(EXT.caminhada.met*3.5*(+S.profile.weight||70)/200));
+ const parts=[];if(n&&t.q)parts.push(`<b>${exQtyFmt(t,n)}</b>`);if(min)parts.push(`${min} min`);
+ let s=n&&min&&t.q&&!t.q.dec?`${min} min de ${t.n.toLowerCase()} pode parecer pouco, mas são <b>${exQtyFmt(t,n)}</b>: cerca de <b>${k} kcal</b>`:`${parts.join(" em ")}: cerca de <b>${k} kcal</b>`;if(type!=="caminhada"&&walk>min+1)s+=`, o mesmo que <b>${walk} min de caminhada rápida</b>`;
+ if(n&&min&&t.q&&!t.q.dec){const r=Math.round(n/min);s+=`. Ritmo: ${r} ${t.q.u} por minuto`}
+ else if(min&&t.q&&!n)s+=`. Sabe quantos ${t.q.u}? Coloque para um cálculo mais certo`;
+ return s+"."}
 
 /* ============================================================
    Agenda
@@ -2749,7 +2774,7 @@ function exWeekView(){const pl=exPlan();const logs=exWeek();const eq=Math.round(
  <button class="btn" data-act="addEx">Registrar exercício</button></div>
  ${envWarning()}${S.profile.pet?`<div class="card stack"><div class="row between"><b>Ambiente do porquinho</b><span class="small muted">${ENV_LEVELS[envLevel()].n}</span></div><div class="envsteps">${ENV_LEVELS.map((e,i)=>`<i class="${i<=envLevel()?"on":""}"></i>`).join("")}</div><p class="small muted">Cada minuto de exercício melhora o lugar onde o porquinho vive.</p>`:""}</div>`}
 function exHistory(){const ls=exLogs();const groups={};ls.slice(0,150).forEach(l=>{(groups[l.date]=groups[l.date]||[]).push(l)});
- return ls.length?Object.keys(groups).sort().reverse().map(d=>`<div class="card" style="padding:6px 16px"><div class="tiny muted" style="padding-top:8px;font-weight:700;text-transform:capitalize">${dayLabel(d)}</div><div class="list">${groups[d].map(l=>`<button class="item" style="width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;padding-inline:0" data-act="editEx" data-v="${l.id}"><span class="ico" style="background:color-mix(in srgb,var(--need) 16%,transparent);color:var(--need)">${(EXT[l.type]||EXT.outro).n.slice(0,2)}</span><div class="grow stack-s" style="gap:1px"><p><b>${esc(l.desc||(EXT[l.type]||EXT.outro).n)}</b></p><p class="tiny muted">${l.int} · cerca de ${kcal(l)} kcal</p></div><span class="amount">${l.min} min</span></button>`).join("")}</div></div>`).join(""):`<div class="card empty">Registre sua primeira caminhada, treino ou aula. Até 10 minutos contam.</div>`}
+ return ls.length?Object.keys(groups).sort().reverse().map(d=>`<div class="card" style="padding:6px 16px"><div class="tiny muted" style="padding-top:8px;font-weight:700;text-transform:capitalize">${dayLabel(d)}</div><div class="list">${groups[d].map(l=>`<button class="item" style="width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;padding-inline:0" data-act="editEx" data-v="${l.id}"><span class="ico" style="background:color-mix(in srgb,var(--need) 16%,transparent);color:var(--need)">${(EXT[l.type]||EXT.outro).n.slice(0,2)}</span><div class="grow stack-s" style="gap:1px"><p><b>${esc(l.desc||(EXT[l.type]||EXT.outro).n)}</b></p><p class="tiny muted">${l.n?exQtyFmt(EXT[l.type],l.n)+" · ":""}${l.int} · cerca de ${kcal(l)} kcal</p></div><span class="amount">${l.min} min</span></button>`).join("")}</div></div>`).join(""):`<div class="card empty">Registre sua primeira caminhada, treino ou aula. Até 10 minutos contam.</div>`}
 
 /* ---------- Agenda ---------- */
 function calCount(s){return eventsOn(s).filter(e=>e.repeat!=="daily").length}
@@ -2919,6 +2944,14 @@ function kbFit(){const sc=document.querySelector("#modal .scrim");if(!sc)return;
  const kb=window.innerHeight-vv.height>120;sc.classList.toggle("kb",kb);
  if(kb){sc.style.top=vv.offsetTop+"px";sc.style.height=vv.height+"px";sc.style.bottom="auto"}else{sc.style.top="";sc.style.height="";sc.style.bottom=""}}
 if(window.visualViewport){visualViewport.addEventListener("resize",kbFit);visualViewport.addEventListener("scroll",kbFit)}
+/* iPhone: depois que o teclado fecha, a barra de baixo às vezes fica "presa" no meio da tela.
+   Um empurrãozinho no scroll faz o iPhone recalcular a posição dos elementos fixos. */
+function iosFixedNudge(){const y=window.scrollY;window.scrollTo(window.scrollX,y+1);requestAnimationFrame(()=>window.scrollTo(window.scrollX,y));const t=document.getElementById("tabs");if(t){t.style.transform="translateZ(0)";requestAnimationFrame(()=>{t.style.transform=""})}}
+let kbWasOpen=false;
+if(window.visualViewport)visualViewport.addEventListener("resize",()=>{const open=window.innerHeight-visualViewport.height>120;if(kbWasOpen&&!open)setTimeout(iosFixedNudge,60);kbWasOpen=open});
+document.addEventListener("focusout",e=>{const t=e.target;if(t&&t.matches&&t.matches("input,textarea,select"))setTimeout(()=>{const a=document.activeElement;if(!a||!a.matches||!a.matches("input,textarea,select"))iosFixedNudge()},250)});
+window.addEventListener("orientationchange",()=>setTimeout(iosFixedNudge,300));
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(iosFixedNudge,200)});
 document.addEventListener("focusin",e=>{const t=e.target;if(!t||!t.matches||!t.matches("#modal input,#modal textarea"))return;
  setTimeout(()=>{kbFit();const sh=t.closest(".sheet");if(!sh||!document.querySelector("#modal .scrim.kb"))return;const r=t.getBoundingClientRect(),sr=sh.getBoundingClientRect();
   if(r.top<sr.top+8||r.bottom>sr.bottom-40)sh.scrollTop+=r.top-sr.top-70},350)});
@@ -2990,10 +3023,13 @@ function exForm(l){l=l||{};const isEdit=!!l.id;const t=l.type||"caminhada";
  openModal(isEdit?"Editar exercício":"Registrar exercício",`<div class="stack">
  <label class="field"><span>Atividade</span><select id="e_type">${EX_TYPES.map(x=>`<option value="${x.id}" ${x.id===t?"selected":""}>${x.n}</option>`).join("")}</select></label>
  <div class="grid2"><label class="field"><span>Minutos</span><input id="e_min" type="number" inputmode="numeric" min="1" value="${l.min||""}" placeholder="30"></label><label class="field"><span>Intensidade</span><select id="e_int">${["leve","moderada","vigorosa"].map(i=>`<option ${i===(l.int||EXT[t].int)?"selected":""}>${i}</option>`).join("")}</select></label></div>
+ <label class="field" id="e_nwrap" style="${EXT[t].q?"":"display:none"}"><span id="e_nlab">${EXT[t].q?"Quantos "+EXT[t].q.u+"? (opcional)":""}</span><input id="e_n" type="number" inputmode="decimal" min="0" step="any" value="${l.n||""}" placeholder="${EXT[t].q?"Ex.: "+Math.round(EXT[t].q.per*10*(EXT[t].q.dec?10:1))/(EXT[t].q.dec?10:1):""}"></label>
+ <p class="small" id="e_prev" style="color:var(--good)">${exInsight(t,l.min,l.n)}</p>
  <label class="field"><span>Observação</span><input id="e_desc" value="${esc(l.desc||"")}" placeholder="Opcional"></label>
  <label class="field"><span>Data</span><input id="e_date" type="date" value="${l.date||today()}"></label>
  <button class="btn block" data-act="saveEx" data-v="${l.id||""}">${isEdit?"Salvar":"Registrar"}</button>
- ${isEdit?`<button class="btn danger" data-act="askDel">Apagar registro</button>${confirmBox("delEx","Apagar este exercício?")}`:""}</div>`,m=>{const s=$("#e_type");s.addEventListener("change",()=>{$("#e_int").value=EXT[s.value].int})})}
+ ${isEdit?`<button class="btn danger" data-act="askDel">Apagar registro</button>${confirmBox("delEx","Apagar este exercício?")}`:""}</div>`,m=>{const s=$("#e_type");const upd=()=>{const t=EXT[s.value];$("#e_nwrap").style.display=t.q?"":"none";if(t.q){$("#e_nlab").textContent="Quantos "+t.q.u+"? (opcional)";$("#e_n").placeholder="Ex.: "+(t.q.dec?String(Math.round(t.q.per*100)/10).replace(".",","):Math.round(t.q.per*10))}$("#e_prev").innerHTML=exInsight(s.value,v("e_min"),t.q?parseFloat(String(v("e_n")).replace(",",".")):0)};
+ s.addEventListener("change",()=>{$("#e_int").value=EXT[s.value].int;upd()});["e_min","e_n"].forEach(id=>$("#"+id).addEventListener("input",upd))})}
 function exProfileForm(){const p=S.profile;
  openModal("Seus dados de saúde",`<div class="stack">
  <div class="grid3"><label class="field"><span>Idade</span><input id="x_age" type="number" inputmode="numeric" value="${p.age||""}"></label><label class="field"><span>Peso (kg)</span><input id="x_weight" inputmode="decimal" value="${p.weight?String(p.weight).replace(".",","):""}"></label><label class="field"><span>Altura (cm)</span><input id="x_height" type="number" inputmode="numeric" value="${p.height||""}"></label></div>
@@ -3278,8 +3314,8 @@ const A={
  // exercícios
  addEx:()=>{if(!S.profile.age&&UI.tab==="ex"&&UI.ex==="plano"){exForm();return}exForm()},
  editEx:el=>{const l=S.ex.logs[el.dataset.v];if(l)exForm(l)},
- saveEx:el=>{const min=+v("e_min")||0;if(!min){toast("Informe os minutos.");return}const id=el.dataset.v||rid();const old=S.ex.logs[id];const before=envLevel();
-  S.ex.logs[id]={id,type:v("e_type"),min,int:v("e_int"),desc:v("e_desc").trim(),date:v("e_date")||today(),t:old?old.t:Date.now()};markActive(v("e_date")||today());commit();closeModal();
+ saveEx:el=>{let min=+v("e_min")||0;{const tq=(EXT[v("e_type")]||{}).q;const nn=tq?parseFloat(String(v("e_n")).replace(",","."))||0:0;if(!min&&nn>0)min=Math.max(1,Math.round(nn/tq.per))}if(!min){toast("Informe os minutos.");return}const id=el.dataset.v||rid();const old=S.ex.logs[id];const before=envLevel();
+  const nq=EXT[v("e_type")]&&EXT[v("e_type")].q?parseFloat(String(v("e_n")).replace(",","."))||0:0;S.ex.logs[id]={id,type:v("e_type"),min,int:v("e_int"),desc:v("e_desc").trim(),date:v("e_date")||today(),t:old?old.t:Date.now(),...(nq>0?{n:nq}:{})};markActive(v("e_date")||today());commit();closeModal();
   const after=envLevel();toast(after>before&&S.profile.pet?`O ambiente melhorou: ${ENV_LEVELS[after].n.toLowerCase()}!`:"Exercício registrado.")},
  delExYes:()=>{const id=document.querySelector('[data-act="saveEx"]').dataset.v;delete S.ex.logs[id];commit();closeModal()},
  exProfile:()=>exProfileForm(),
@@ -5411,15 +5447,23 @@ function chCheckinForm(d0){const c=CHP().items[UI.chalOpen];if(!c)return;UI.chPi
  <div id="ch_pics"></div>
  <label class="field"><span>Comentário (opcional)</span><input id="ch_note" maxlength="140" placeholder="Ex.: perna hoje, 5 km de caminhada"></label>
  ${chExBox(c)}
- <button class="btn block" data-act="chalCheckSave">Fazer check-in</button></div>`,()=>{UI.chDay=d0&&days.includes(d0)?d0:days[0];chPicsRender()})}
+ <button class="btn block" data-act="chalCheckSave">Fazer check-in</button></div>`,()=>{UI.chDay=d0&&days.includes(d0)?d0:days[0];chPicsRender();chExUpd()})}
 /* check-in de desafio de exercício também vai para a Saúde do Prumo pessoal */
-const chIsEx=c=>c.auto==="ex"||/trein|caminh|exerc|corr|acad|pedal|bike|bicic|nata|yoga|ioga|pilates|muscula|cross|danc|funcional|passos|km\b/i.test(norm(c.name||"")+" "+norm(c.rule||""));
-function chExBox(c){if(typeof EX_TYPES==="undefined")return"";const on=chIsEx(c);const guess=/caminh|passos/.test(norm(c.name||""))?"caminhada":/corr/.test(norm(c.name||""))?"corrida":/pedal|bike|bicic/.test(norm(c.name||""))?"bicicleta":/muscula|acad|trein/.test(norm(c.name||""))?"musculacao":"caminhada";const t=EXT[guess]?guess:EX_TYPES[0].id;
+const chIsEx=c=>c.auto==="ex"||/trein|caminh|exerc|corr|acad|pedal|bike|bicic|nata|yoga|ioga|pilates|muscula|cross|danc|funcional|passos|corda|pular|polichinel|flex|abdomin|agach|escada|luta|jiu|muay|box|tenis|volei|basquete|futebol|futsal|trilha|patins|skate|spinning|hiit|km\b/i.test(norm(c.name||"")+" "+norm(c.rule||""));
+function chExBox(c){if(typeof EX_TYPES==="undefined")return"";const on=chIsEx(c);const nn=norm(c.name||"")+" "+norm(c.rule||"");const last=(S.profile.chEx||{})[c.id];const guess=last&&EXT[last.type]?last.type:/corda/.test(nn)?"corda":/caminh|passos/.test(nn)?"caminhada":/corr/.test(nn)?"corrida":/pedal|bike|bicic/.test(nn)?"bike":/muscula|acad|trein/.test(nn)?"forca":/nata/.test(nn)?"natacao":/yoga|ioga|along/.test(nn)?"alongamento":/pilates/.test(nn)?"pilates":/danc/.test(nn)?"danca":/funcional|hiit/.test(nn)?"hiit":/cross/.test(nn)?"crossfit":"caminhada";const t=EXT[guess]?guess:EX_TYPES[0].id;
  return `<div class="card flat stack-s"><label class="check" style="margin:0"><input type="checkbox" id="ch_exon" ${on?"checked":""} onchange="document.getElementById('ch_exf').style.display=this.checked?'':'none'"><span><b>Registrar também na minha Saúde</b><br><span class="tiny muted">Conta no seu Prumo pessoal: minutos da semana, calorias e o ambiente do porquinho.</span></span></label>
- <div id="ch_exf" class="grid2" style="${on?"":"display:none"}"><label class="field"><span>Atividade</span><select id="ch_ext">${EX_TYPES.map(x=>`<option value="${x.id}" ${x.id===t?"selected":""}>${x.n}</option>`).join("")}</select></label><label class="field"><span>Minutos</span><input id="ch_exm" type="number" inputmode="numeric" min="1" value="30"></label></div></div>`}
-function chExSave(d){const on=document.getElementById("ch_exon");if(!on||!on.checked)return false;const min=+v("ch_exm")||0;if(!min)return false;const type=v("ch_ext")||"caminhada";
+ <div id="ch_exf" class="grid2" style="${on?"":"display:none"}"><label class="field"><span>Atividade</span><select id="ch_ext">${EX_TYPES.map(x=>`<option value="${x.id}" ${x.id===t?"selected":""}>${x.n}</option>`).join("")}</select></label><label class="field"><span>Minutos</span><input id="ch_exm" type="number" inputmode="numeric" min="1" value="${last&&last.min||30}"></label>
+ <label class="field" id="ch_exnw" style="grid-column:1/-1;${EXT[t].q?"":"display:none"}"><span id="ch_exnl">${EXT[t].q?"Quantos "+EXT[t].q.u+"? (opcional)":""}</span><input id="ch_exn" type="number" inputmode="decimal" min="0" step="any" placeholder="Opcional"></label>
+ <p class="small" id="ch_exp" style="grid-column:1/-1;color:var(--good);margin:0"></p></div></div>`}
+function chExUpd(){const s=document.getElementById("ch_ext");if(!s)return;const t=EXT[s.value]||{};const w=document.getElementById("ch_exnw");if(w)w.style.display=t.q?"":"none";const lb=document.getElementById("ch_exnl");if(lb&&t.q)lb.textContent="Quantos "+t.q.u+"? (opcional)";
+ const ni=document.getElementById("ch_exn");if(ni&&t.q&&!ni.value&&!ni.dataset.touched){const note=(document.getElementById("ch_note")||{}).value||"";const m=norm(note).match(new RegExp("(\\d+(?:[.,]\\d+)?)\\s*(?:"+norm(t.q.u).replace(/s$/,"")+"s?|"+norm(t.q.one)+")"));if(m)ni.value=m[1].replace(",",".")}
+ const p=document.getElementById("ch_exp");if(p)p.innerHTML=typeof exInsight==="function"?exInsight(s.value,v("ch_exm"),t.q&&ni?parseFloat(String(ni.value).replace(",","."))||0:0):""}
+document.addEventListener("input",e=>{const id=e.target&&e.target.id;if(id==="ch_exn")e.target.dataset.touched=1;if(["ch_exm","ch_exn","ch_note"].includes(id))chExUpd()});
+document.addEventListener("change",e=>{if(e.target&&e.target.id==="ch_ext"){const ni=document.getElementById("ch_exn");if(ni&&!ni.dataset.touched)ni.value="";chExUpd()}});
+function chExSave(d){const on=document.getElementById("ch_exon");if(!on||!on.checked)return false;let min=+v("ch_exm")||0;const type=v("ch_ext")||"caminhada";const tq=(EXT[type]||{}).q;const nq=tq?parseFloat(String(v("ch_exn")).replace(",","."))||0:0;if(!min&&nq>0)min=Math.max(1,Math.round(nq/tq.per));if(!min)return false;
+ const cid=UI.chalOpen;if(cid){S.profile.chEx=Object.assign(S.profile.chEx||{},{[cid]:{type,min}})}
  const dup=vals(S.ex.logs).some(l=>l.date===d&&l.type===type&&Math.abs((+l.min||0)-min)<1);if(dup)return false;
- const id=rid();S.ex.logs[id]={id,type,min,int:(EXT[type]||{}).int||"moderada",desc:"Desafio",date:d,t:Date.now()};markActive(d);return true}
+ const id=rid();S.ex.logs[id]={id,type,min,int:(EXT[type]||{}).int||"moderada",desc:"Desafio",date:d,t:Date.now(),...(nq>0?{n:nq}:{})};markActive(d);return true}
 Object.assign(A,{
  camOpen:()=>camOpen(),
  camFlip:()=>{CAM.facing=CAM.facing==="user"?"environment":"user";camOpen()},

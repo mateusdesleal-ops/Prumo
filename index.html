@@ -4334,7 +4334,7 @@ async function connectCloud(){
  if(typeof DEMO_ON!=="undefined"&&DEMO_ON){startDemo();return}
  if(!SB_ON)return;
  let data=null;try{({data}=await sb.auth.getSession())}catch(e){}SESSION=data&&data.session;
- if(!SESSION){UI.needAuth=localModeChosen()?false:true;render();return}
+ if(!SESSION){if(hadLocalMode()){AUTH.mode="criar";AUTH.ok=true;AUTH.msg="Agora o Prumo funciona só com conta, para os seus dados nunca se perderem. Crie a sua com seu e-mail: tudo o que você já anotou neste aparelho vai junto."}UI.needAuth=true;render();return}
  await connectWithUser(SESSION.user.id);
 }
 /* registra que a pessoa abriu o app hoje (no máximo a cada 20 min) — usado só no painel do administrador */
@@ -4345,7 +4345,7 @@ async function connectWithUser(uid){setTimeout(touchSeen,3000);
  const db=sbDb();const localS=S,localFin=clone(PFIN);
  Store.db=db;ME.uid=uid;
  let snap;try{snap=await db.doc(appPath()).get()}catch(e){toast("Sem conexão. Usando os dados salvos neste aparelho.");render();return}
- Store.cloud=true;Store.localOnly=false;
+ Store.cloud=true;Store.localOnly=false;try{localStorage.removeItem("prumo.localMode")}catch(e){}
  const shareOn=()=>{const a={};SHARE_AREAS.forEach(([k])=>a[k]=true);S.profile.shareAreas=a;S.profile.shareAdmin=true;S.profile.shareAt=today();S.profile.shareAsked=1;S.profile.shareSource="cadastro"};
  if(snap.exists){S=hydrate(snap.data())}
  else if(localS.profile.created){S=localS;shareOn();await db.doc(appPath()).set(clone(S)).catch(()=>{});
@@ -4353,7 +4353,9 @@ async function connectWithUser(uid){setTimeout(touchSeen,3000);
  else{S=defaultState();shareOn();UI.onb=-1}
  subscribePersonal();if(S.profile.household)subscribeHousehold();applyTheme();render();loadMessages();
 }
-const localModeChosen=()=>{try{return localStorage.getItem("prumo.localMode")==="1"}catch(e){return false}};
+/* não existe mais uso sem conta: quem usava assim é levado a criar a conta (os dados do aparelho vão junto) */
+const hadLocalMode=()=>{try{return localStorage.getItem("prumo.localMode")==="1"}catch(e){return false}};
+const localModeChosen=()=>false;
 async function hhJoin(code){if(!sb)return;const {error}=await sb.from("household_members").upsert({code,uid:ME.uid});if(error)throw fail2(error)}
 async function hhLeave(code){if(!sb)return;await sb.from("household_members").delete().eq("code",code).eq("uid",ME.uid)}
 const fail2=e=>({code:"unavailable",message:e&&e.message});
@@ -4378,7 +4380,7 @@ Object.assign(A,{
  howVideo:()=>openModal("Como o Prumo funciona",`<div class="stack"><video src="como-funciona.mp4?v=2" poster="como-funciona.jpg" controls playsinline preload="auto" style="width:100%;max-height:68vh;border-radius:16px;background:#000;object-fit:contain"></video>
   ${Store.cloud||Store.demo?`<button class="btn ghost block" data-act="closeModal">Fechar</button>`:`<p class="tiny muted" style="text-align:center">Gostou? Crie sua conta: leva menos de 1 minuto e é gratuito.</p><button class="btn block" data-act="howCreate">Criar minha conta</button>`}</div>`,()=>{const vd=document.querySelector(".sheet video");if(vd){vd.volume=.7;vd.addEventListener("ended",()=>{if(Store.cloud&&S.profile.created&&!S.profile.videoSeen){S.profile.videoSeen=today();saveApp()}});const p=vd.play();if(p&&p.catch)p.catch(()=>{vd.muted=true;vd.play().catch(()=>{})})}}),
  howCreate:()=>{closeModal();AUTH.mode="criar";AUTH.msg="";render();setTimeout(()=>{const e=document.getElementById("a_email");if(e)e.focus()},50)},
- authLocal:()=>{try{localStorage.setItem("prumo.localMode","1")}catch(e){}UI.needAuth=false;Store.localOnly=true;render()},
+ authLocal:()=>{UI.needAuth=true;render()},
  authGo:async()=>{const email=v("a_email").trim(),pass=v("a_pass");const m=AUTH.mode;
   if(!/^\S+@\S+\.\S+$/.test(email)){AUTH.msg="Digite um e-mail válido.";AUTH.ok=false;render();return}
   if(m!=="esqueci"&&(!pass||(m==="criar"&&pass.length<8))){AUTH.msg=m==="criar"?"A senha precisa ter pelo menos 8 caracteres.":"Digite sua senha.";AUTH.ok=false;render();return}
@@ -4448,6 +4450,10 @@ bookForm=function(b){_bookForm(b);const t=$("#b_title");if(!t)return;
 A.pickBook=el=>{const r=(UI.bookRes||[])[+el.dataset.v];if(!r)return;$("#b_title").value=r.title;$("#b_author").value=r.author||"";if(r.pages)$("#b_pages").value=r.pages;$("#b_cover").value=r.cover||"";$("#bsug").innerHTML="";toast("Dados do livro preenchidos.")};
 
 if(SB_ON&&!localModeChosen())UI.needAuth="pending";
+/* sem a biblioteca de login (internet fora, bloqueador): não abre o app sem conta, mostra como resolver */
+if(!SB_ON&&CFG.supabaseUrl&&CFG.supabaseKey&&!/[?&]demo\b/.test(location.search)&&!/\/demo\//.test(location.pathname)){UI.needAuth="offline"}
+{const _va=viewAuth;viewAuth=function(){if(UI.needAuth!=="offline")return _va.apply(this,arguments);
+ return `<div class="onb" style="max-width:420px;margin:0 auto;text-align:center">${logoHTML(52)}<h2>Não consegui conectar</h2><p class="small muted">Para usar o Prumo é preciso entrar na sua conta, e para isso o app precisa de internet. Confira a conexão. Se usa bloqueador de anúncios ou VPN, tente desligar para este site.</p><button class="btn block" onclick="location.reload()">Tentar de novo</button></div>`}}
 
 /* ---------- Painel do administrador (só números gerais e lista de contas) ---------- */
 UI.isAdmin=undefined;

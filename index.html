@@ -2984,6 +2984,21 @@ let kbWasOpen=false;
 if(window.visualViewport)visualViewport.addEventListener("resize",()=>{const open=window.innerHeight-visualViewport.height>120;if(kbWasOpen&&!open)setTimeout(iosFixedNudge,60);kbWasOpen=open});
 document.addEventListener("focusout",e=>{const t=e.target;if(t&&t.matches&&t.matches("input,textarea,select"))setTimeout(()=>{const a=document.activeElement;if(!a||!a.matches||!a.matches("input,textarea,select"))iosFixedNudge()},250)});
 window.addEventListener("orientationchange",()=>setTimeout(iosFixedNudge,300));
+/* plano B (iPhone instalado): se a "tela de layout" ficar menor que a tela visível (sobra do teclado),
+   a barra e o + são posicionados pela área realmente visível, e voltam ao normal quando tudo se acerta */
+let fixRaf=0;
+function fixBottomBar(){fixRaf=0;const t=document.getElementById("tabs"),f=document.getElementById("fab");const vv=window.visualViewport;if(!t||!vv)return;
+ const clear=()=>{[t,f].forEach(e=>{if(e&&e.dataset.vvfix){e.style.top="";e.style.bottom="";e.dataset.vvfix=""}})};
+ if(window.innerWidth>=1000){clear();return}
+ const a=document.activeElement;const typing=a&&a.matches&&a.matches("input,textarea,select")&&window.innerHeight-vv.height>120;if(typing){clear();return}
+ const vb=vv.offsetTop+vv.height;
+ if(Math.abs(vb-window.innerHeight)<=2){clear();return}
+ const h=t.offsetHeight||64;t.style.bottom="auto";t.style.top=(vb-h)+"px";t.dataset.vvfix="1";
+ if(f&&!f.hidden){f.style.bottom="auto";f.style.top=(vb-h-18-(f.offsetHeight||58))+"px";f.dataset.vvfix="1"}}
+const fixBar=()=>{if(!fixRaf)fixRaf=requestAnimationFrame(fixBottomBar)};
+if(window.visualViewport){visualViewport.addEventListener("resize",fixBar);visualViewport.addEventListener("scroll",fixBar)}
+window.addEventListener("scroll",fixBar,{passive:true});window.addEventListener("resize",fixBar);document.addEventListener("focusout",()=>setTimeout(fixBar,300));setInterval(fixBar,1500);
+{const _rb=render;render=function(){_rb.apply(this,arguments);fixBar()}}
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(iosFixedNudge,200)});
 document.addEventListener("focusin",e=>{const t=e.target;if(!t||!t.matches||!t.matches("#modal input,#modal textarea"))return;
  setTimeout(()=>{kbFit();const sh=t.closest(".sheet");if(!sh||!document.querySelector("#modal .scrim.kb"))return;const r=t.getBoundingClientRect(),sr=sh.getBoundingClientRect();

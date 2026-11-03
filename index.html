@@ -1929,6 +1929,13 @@ function taskSrcChips(){const sel=taskSrcSel();const teams=typeof ttTeamList==="
  const opts=[["trabalho","Trabalho",TASK_KINDS.trabalho.c],["fora","Fora do trabalho",null],...teams.map(t=>["team:"+t.id,t.name,"var(--money)"])];
  return `<div class="chips" style="margin-top:-4px;flex-wrap:wrap"><button class="chip ${sel.length?"":"on"}" data-act="taskSrc" data-v="">Todas</button>${opts.map(([id,n,c])=>`<button class="chip ${sel.includes(id)?"on":""}" data-act="taskSrc" data-v="${esc(id)}" aria-pressed="${sel.includes(id)}">${c?`<i class="dot" style="background:${c};margin-right:5px;display:inline-block;vertical-align:middle"></i>`:""}${esc(n)}</button>`).join("")}</div>`}
 /* pesquisa de tarefas: título, observações, subtarefas, projeto e equipe */
+/* concluídas há mais de 90 dias são apagadas de vez (etapas de projeto ficam no projeto); roda 1x por dia */
+const TASK_KEEP_DAYS=90;
+function taskPrune(){if(!S||!S.tasks||!S.tasks.items||!S.profile||!S.profile.created)return;const key=TEAM?"team:"+TEAM.id:"me";UI.prunedAt=UI.prunedAt||{};if(UI.prunedAt[key]===today())return;
+ if(TEAM&&!teamAg())return;UI.prunedAt[key]=today();const lim=Date.now()-TASK_KEEP_DAYS*864e5;let n=0,fix=0;
+ for(const t of Object.values(S.tasks.items)){if(!t||t.status!=="done"||(t.proj&&PJ().items[t.proj]))continue;if(!t.doneAt){t.doneAt=Date.now();fix++;continue}if(+t.doneAt<lim){delete S.tasks.items[t.id];n++}}
+ if(n||fix)saveApp()}
+{const _rp=render;render=function(){_rp.apply(this,arguments);if(!UI.needAuth)setTimeout(taskPrune,2000)}}
 function taskQMatch(t){const q=norm(UI.taskQ||"").trim();if(!q)return true;const o=t._tt;const pj=o?o.pj:(t.proj&&PJ().items[t.proj]);
  const hay=norm([t.title,t.notes,t.place,(t.subs||[]).map(x=>x.t).join(" "),pj&&pj.name,o&&o.team.name].filter(Boolean).join(" "));return q.split(/\s+/).every(w=>hay.includes(w))}
 function taskFilterFn(t){if(!taskQMatch(t))return false;const f=UI.taskFilter||"all",td=today();if(f==="hoje")return t.date&&t.date<=td||t.status==="doing";if(f==="semana")return t.date&&t.date<=addDays(td,6);if(f==="atrasadas")return t.status!=="done"&&t.date&&t.date<td;if(f==="semdata")return!t.date;return true}

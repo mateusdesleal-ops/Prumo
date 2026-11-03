@@ -1955,10 +1955,12 @@ function tasksView(){const all=[...taskList(),...(!TEAM&&typeof ttItems==="funct
  ${teamAg()?"":taskSrcChips()}
  <div class="searchbox"><input id="taskQ" type="search" placeholder="Pesquisar tarefa" value="${esc(UI.taskQ||"")}" autocomplete="off" aria-label="Pesquisar tarefa">${UI.taskQ?`<button class="iconbtn" data-act="clearQ" data-v="taskQ" aria-label="Limpar pesquisa">×</button>`:""}</div>
  ${UI.taskQ&&!all.some(taskFilterFn)?`<p class="small muted">Nenhuma tarefa com “${esc(UI.taskQ)}”. Confira os filtros acima.</p>`:""}
- <div class="kanban" role="list">${TCOLS.map(([st,n])=>{let list=all.filter(t=>t.status===st&&taskFilterFn(t)).sort(taskSort);const more=st==="done"&&list.length>15;if(more)list=list.slice(0,15);
+ <div class="kanban" role="list">${TCOLS.map(([st,n])=>{let list=all.filter(t=>t.status===st&&taskFilterFn(t)).sort(taskSort);let hid=0;
+  if(st==="done"&&!UI.doneAll&&!UI.taskQ){const td=today();const da=t=>+((t._tt?t._tt.x.doneAt:t.doneAt)||0);list=list.slice().sort((a,b)=>da(b)-da(a));const keep=list.filter((t,i)=>i<5||(da(t)&&ymd(new Date(da(t)))===td));hid=list.length-keep.length;list=keep}
   return `<section class="kcol" data-col="${st}" aria-label="${n}"><div class="row between"><b>${n}</b><span class="pill info num">${all.filter(t=>t.status===st&&taskFilterFn(t)).length}</span></div>
   ${list.length?list.map(taskCard).join(""):`<p class="tiny muted" style="text-align:center;padding:14px 4px">${st==="todo"?"Nada por fazer. Toque em Nova tarefa.":st==="doing"?"Arraste ou toque em Começar numa tarefa.":"As tarefas concluídas aparecem aqui."}</p>`}
   ${st==="todo"?`<button class="btn ghost sm" data-act="addTask">${I.plus.replace('<svg','<svg width="16" height="16"')} Nova tarefa</button>`:""}
+  ${st==="done"&&(hid||UI.doneAll)?`<button class="btn ghost sm" data-act="doneAll">${UI.doneAll?"Mostrar só as últimas":`Ver mais ${hid} concluída${hid>1?"s":""}`}</button>`:""}
   ${st==="done"&&all.some(t=>t.status==="done")?`<button class="btn ghost sm" data-act="clearDone">Limpar concluídas</button>`:""}</section>`}).join("")}</div>
  <p class="tiny muted">Deslize para o lado para ver as colunas. No computador, dá para arrastar os cartões. Tarefas com data aparecem no calendário e lembram na hora marcada.</p></div>`}
 function homeTasksCard(){const list=taskList().filter(t=>t.status!=="done"&&((t.date&&t.date<=today())||t.status==="doing")).sort(taskSort);
@@ -3248,6 +3250,7 @@ const A={
   S.tasks.items[id]=t;let ns=$("#tk_status")?v("tk_status"):t.status;if(t.final&&!old.final)ns="done";closeModal();if(ns!==t.status)moveTask(id,ns);else{commit();toast(old.id?"Tarefa salva.":"Tarefa criada.")}},
  delTaskYes:()=>{const lb=taskDecay().lost;setTimeout(()=>taskLostToast(lb),0);const id=document.querySelector('[data-act="saveTask"]').dataset.v;delete S.tasks.items[id];commit();closeModal();toast("Tarefa apagada.")},
  taskMove:el=>moveTask(el.dataset.v,el.dataset.to),
+ doneAll:()=>{UI.doneAll=!UI.doneAll;render()},
  clearQ:el=>{UI[el.dataset.v]="";render();const e=document.getElementById(el.dataset.v);if(e)e.focus()},
  clearDone:()=>{taskList().filter(t=>t.status==="done"&&!(t.proj&&PJ().items[t.proj])).forEach(t=>delete S.tasks.items[t.id]);commit();toast("Concluídas removidas do quadro. Elas continuam contando para o porquinho.")},
  prTick:el=>{const id=el.dataset.v;const d=today();const l=S.prayer.log[d]=S.prayer.log[d]||{};const before=prayerPeace();if(l[id])delete l[id];else{l[id]=1;markActive()}commit();

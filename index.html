@@ -2390,7 +2390,7 @@ function render(){
   if(UI.tab==="fin"&&!teamHas("fin"))UI.fin="orc";}
  if(UI.tab==="agenda"){const subs=AG_SUBS();if(subs.length&&!subs.some(x=>x[0]===(UI.agendaSub||"cal")))UI.agendaSub=subs[0][0]}
  document.body.classList.toggle("team-env",!!TEAM);
- if(UI.tab!=="fin")UI.finOpen=false;
+ if(UI.tab!=="fin")UI.finOpen=false;if(UI.tab!=="home")UI.homeFinOpen=false;
  const views={home:()=>TEAM&&typeof viewTeamHome==="function"?viewTeamHome():viewHome(),vaq:()=>typeof viewVaq==="function"?viewVaq():viewHome(),chal:()=>typeof viewChal==="function"?viewChal():viewHome(),fin:()=>finLocked()?finLockView():viewFin(),study:viewStudy,ex:viewEx,agenda:viewAgenda,prayer:viewPrayer,learn:viewLearn,pig:viewPig,profile:viewProfile,admin:viewAdmin};
  const sy=window.scrollY;
  wardrobePrepare();
@@ -2543,10 +2543,10 @@ function viewHome(){
   <div class="grid3" style="row-gap:16px">${ring(finToday?1:0,"var(--money)","Finanças",finToday?"Registrado":"Pendente")}${ring(sMin/sGoal,"var(--pig-deep)","Estudo",`${sMin}/${sGoal} min`)}${ring(eMin/Math.max(1,plan.daily),"var(--need)","Exercício",`${eMin}/${plan.daily} min`)}${ring(fdT.meals/3,"var(--warn)","Alimentação",`${fdT.meals} ${fdT.meals===1?"refeição":"refeições"}`)}${(()=>{const td=today();const dueT=taskList().filter(t=>t.date===td);const doneT=taskList().filter(t=>t.status==="done"&&t.doneAt&&ymd(new Date(t.doneAt))===td);const plan=new Set([...dueT,...doneT].map(t=>t.id)).size;return ring(plan?doneT.length/plan:0,"#8A6FD1","Tarefas",plan?`${doneT.length}/${plan}`:"Nenhuma hoje")})()}${S.profile.prayer&&S.prayer.trad?(()=>{const d=prDaily();const n=d.filter(id=>prDone(id)).length;return ring(d.length?n/d.length:0,"var(--warn)","Oração",`${n}/${d.length}`)})():""}</div>
   ${finToday?"":`<button class="btn ghost block" style="margin-top:12px" data-act="checkin">Hoje não gastei nada</button>`}
  </div>
- <div class="card stack"><div class="row between"><div class="label">Este mês</div><button class="btn ghost sm" data-act="tab" data-v="fin">Abrir finanças</button></div>
+ ${finLockOn()&&!UI.homeFinOpen?homeFinLocked():`<div class="card stack"><div class="row between"><div class="label">Este mês</div><span class="row" style="gap:6px">${finLockOn()?`<button class="btn ghost sm" data-act="homeFinLock" title="Esconder os valores">${LOCK_ICO}</button>`:""}<button class="btn ghost sm" data-act="tab" data-v="fin">Abrir finanças</button></span></div>
   <div class="grid3"><div class="stack-s"><span class="tiny muted">Renda</span><b class="num">${brl0(t.income)}</b></div><div class="stack-s"><span class="tiny muted">Gastos</span><b class="num">${brl0(t.spent)}</b></div><div class="stack-s"><span class="tiny muted">Saldo</span><b class="num" style="color:${t.income-t.spent>=0?"var(--good)":"var(--bad)"}">${brl0(t.income-t.spent)}</b></div></div>
   ${inc?bucketBars(t.b,inc,h.plan,true):`<button class="btn money" data-act="addIncome">Lançar minha renda</button>`}
- </div>
+ </div>`}
  <div class="grid2"><button class="btn line" data-act="addExpense">${I.plus.replace('<svg','<svg width="18" height="18"')} Gasto</button><button class="btn line" data-act="addStudy">${I.plus.replace('<svg','<svg width="18" height="18"')} Estudo</button><button class="btn line" data-act="addEx">${I.plus.replace('<svg','<svg width="18" height="18"')} Exercício</button><button class="btn line" data-act="addEvent">${I.plus.replace('<svg','<svg width="18" height="18"')} Evento</button><button class="btn line" data-act="addFood">${I.plus.replace('<svg','<svg width="18" height="18"')} Refeição</button><button class="btn line" data-act="water" data-v="1">${I.plus.replace('<svg','<svg width="18" height="18"')} Copo de água</button><button class="btn line" data-act="goBuy" style="grid-column:1/-1">Posso comprar?</button></div>
  ${homeTasksCard()}
  <div class="card"><div class="row between" style="margin-bottom:4px"><div class="label">Próximos compromissos</div><button class="btn ghost sm" data-act="tab" data-v="agenda">Agenda</button></div>
@@ -4181,12 +4181,22 @@ function finPinForm(){openModal("Senha das finanças",`<div class="stack"><p cla
  <label class="field"><span>Repita a senha</span><input id="fp2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="8"></label>
  <button class="btn block" data-act="finPinSave">Salvar senha</button>
  ${S.profile.finPin?`<button class="btn ghost" data-act="finPinRemove">Tirar a senha (fica só o botão de desbloquear)</button>`:""}</div>`)}
+/* cartão "Este mês" do Início no computador: também trancado; abre com a senha e volta a trancar ao trocar de aba */
+function homeFinLocked(){const pin=!!S.profile.finPin;return `<div class="card stack" style="align-items:center;text-align:center;gap:10px"><div class="row between" style="align-self:stretch"><div class="label">Este mês</div><span class="tiny muted">${LOCK_ICO} trancado</span></div>
+ <div class="row" style="gap:18px;filter:blur(6px);opacity:.5;user-select:none;pointer-events:none" aria-hidden="true"><b class="num">R$ ••••</b><b class="num">R$ ••••</b><b class="num">R$ ••••</b></div>
+ <p class="small muted" style="margin:0">Os valores ficam escondidos no computador para ninguém ver sem querer.</p>
+ ${pin?`<div class="row" style="gap:8px;justify-content:center;flex-wrap:wrap"><input id="hf_pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="Senha" style="max-width:150px;text-align:center;letter-spacing:.3em" aria-label="Senha das finanças"><button class="btn sm" data-act="homeFinUnlock">Mostrar</button></div>`:`<button class="btn sm" data-act="homeFinUnlock">${LOCK_ICO} Mostrar valores</button>`}</div>`}
+async function homeFinUnlock(){const i=document.getElementById("hf_pin");if(S.profile.finPin){const val=(i&&i.value||"").trim();if(!val){toast("Digite sua senha.");if(i)i.focus();return}
+  if(await pinHash(val)!==S.profile.finPin){toast("Senha errada.");if(i){i.value="";i.focus()}return}}
+ UI.homeFinOpen=true;UI.finAct=Date.now();render()}
 async function finTryUnlock(){const i=document.getElementById("fl_pin");if(S.profile.finPin){const val=(i&&i.value||"").trim();if(!val){toast("Digite sua senha.");if(i)i.focus();return}
   if(await pinHash(val)!==S.profile.finPin){toast("Senha errada.");if(i){i.value="";i.focus()}return}}
  UI.finOpen=true;UI.finAct=Date.now();render()}
 Object.assign(A,{
  finUnlock:()=>finTryUnlock(),
  finLockNow:()=>{UI.finOpen=false;render();window.scrollTo(0,0)},
+ homeFinUnlock:()=>homeFinUnlock(),
+ homeFinLock:()=>{UI.homeFinOpen=false;render()},
  finPinNew:()=>finPinForm(),
  finPinSave:async()=>{const a=v("fp1").trim(),b=v("fp2").trim();if(!/^\d{4,8}$/.test(a)){toast("Use de 4 a 8 números.");return}if(a!==b){toast("As senhas não são iguais.");return}
   S.profile.finPin=await pinHash(a);S.profile.finLock=true;commit();closeModal();toast("Senha criada. Ela vai ser pedida no computador.")},
@@ -4198,12 +4208,12 @@ Object.assign(A,{
   if(acct){const pw=v("fg_pass");if(!pw){toast("Digite a senha da conta.");return}try{const {error}=await sb.auth.signInWithPassword({email:SESSION.user.email,password:pw});if(error){toast("Senha da conta errada.");return}}catch(e){toast("Sem conexão. Tente de novo.");return}}
   delete S.profile.finPin;commit();closeModal();toast("Senha removida. Toque em Desbloquear.")},
 });
-document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target&&e.target.id==="fl_pin")finTryUnlock()});
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target&&e.target.id==="fl_pin")finTryUnlock();if(e.key==="Enter"&&e.target&&e.target.id==="hf_pin")homeFinUnlock()});
 document.addEventListener("input",e=>{if(e.target&&e.target.id==="fl_pin"&&e.target.value.length>=4&&S.profile.finPin){const val=e.target.value;pinHash(val).then(h=>{if(h===S.profile.finPin&&document.getElementById("fl_pin")){UI.finOpen=true;UI.finAct=Date.now();render()}})}});
 document.addEventListener("change",ev=>{if(ev.target&&ev.target.id==="finLockToggle"){if(!ev.target.checked&&S.profile.finPin&&finLockOn()&&!UI.finOpen){ev.target.checked=true;toast("Abra as finanças com a senha antes de desligar o cadeado.");return}S.profile.finLock=ev.target.checked;commit();toast(ev.target.checked?"Cadeado ligado no computador.":"Cadeado desligado.")}});
-["pointerdown","keydown","wheel"].forEach(t=>document.addEventListener(t,()=>{if(UI.finOpen)UI.finAct=Date.now()},{passive:true}));
-document.addEventListener("visibilitychange",()=>{if(document.hidden&&UI.finOpen&&finLockOn()){UI.finOpen=false;if(UI.tab==="fin")render()}});
-setInterval(()=>{if(UI.finOpen&&finLockOn()&&Date.now()-(UI.finAct||0)>5*60000){UI.finOpen=false;if(UI.tab==="fin"&&!$("#modal").innerHTML){render();toast("Finanças trancadas depois de 5 minutos paradas.")}}},20000);
+["pointerdown","keydown","wheel"].forEach(t=>document.addEventListener(t,()=>{if(UI.finOpen||UI.homeFinOpen)UI.finAct=Date.now()},{passive:true}));
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&(UI.finOpen||UI.homeFinOpen)&&finLockOn()){UI.finOpen=false;UI.homeFinOpen=false;render()}});
+setInterval(()=>{if(UI.homeFinOpen&&finLockOn()&&Date.now()-(UI.finAct||0)>5*60000){UI.homeFinOpen=false;if(UI.tab==="home"&&!$("#modal").innerHTML)render()}if(UI.finOpen&&finLockOn()&&Date.now()-(UI.finAct||0)>5*60000){UI.finOpen=false;if(UI.tab==="fin"&&!$("#modal").innerHTML){render();toast("Finanças trancadas depois de 5 minutos paradas.")}}},20000);
 {const _rf=render;render=function(){_rf();if(finLocked()&&UI.tab==="fin"){const i=document.getElementById("fl_pin");if(i&&document.activeElement!==i)setTimeout(()=>i.focus(),30)}}}
 /* ---------- Projetos ----------
    Um projeto tem nome, objetivo, prazo e etapas em ordem. Cada etapa é uma tarefa ligada ao projeto

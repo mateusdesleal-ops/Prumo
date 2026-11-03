@@ -5807,7 +5807,7 @@ function remTeamItems(now){const out=[];for(const t of TEAMS||[]){const f=t.feat
    out.push({id:`t:${t.id.slice(0,8)}|${e.id}|${d}|${rm}|${e.time}`,at:new Date(tt).toISOString(),title:`${e.kindT==="tk"?"✅":"📅"} ${String(e.title||"Compromisso").slice(0,60)} · ${String(t.name).slice(0,20)}`,body:`${when}${e.place?" · "+e.place:""}`,url:`/?t=${t.id}&go=${e.kindT==="tk"?"tasks&i="+e.id:"agenda&d="+d}`})}}}
  return out}
 function remList(){const team=remTeamItems(Date.now());return withPersonal(()=>{const out=team.slice();const now=Date.now();
- for(let i=0;i<14;i++){const d=addDays(today(),i);for(const e of eventsOn(d)){if(!e.time)continue;const [h,m]=e.time.split(":").map(Number);const at=parseDate(d);at.setHours(h,m,0,0);
+ for(let i=0;i<14;i++){const d=addDays(today(),i);for(const e of eventsOn(d)){if(!e.time||e.tt)continue;const [h,m]=e.time.split(":").map(Number);const at=parseDate(d);at.setHours(h,m,0,0);
   const rm=+e.remind||0;const t=at.getTime()-rm*60000;if(t<now-60000)continue;
   const when=rm>=1440?`amanhã às ${e.time}`:rm>=60?`em ${Math.round(rm/60)} h (${e.time})`:rm>0?`em ${rm} min (${e.time})`:`agora (${e.time})`;
   out.push({id:`${e.id}|${d}|${rm}|${e.time}`,at:new Date(t).toISOString(),title:`${e.task?"✅":"📅"} ${String(e.title||"Compromisso").slice(0,80)}`,body:`${when}${e.place?" · "+e.place:""}`,url:`/?go=agenda&d=${d}`})}}
@@ -5820,6 +5820,47 @@ setTimeout(()=>remSync(true),6000);setInterval(()=>{if(!document.hidden)remSync(
 /* link da notificação de lembrete: abre a agenda no dia */
 try{const q=new URLSearchParams(location.search);if(q.get("go")==="agenda"&&!q.get("t")){UI.tab="agenda";UI.agendaSub="cal";if(q.get("d"))UI.calDay=q.get("d");history.replaceState({},"",location.pathname)}}catch(e){}
 {const _nr=notifRoute;notifRoute=function(u){try{const q=new URL(u,location.origin).searchParams;if(q.get("go")==="agenda"&&!q.get("t")){if(TEAM&&typeof teamExit==="function")teamExit();closeModal();UI.tab="agenda";UI.agendaSub="cal";if(q.get("d"))UI.calDay=q.get("d");window.scrollTo(0,0);render();return}}catch(e){}return _nr.apply(this,arguments)}}
+
+/* ---------- Tarefas e etapas das equipes no Prumo pessoal ----------
+   Mostra (sem copiar) o que é seu nas equipes: responsável ou apoio. Feito/Começar gravam na equipe. */
+let ttBusy=false,ttAt=0;
+function ttEnsure(){if(TEAM||Store.demo||!Store.cloud||!TEAMS||ttBusy)return;if(Date.now()-ttAt<120000)return;ttAt=Date.now();ttBusy=true;remTT=0;remTeamLoad().then(()=>{ttBusy=false;if(!TEAM)render()}).catch(()=>{ttBusy=false})}
+function myTeamTasks(withDone){if(TEAM||!TEAMS)return[];const out=[];for(const t of TEAMS){const doc=REMT[t.id];if(!doc)continue;const pjs=(doc.projects||{}).items||{};
+ for(const x of vals((doc.tasks||{}).items||{})){if(!x||!x.id||(!withDone&&x.status==="done"))continue;const role=x.who===ME.uid?"resp":(x.help||[]).includes(ME.uid)?"apoio":null;if(!role)continue;
+  out.push({x,team:t,role,pj:x.proj&&pjs[x.proj]?pjs[x.proj]:null})}}
+ const rk=o=>o.x.date&&o.x.date<today()?0:o.x.status==="doing"?1:2;return out.sort((a,b)=>rk(a)-rk(b)||(a.x.date||"9999").localeCompare(b.x.date||"9999"))}
+function ttRow(o){const x=o.x;const late=x.date&&x.date<today();
+ return `<div class="item" style="align-items:flex-start"><button class="iconbtn" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--line);background:none;flex:none;margin-top:2px" data-act="ttDone" data-t="${o.team.id}" data-v="${x.id}" aria-label="Concluir ${esc(x.title)}"></button>
+ <div class="grow stack-s" style="gap:3px;min-width:0"><button style="border:0;background:none;text-align:left;padding:0" data-act="ttOpen" data-t="${o.team.id}" data-v="${x.id}"><p><b>${esc(x.title)}</b></p><p class="tiny muted">${esc(o.team.name)}${o.pj?" · "+esc(o.pj.name):""} · ${o.role==="resp"?"você é responsável":"você está no apoio"}</p></button>
+ <div class="row" style="gap:6px;flex-wrap:wrap">${x.date?`<span class="pill ${late?"bad":x.date===today()?"warn":"info"}">${late?"atrasada · ":""}${x.date===today()?"hoje":ddmm(x.date)}${x.time?" "+x.time:""}</span>`:""}${x.status==="doing"?`<span class="pill info">fazendo</span>`:`<button class="linkbtn tiny" data-act="ttStart" data-t="${o.team.id}" data-v="${x.id}" style="border:0;background:none;padding:0;color:var(--pig-deep);font-weight:700">Começar</button>`}</div></div></div>`}
+function ttSection(){const L=myTeamTasks();if(!L.length)return"";const late=L.filter(o=>o.x.date&&o.x.date<today()).length;
+ return `<div class="card stack" style="gap:6px;border-left:4px solid var(--money)"><div class="row between"><div class="label">Das suas equipes · ${L.length}</div>${late?`<span class="pill bad">${late} atrasada${late>1?"s":""}</span>`:""}</div>
+ <div class="list">${L.slice(0,UI.ttAll?60:6).map(ttRow).join("")}</div>${L.length>6?`<button class="btn ghost sm" data-act="ttMore" style="align-self:flex-start">${UI.ttAll?"Mostrar menos":`Ver todas (${L.length})`}</button>`:""}
+ <p class="tiny muted">Tarefas e etapas em que você é responsável ou apoio. Concluir aqui marca na equipe para todo mundo.${S.profile.pet?` ${S.profile.ttNoPig?"Não contam":"Contam"} para o porquinho · <button class="linkbtn tiny" data-act="ttPig" style="border:0;background:none;padding:0;color:var(--pig-deep)">${S.profile.ttNoPig?"ligar":"desligar"}</button>`:""}</p></div>`}
+{const _tv=tasksView;tasksView=function(){const h=_tv.apply(this,arguments);if(TEAM)return h;ttEnsure();const sec=ttSection();return sec?h.replace('<div class="kanban"',sec+'<div class="kanban"'):h}}
+{const _hc=homeTasksCard;homeTasksCard=function(){const h=_hc.apply(this,arguments);if(TEAM)return h;ttEnsure();const L=myTeamTasks().filter(o=>o.x.status==="doing"||(o.x.date&&o.x.date<=today()));if(!L.length)return h;
+ const extra=`<div class="label" style="margin:10px 0 2px">Das suas equipes</div><div class="list">${L.slice(0,4).map(ttRow).join("")}</div>${L.length>4?`<p class="tiny muted">E mais ${L.length-4}.</p>`:""}`;
+ const i=h.lastIndexOf("</div>");return i>0?h.slice(0,i)+extra+h.slice(i):h+extra}}
+{const _te=taskEvents;taskEvents=function(day){const r=_te.apply(this,arguments);if(TEAM||!TEAMS)return r;
+ return r.concat(myTeamTasks().filter(o=>o.x.date===day&&o.x.cal!==false).map(o=>({id:"tt_"+o.x.id,taskId:o.x.id,task:true,tt:o.team.id,title:`${o.team.name} · ${o.pj?o.pj.name+" · ":""}${o.x.title}`,date:day,time:o.x.time||"",remind:+o.x.remind||0,repeat:"none",place:o.x.place||""})))}}
+{const _ei=evItem;evItem=function(e){const h=_ei.apply(this,arguments);if(!e.tt)return h;return h.replace(`data-act="editTask" data-v="${e.taskId}"`,`data-act="ttOpen" data-t="${e.tt}" data-v="${e.taskId}"`).replace('>tarefa</span>','>equipe</span>')}}
+async function ttWrite(tid,id,patch){const doc=REMT[tid];const x=doc&&((doc.tasks||{}).items||{})[id];if(!x)return null;
+ await Store.db.doc(`teams/${tid}/agenda`).update({tasks:{items:{[id]:patch}}});Object.assign(x,patch);return x}
+Object.assign(A,{
+ ttMore:()=>{UI.ttAll=!UI.ttAll;render()},
+ ttPig:()=>{S.profile.ttNoPig=!S.profile.ttNoPig;saveApp();render()},
+ ttOpen:el=>{const tid=el.dataset.t,id=el.dataset.v;const doc=REMT[tid];const x=doc&&((doc.tasks||{}).items||{})[id];
+  notifRoute(x&&x.proj?`/?t=${tid}&go=proj&i=${x.proj}&k=${id}`:`/?t=${tid}&go=tasks&i=${id}`)},
+ ttStart:async el=>{el.disabled=true;try{await ttWrite(el.dataset.t,el.dataset.v,{status:"doing"});render();toast("Marcado como fazendo na equipe.")}catch(e){el.disabled=false;toast("Não consegui salvar agora. Confira a internet.")}},
+ ttDone:async el=>{const tid=el.dataset.t,id=el.dataset.v;const doc=REMT[tid];const x0=doc&&((doc.tasks||{}).items||{})[id];if(!x0)return;
+  if(x0.repeat){A.ttOpen(el);return}
+  el.disabled=true;try{const x=await ttWrite(tid,id,{status:"done",doneAt:Date.now(),doneBy:ME.uid});
+   if(!S.profile.ttNoPig){S.tasks.doneTotal=(+S.tasks.doneTotal||0)+1;markActive();saveApp()}
+   const t=TEAMS.find(z=>z.id===tid);const pj=x.proj&&((doc.projects||{}).items||{})[x.proj];
+   if(pj){const people=[x.who,...(x.help||[])].filter(u=>u&&u!==ME.uid);if(people.length)notifyTeamId(tid,people,"projupd",`${t?t.name:"Equipe"}: etapa concluída`,`${myNick()} concluiu "${x.title}" no projeto ${pj.name}.`,`proj&i=${pj.id||x.proj}&k=${x.id}`)}
+   render();toast(pj?"Etapa concluída! A equipe já vê.":"Tarefa concluída! A equipe já vê.")}
+  catch(e){console.warn(e);el.disabled=false;toast("Não consegui salvar agora. Confira a internet.")}}
+});
 
 /* início */
 (function boot(){

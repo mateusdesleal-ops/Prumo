@@ -5627,7 +5627,7 @@ function notifView(){const L=NOTIF.list;
  if(L.some(x=>!x.read_at)){sb.rpc("mark_notifications_read",{p_ids:null}).then(()=>{L.forEach(x=>{if(!x.read_at)x.read_at=new Date().toISOString()});render()}).catch(()=>{})}}
 A.notifOpen=()=>notifView();
 A.notifGo=el=>{const n=NOTIF.list.find(x=>x.id===el.dataset.v);closeModal();if(!n)return;notifRoute(n.url||"/")};
-function notifRoute(u){try{const q=new URL(u,location.origin).searchParams;const t=q.get("t"),go=q.get("go");if(t)UI.pendTeam={id:t,go:go||"home",i:q.get("i"),k:q.get("k")}}catch(e){}notifApply()}
+function notifRoute(u){try{const q=new URL(u,location.origin).searchParams;const t=q.get("t"),go=q.get("go");if(t)UI.pendTeam={id:t,go:go||"home",i:q.get("i"),k:q.get("k"),d:q.get("d")}}catch(e){}notifApply()}
 /* abre o item exato do aviso; espera os dados da equipe chegarem (até ~8 s) */
 function notifDeep(ready,act){let n=0;const tick=()=>{let ok=false;try{ok=ready()}catch(e){}if(ok){try{act()}catch(e){console.warn(e)}return}if(++n<27)setTimeout(tick,300)};setTimeout(tick,150)}
 function notifScrollTo(sel){const el=document.querySelector(sel);if(!el)return false;const card=el.closest(".card")||el;const y=card.getBoundingClientRect().top+window.scrollY-90;window.scrollTo({top:Math.max(0,y),behavior:"smooth"});card.classList.add("flash");setTimeout(()=>card.classList.remove("flash"),2200);return true}
@@ -5635,14 +5635,14 @@ function notifApply(){const p=UI.pendTeam;if(!p)return;if(!TEAMS){if(typeof team
  UI.pendTeam=null;const tm=TEAMS.find(x=>x.id===p.id);if(!tm){toast("Você não faz mais parte dessa equipe.");return}
  if(!TEAM||TEAM.id!==tm.id)teamEnter(tm.id,true);
  closeModal();
- if(p.go==="chal"){UI.tab="chal";UI.chalOpen=p.i||null;if(p.k)UI.chCmOpen=p.k}else if(p.go==="tasks"){UI.tab="agenda";UI.agendaSub="tasks";UI.teamWho="eu"}else if(p.go==="proj"){UI.tab="agenda";UI.agendaSub="proj";UI.projOpen=p.i||null;UI.projF="minhas"}else if(p.go==="vaq"&&teamHas("vaq")){UI.tab="vaq";UI.vqF="abertas"}else UI.tab="home";
+ if(p.go==="chal"){UI.tab="chal";UI.chalOpen=p.i||null;if(p.k)UI.chCmOpen=p.k}else if(p.go==="tasks"){UI.tab="agenda";UI.agendaSub="tasks";UI.teamWho="eu"}else if(p.go==="proj"){UI.tab="agenda";UI.agendaSub="proj";UI.projOpen=p.i||null;UI.projF="minhas"}else if(p.go==="vaq"&&teamHas("vaq")){UI.tab="vaq";UI.vqF="abertas"}else if(p.go==="agenda"){UI.tab="agenda";UI.agendaSub="cal";if(p.d)UI.calDay=p.d}else UI.tab="home";
  window.scrollTo(0,0);render();
  if(p.go==="chal"&&p.i){notifDeep(()=>!!CHP().items[p.i],()=>{if(UI.chalOpen!==p.i){UI.chalOpen=p.i;render()}if(p.k)notifDeep(()=>!!document.querySelector(`[data-rx="${CSS.escape(p.k)}"]`),()=>{UI.chCmOpen=p.k;chPatch(p.k);notifScrollTo(`[data-rx="${CSS.escape(p.k)}"]`)})})}
  else if(p.go==="proj"&&p.i){notifDeep(()=>!!PJ().items[p.i],()=>{UI.projOpen=p.i;render();if(p.k)notifDeep(()=>!!document.querySelector(`[data-v="${CSS.escape(p.k)}"]`),()=>notifScrollTo(`[data-v="${CSS.escape(p.k)}"]`))})}
  else if(p.go==="tasks"&&p.i){notifDeep(()=>!!S.tasks.items[p.i],()=>{const t=S.tasks.items[p.i];if(t)taskForm(t)})}
  else if(p.go==="vaq"&&p.i){notifDeep(()=>!!(VQ().items||{})[p.i],()=>vaqDetail(p.i))}}
 /* link da notificação (?t=equipe&go=aba) */
-try{const q=new URLSearchParams(location.search);if(q.get("t")){UI.pendTeam={id:q.get("t"),go:q.get("go")||"home",i:q.get("i"),k:q.get("k")};history.replaceState({},"",location.pathname)}}catch(e){}
+try{const q=new URLSearchParams(location.search);if(q.get("t")){UI.pendTeam={id:q.get("t"),go:q.get("go")||"home",i:q.get("i"),k:q.get("k"),d:q.get("d")};history.replaceState({},"",location.pathname)}}catch(e){}
 if(navigator.serviceWorker)navigator.serviceWorker.addEventListener("message",ev=>{if(ev.data&&ev.data.type==="prumo-open")notifRoute(ev.data.url);if(ev.data&&ev.data.type==="prumo-push"){NOTIF.loading=false;notifLoad()}});
 
 let pushChecked=false;
@@ -5782,16 +5782,30 @@ function insCard(){const st=PUSHST;if(!st||!insNeeded(st))return"";const g=insGe
    Antes o aviso só aparecia com o app aberto. Agora o app manda ao servidor os lembretes
    dos próximos 14 dias (compromissos e tarefas com horário) e o servidor envia a notificação
    na hora certa, mesmo com o app fechado. */
-function remList(){return withPersonal(()=>{const out=[];const now=Date.now();
+/* agendas das equipes (compromissos de todos e tarefas em que a pessoa é responsável ou apoio) */
+const REMT={};let remTT=0;
+async function remTeamLoad(){if(!TEAMS||Store.demo||!Store.cloud)return;if(Date.now()-remTT<10*60000)return;remTT=Date.now();
+ for(const t of TEAMS){const f=t.features||{};if(!(f.agenda||f.tasks||f.proj))continue;
+  if(TEAM&&TEAM.id===t.id&&TD.agenda){REMT[t.id]=clone(TD.agenda);continue}
+  try{const d=await Store.db.doc(`teams/${t.id}/agenda`).get();REMT[t.id]=d.exists?(d.data()||{}):{}}catch(e){}}}
+function remTeamItems(now){const out=[];for(const t of TEAMS||[]){const f=t.features||{};const doc=(TEAM&&TEAM.id===t.id&&TD.agenda)?TD.agenda:REMT[t.id];if(!doc)continue;
+ const evs=f.agenda?vals((doc.agenda||{}).events||{}):[];const tks=vals((doc.tasks||{}).items||{}).filter(x=>x&&x.status!=="done"&&x.time&&x.cal!==false&&(x.who===ME.uid||(x.help||[]).includes(ME.uid)));
+ for(let i=0;i<14;i++){const d=addDays(today(),i);
+  const list=[...evs.filter(e=>e&&e.time&&occursOn(e,d)).map(e=>({...e,kindT:"ev"})),...tks.filter(x=>x.date===d).map(x=>({...x,kindT:"tk"}))];
+  for(const e of list){const [h,m]=e.time.split(":").map(Number);const at=parseDate(d);at.setHours(h,m,0,0);const rm=+e.remind||0;const tt=at.getTime()-rm*60000;if(tt<now-60000)continue;
+   const when=rm>=1440?`amanhã às ${e.time}`:rm>=60?`em ${Math.round(rm/60)} h (${e.time})`:rm>0?`em ${rm} min (${e.time})`:`agora (${e.time})`;
+   out.push({id:`t:${t.id.slice(0,8)}|${e.id}|${d}|${rm}|${e.time}`,at:new Date(tt).toISOString(),title:`${e.kindT==="tk"?"✅":"📅"} ${String(e.title||"Compromisso").slice(0,60)} · ${String(t.name).slice(0,20)}`,body:`${when}${e.place?" · "+e.place:""}`,url:`/?t=${t.id}&go=${e.kindT==="tk"?"tasks&i="+e.id:"agenda&d="+d}`})}}}
+ return out}
+function remList(){const team=remTeamItems(Date.now());return withPersonal(()=>{const out=team.slice();const now=Date.now();
  for(let i=0;i<14;i++){const d=addDays(today(),i);for(const e of eventsOn(d)){if(!e.time)continue;const [h,m]=e.time.split(":").map(Number);const at=parseDate(d);at.setHours(h,m,0,0);
   const rm=+e.remind||0;const t=at.getTime()-rm*60000;if(t<now-60000)continue;
   const when=rm>=1440?`amanhã às ${e.time}`:rm>=60?`em ${Math.round(rm/60)} h (${e.time})`:rm>0?`em ${rm} min (${e.time})`:`agora (${e.time})`;
   out.push({id:`${e.id}|${d}|${rm}|${e.time}`,at:new Date(t).toISOString(),title:`${e.task?"✅":"📅"} ${String(e.title||"Compromisso").slice(0,80)}`,body:`${when}${e.place?" · "+e.place:""}`,url:`/?go=agenda&d=${d}`})}}
  return out.sort((a,b)=>a.at.localeCompare(b.at)).slice(0,300)})}
 let remT=null,remLast="";
-function remSync(force){if(Store.demo||!sb||!Store.cloud||!ME||!ME.uid)return;clearTimeout(remT);remT=setTimeout(async()=>{try{const list=remList();const sig=JSON.stringify(list);let stamp=0;try{stamp=+localStorage.getItem("prumo.remT")||0}catch(e){}
+function remSync(force){if(Store.demo||!sb||!Store.cloud||!ME||!ME.uid)return;clearTimeout(remT);remT=setTimeout(async()=>{try{await remTeamLoad();const list=remList();const sig=JSON.stringify(list);let stamp=0;try{stamp=+localStorage.getItem("prumo.remT")||0}catch(e){}
  if(!force&&sig===remLast&&Date.now()-stamp<6*3600e3)return;const {error}=await sb.rpc("sync_reminders",{p:list});if(!error){remLast=sig;try{localStorage.setItem("prumo.remT",String(Date.now()))}catch(e){}}}catch(e){console.warn(e)}},3000)}
-{const _sa=saveApp;saveApp=function(){const r=_sa.apply(this,arguments);remSync();return r}}
+{const _sa=saveApp;saveApp=function(){const r=_sa.apply(this,arguments);if(TEAM)remTT=0;remSync();return r}}
 setTimeout(()=>remSync(true),6000);setInterval(()=>{if(!document.hidden)remSync()},30*60000);
 /* link da notificação de lembrete: abre a agenda no dia */
 try{const q=new URLSearchParams(location.search);if(q.get("go")==="agenda"&&!q.get("t")){UI.tab="agenda";UI.agendaSub="cal";if(q.get("d"))UI.calDay=q.get("d");history.replaceState({},"",location.pathname)}}catch(e){}

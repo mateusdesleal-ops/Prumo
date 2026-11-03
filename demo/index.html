@@ -5779,6 +5779,25 @@ function insCard(){const st=PUSHST;if(!st||!insNeeded(st))return"";const g=insGe
 {const _vh=viewHome;viewHome=function(){const h=_vh.apply(this,arguments);if(PUSHST===null)pushStRefresh();const c=insCard();if(!c)return h;return h.replace(/(<h1[^>]*>[\s\S]*?<\/h1>)/,"$1"+c)===h?c+h:h.replace(/(<h1[^>]*>[\s\S]*?<\/h1>)/,"$1"+c)}}
 {const _vt=viewTeamHome;viewTeamHome=function(){let h=_vt.apply(this,arguments);if(PUSHST===null)pushStRefresh();const c=insCard();if(!c)return h;h=h.replace(/<div class="banner info">[\s\S]*?data-act="pushNo"[\s\S]*?<\/div><\/div><\/div>/,"");return h.replace(/(<h1[^>]*>[^<]*<\/h1>)/,"$1"+c)}}
 
+/* ---------- Lembretes da agenda pelo servidor ----------
+   Antes o aviso só aparecia com o app aberto. Agora o app manda ao servidor os lembretes
+   dos próximos 14 dias (compromissos e tarefas com horário) e o servidor envia a notificação
+   na hora certa, mesmo com o app fechado. */
+function remList(){return withPersonal(()=>{const out=[];const now=Date.now();
+ for(let i=0;i<14;i++){const d=addDays(today(),i);for(const e of eventsOn(d)){if(!e.time)continue;const [h,m]=e.time.split(":").map(Number);const at=parseDate(d);at.setHours(h,m,0,0);
+  const rm=+e.remind||0;const t=at.getTime()-rm*60000;if(t<now-60000)continue;
+  const when=rm>=1440?`amanhã às ${e.time}`:rm>=60?`em ${Math.round(rm/60)} h (${e.time})`:rm>0?`em ${rm} min (${e.time})`:`agora (${e.time})`;
+  out.push({id:`${e.id}|${d}|${rm}|${e.time}`,at:new Date(t).toISOString(),title:`${e.task?"✅":"📅"} ${String(e.title||"Compromisso").slice(0,80)}`,body:`${when}${e.place?" · "+e.place:""}`,url:`/?go=agenda&d=${d}`})}}
+ return out.sort((a,b)=>a.at.localeCompare(b.at)).slice(0,300)})}
+let remT=null,remLast="";
+function remSync(force){if(Store.demo||!sb||!Store.cloud||!ME||!ME.uid)return;clearTimeout(remT);remT=setTimeout(async()=>{try{const list=remList();const sig=JSON.stringify(list);let stamp=0;try{stamp=+localStorage.getItem("prumo.remT")||0}catch(e){}
+ if(!force&&sig===remLast&&Date.now()-stamp<6*3600e3)return;const {error}=await sb.rpc("sync_reminders",{p:list});if(!error){remLast=sig;try{localStorage.setItem("prumo.remT",String(Date.now()))}catch(e){}}}catch(e){console.warn(e)}},3000)}
+{const _sa=saveApp;saveApp=function(){const r=_sa.apply(this,arguments);remSync();return r}}
+setTimeout(()=>remSync(true),6000);setInterval(()=>{if(!document.hidden)remSync()},30*60000);
+/* link da notificação de lembrete: abre a agenda no dia */
+try{const q=new URLSearchParams(location.search);if(q.get("go")==="agenda"&&!q.get("t")){UI.tab="agenda";UI.agendaSub="cal";if(q.get("d"))UI.calDay=q.get("d");history.replaceState({},"",location.pathname)}}catch(e){}
+{const _nr=notifRoute;notifRoute=function(u){try{const q=new URL(u,location.origin).searchParams;if(q.get("go")==="agenda"&&!q.get("t")){if(TEAM&&typeof teamExit==="function")teamExit();closeModal();UI.tab="agenda";UI.agendaSub="cal";if(q.get("d"))UI.calDay=q.get("d");window.scrollTo(0,0);render();return}}catch(e){}return _nr.apply(this,arguments)}}
+
 /* início */
 (function boot(){
  const l=lsGet();if(l&&l.S){S=hydrate(l.S);Object.assign(PFIN,l.PFIN||{})}

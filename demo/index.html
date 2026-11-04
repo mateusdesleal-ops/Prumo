@@ -855,17 +855,20 @@ function wardrobePlay(){const p=UI.wdPending;if(!p)return;UI.wdPending=null;if(!
  const names=ids=>ids.map(id=>(ACCESSORIES.find(a=>a.id===id)||{n:id}).n.toLowerCase()).join(" e ");
  const msg=p.msg||[p.add.length?`${petCap()} guardou no guarda-roupa: ${names(p.add)}.`:"",p.back.length?`${petCap()} tirou do guarda-roupa: ${names(p.back)}!`:""].filter(Boolean).join(" ");
  const st=document.querySelector(".pigstage");const reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
- if(!st||reduce){UI.wdHide=null;toast(msg,4500);if(p.back.length)render();return}
+ if(!st){UI.wdHide=null;toast(msg,4500);if(p.back.length)render();return}
  UI.wdBusy=true;const w=wardrobeSVG(p.add,p.back,p.give);const ov=document.createElement("div");ov.className="wd-ov";ov.innerHTML=w.svg;st.appendChild(ov);
  st.style.setProperty("--wdT",w.T+"s");st.style.setProperty("--wdx",WD_DX+"px");st.classList.add("wd-look","wd-go");if(w.sad)setTimeout(()=>st.classList.add("wd-sad"),w.T*1000*.3);
  creak(w.T*.14);thud(w.T*.8);
  if(!w.sad)setTimeout(()=>{st.classList.add("wd-happy");const sv=st.querySelector("svg");if(sv){sv.classList.remove("poke");void sv.getBoundingClientRect();sv.classList.add("poke");setTimeout(()=>sv.classList.remove("poke"),950)}try{oink()}catch(e){}},w.T*1000*.72);
  setTimeout(()=>toast(msg,5500),w.T*1000*.62);
- setTimeout(()=>{UI.wdBusy=false;const hadHide=!!UI.wdHide;UI.wdHide=null;st.classList.remove("wd-look","wd-sad","wd-happy","wd-go");const later=UI.wdLater;UI.wdLater=false;if(hadHide||later)render();else ov.remove()},w.T*1000-60)}
+ setTimeout(()=>{UI.wdBusy=false;const hadHide=!!UI.wdHide;UI.wdHide=null;st.classList.remove("wd-look","wd-sad","wd-happy","wd-go");const later=UI.wdLater;UI.wdLater=false;const nx=(UI.wdQueue||[]).shift();
+  if(nx){if(nx.back&&nx.back.length)UI.wdHide=new Set(nx.back);render();setTimeout(()=>{UI.wdPending=nx;wardrobePlay()},350);return}
+  if(hadHide||later)render();else ov.remove()},w.T*1000-60)}
 /* item novo (comprado ou conquistado): sai do guarda-roupa e vai até o porquinho */
-function wdGive(a,msg){S.pet.owned[a.id]=today();S.pet.equip[a.slot]=a.id;UI.wdHide=new Set([a.id]);commit();
+const wdCommit=()=>{if(UI.wdBusy)saveApp();else commit()};
+function wdGive(a,msg){S.pet.owned[a.id]=today();S.pet.equip[a.slot]=a.id;if(!UI.wdBusy)UI.wdHide=new Set([a.id]);wdCommit();
  const st=document.querySelector(".pigstage");const r=st&&st.getBoundingClientRect();const off=!!r&&(r.top<0||r.bottom>window.innerHeight);if(off)st.scrollIntoView({behavior:"smooth",block:"center"});
- setTimeout(()=>{if(UI.wdBusy){UI.wdHide=null;render();toast(msg,4500);return}UI.wdPending={add:[],back:[a.id],now:S.pet.seenLost||[],msg,give:"give"};wardrobePlay()},off?700:300)}
+ setTimeout(()=>{const job={add:[],back:[a.id],now:S.pet.seenLost||[],msg,give:"give"};if(UI.wdBusy){(UI.wdQueue=UI.wdQueue||[]).push(job);return}UI.wdPending=job;wardrobePlay()},off?700:300)}
 /* durante a animação do guarda-roupa, atualizações automáticas da tela (sincronização, avisos) esperam terminar,
    para a cena não ser cortada no meio; um toque da pessoa continua funcionando na hora */
 let WD_USER=false;document.addEventListener("pointerdown",()=>{WD_USER=true;setTimeout(()=>{WD_USER=false},400)},true);document.addEventListener("keydown",()=>{WD_USER=true;setTimeout(()=>{WD_USER=false},400)},true);
@@ -873,9 +876,9 @@ let WD_USER=false;document.addEventListener("pointerdown",()=>{WD_USER=true;setT
 /* guardar ou tirar do guarda-roupa de propósito também anima */
 function wdToggle(a){const cur=S.pet.equip[a.slot];const st0=document.querySelector(".pigstage");
  const run=(p)=>{const st=document.querySelector(".pigstage");const r=st&&st.getBoundingClientRect();const off=!!r&&(r.top<0||r.bottom>window.innerHeight);if(off)st.scrollIntoView({behavior:"smooth",block:"center"});
-  setTimeout(()=>{if(UI.wdBusy){UI.wdHide=null;render();toast(p.msg,3500);return}UI.wdPending=Object.assign({now:S.pet.seenLost||[]},p);wardrobePlay()},off?700:250)};
- if(cur===a.id){S.pet.equip[a.slot]=null;commit();if(!st0){toast(`${a.n} guardado.`);return}run({add:[a.id],back:[],give:"keep",msg:`${a.n} guardado no guarda-roupa.`});return}
- const old=cur&&ACCESSORIES.find(x=>x.id===cur);S.pet.equip[a.slot]=a.id;UI.wdHide=new Set([a.id]);commit();if(!st0){UI.wdHide=null;render();return}
+  setTimeout(()=>{const job=Object.assign({now:S.pet.seenLost||[]},p);if(UI.wdBusy){(UI.wdQueue=UI.wdQueue||[]).push(job);return}UI.wdPending=job;wardrobePlay()},off?700:250)};
+ if(cur===a.id){S.pet.equip[a.slot]=null;wdCommit();if(!st0){toast(`${a.n} guardado.`);return}run({add:[a.id],back:[],give:"keep",msg:`${a.n} guardado no guarda-roupa.`});return}
+ const old=cur&&ACCESSORIES.find(x=>x.id===cur);S.pet.equip[a.slot]=a.id;if(!UI.wdBusy)UI.wdHide=new Set([a.id]);wdCommit();if(!st0){UI.wdHide=null;render();return}
  run({add:old?[old.id]:[],back:[a.id],give:"wear",msg:old?`Trocou: ${old.n.toLowerCase()} guardado, ${a.n.toLowerCase()} no lugar.`:`${a.n} tirado do guarda-roupa.`})}
 function effectiveEquip(){const L=new Set([...studyDecay().lostIds,...taskDecay().lostIds,...(UI.wdHide||[])]);const e={};for(const k in S.pet.equip){const id=S.pet.equip[k];e[k]=id&&!L.has(id)?id:null}return e}
 function studyWarning(){const st=studyDecay();if(!S.profile.pet||st.gap<1||st.lost>=st.owned.length)return"";

@@ -166,13 +166,13 @@ textarea{min-height:80px;resize:vertical}
 .wd-sad .pig-ear{transform:rotate(18deg)!important;transition:transform .4s}
 .wd-tear{animation:tear 1.6s ease-in infinite}
 .wd-bubble{transform-box:fill-box;transform-origin:center bottom;animation:wdBub linear both}
-@keyframes wdBub{0%,18%{opacity:0;transform:scale(.6)}26%,78%{opacity:1;transform:scale(1)}88%,100%{opacity:0;transform:scale(.9)}}
+@keyframes wdBub{0%,10%{opacity:0;transform:scale(.6)}15%,88%{opacity:1;transform:scale(1)}95%,100%{opacity:0;transform:scale(.9)}}
 .wd-hanger{transform-box:fill-box;transform-origin:center top;animation:wdSwing 1.2s ease-in-out infinite alternate}
 .wd-hanger.b{animation-delay:.4s}
 @keyframes wdSwing{from{transform:rotate(-6deg)}to{transform:rotate(6deg)}}
 .wd-ov svg{display:block;width:100%;height:100%}
 .wd{transform-box:fill-box;transform-origin:center bottom;animation:wdIn linear both}
-@keyframes wdIn{0%{opacity:0;transform:scale(.6)}10%{opacity:1;transform:scale(1)}86%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.9)}}
+@keyframes wdIn{0%{opacity:0;transform:scale(.6)}9%{opacity:1;transform:scale(1)}90%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.9)}}
 .wd-dl,.wd-dr{transform-box:fill-box;animation:wdDoor linear both}
 .wd-dl{transform-origin:left center}.wd-dr{transform-origin:right center}
 @keyframes wdDoor{0%,14%{transform:scaleX(1)}24%,70%{transform:scaleX(.12)}80%,100%{transform:scaleX(1)}}
@@ -820,7 +820,7 @@ function taskLostToast(before){const after=taskDecay().lost;if(after<before&&S.p
 /* Guarda-roupa animado: mostra o acessório sendo guardado ou devolvido */
 function lostAll(){return [...new Set([...studyDecay().lostIds,...taskDecay().lostIds])].filter(id=>S.pet.owned[id])}
 const SLOT_XY={head:[160,92],face:[160,136],neck:[160,196]};const WD_DX=34;
-function wardrobeSVG(add,back,give){/* give: "give" (item novo), "keep" (guardou de propósito), "wear" (tirou de propósito) */const items=[...add.map(id=>({id,dir:"store"})),...back.map(id=>({id,dir:"back"}))];const T=6.2+.6*(items.length-1);
+function wardrobeSVG(add,back,give){/* give: "give" (item novo), "keep" (guardou de propósito), "wear" (tirou de propósito) */const items=[...add.map(id=>({id,dir:"store"})),...back.map(id=>({id,dir:"back"}))];const T=9.5+.8*(items.length-1);
  const door=(cls,x,mirror)=>`<g class="${cls}" style="animation-duration:${T}s"><rect x="${x}" y="6" width="24" height="72" rx="2" fill="#C08A57" stroke="#7A4E2D" stroke-width="1.5"/><rect x="${x+4}" y="12" width="16" height="26" rx="2" fill="none" stroke="#9C6B43" stroke-width="1.2"/><rect x="${x+4}" y="44" width="16" height="28" rx="2" fill="${mirror?"#CFE8F6":"none"}" stroke="#9C6B43" stroke-width="1.2"/>${mirror?`<path d="M${x+7} 50 l6 -4 M${x+7} 58 l9 -6" stroke="#fff" stroke-width="1.5" opacity=".8"/>`:""}<circle cx="${cls==="wd-dl"?x+21:x+3}" cy="42" r="2" fill="#F2C230"/></g>`;
  const hanger=(x,c,k)=>`<g class="wd-hanger ${k}"><path d="M${x} 16 v3 l-7 5 h14 z" fill="none" stroke="#C9C9C9" stroke-width="1.5" stroke-linejoin="round"/><path d="M${x-8} 24 h16 l2 18 h-20 z" fill="${c}"/></g>`;
  const fly=items.map((it,i)=>{const a=ACCESSORIES.find(x=>x.id===it.id);if(!a)return"";const [px,py]=SLOT_XY[a.slot]||[160,140];const wx=282,wy=150;const st=it.dir==="store";
@@ -856,7 +856,7 @@ function wardrobePlay(){const p=UI.wdPending;if(!p)return;UI.wdPending=null;if(!
  st.style.setProperty("--wdT",w.T+"s");st.style.setProperty("--wdx",WD_DX+"px");st.classList.add("wd-look","wd-go");if(w.sad)setTimeout(()=>st.classList.add("wd-sad"),w.T*1000*.3);
  creak(w.T*.14);thud(w.T*.8);
  if(!w.sad)setTimeout(()=>{st.classList.add("wd-happy");const sv=st.querySelector("svg");if(sv){sv.classList.remove("poke");void sv.getBoundingClientRect();sv.classList.add("poke");setTimeout(()=>sv.classList.remove("poke"),950)}try{oink()}catch(e){}},w.T*1000*.72);
- setTimeout(()=>toast(msg,4500),700);
+ setTimeout(()=>toast(msg,5500),w.T*1000*.62);
  setTimeout(()=>{UI.wdBusy=false;const hadHide=!!UI.wdHide;UI.wdHide=null;st.classList.remove("wd-look","wd-sad","wd-happy","wd-go");if(hadHide)render();else ov.remove()},w.T*1000-60)}
 /* item novo (comprado ou conquistado): sai do guarda-roupa e vai até o porquinho */
 function wdGive(a,msg){S.pet.owned[a.id]=today();S.pet.equip[a.slot]=a.id;UI.wdHide=new Set([a.id]);commit();

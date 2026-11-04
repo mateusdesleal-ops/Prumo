@@ -911,7 +911,25 @@ function exPlan(){
  const days=["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"].map((d,i)=>{const items=W[i]?[{n:W[i][0],min:W[i][1],int:W[i][2]}]:[];if(age>=65&&[0,2,4].includes(i))items.push({n:"Equilíbrio (ficar num pé só, andar em linha)",min:10,int:"leve"});return{d,items}});
  if(age<18)days.forEach(x=>{x.items=[{n:"Brincadeiras ativas, esportes ou caminhada",min:60,int:"moderada"}]});
  const lvName={sedentario:"Começando agora",iniciante:"Iniciante",intermediario:"Intermediário",avancado:"Avançado"}[level];
- return{target,days,notes,level,lvName,parq,lowImpact,daily:Math.round(target/7)}}
+ const res={target,days,notes,level,lvName,parq,lowImpact,daily:Math.round(target/7)};
+ if(exMine()){const mp=exMyPlan();res.mine=true;res.sugTarget=target;res.days=res.days.map((x,i)=>({d:x.d,items:mp[i].map(it=>({n:it.n||(EXT[it.type]||EXT.outro).n,min:+it.min||0,int:it.int||(EXT[it.type]||EXT.outro).int,type:it.type,note:it.note||""}))}));
+  const t=Math.round(res.days.reduce((s,x)=>s+x.items.reduce((a,it)=>a+exEq(it),0),0));if(t>0){res.target=t;res.daily=Math.round(t/7)}}
+ return res}
+/* plano "do meu jeito": treino que a pessoa já tem, dia a dia */
+const exMine=()=>S.ex&&S.ex.planMode==="mine";
+function exMyPlan(){S.ex.myPlan=Array.isArray(S.ex.myPlan)&&S.ex.myPlan.length===7?S.ex.myPlan:[[],[],[],[],[],[],[]];return S.ex.myPlan}
+const DAYN=["Segunda","Terça","Quarta","Quinta","Sexta","Sábado","Domingo"];
+function exDayRows(items){return items.map((it,j)=>`<div class="stack-s" style="border:1px solid var(--line);border-radius:12px;padding:10px" data-row="${j}">
+ <div class="row" style="gap:8px"><select class="pd_type grow">${EX_TYPES.map(x=>`<option value="${x.id}" ${x.id===it.type?"selected":""}>${x.n}</option>`).join("")}</select><input class="pd_min" type="number" inputmode="numeric" min="1" value="${it.min||""}" placeholder="min" style="width:76px"><button class="iconbtn" data-act="pdDel" data-v="${j}" aria-label="Remover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+ <input class="pd_name" value="${esc(it.n||"")}" placeholder="Nome (opcional). Ex.: Treino A, peito e tríceps">
+ <textarea class="pd_note" rows="2" placeholder="Detalhes (opcional). Ex.: supino 4x10, crucifixo 3x12">${esc(it.note||"")}</textarea></div>`).join("")||`<p class="small muted">Dia de descanso. Toque em Adicionar atividade se for treinar.</p>`}
+function exDayRead(){return [...document.querySelectorAll("#pd_rows [data-row]")].map(r=>{const type=r.querySelector(".pd_type").value;return{type,min:+r.querySelector(".pd_min").value||0,n:r.querySelector(".pd_name").value.trim(),note:r.querySelector(".pd_note").value.trim(),int:(EXT[type]||EXT.outro).int}})}
+function exDayForm(i){UI.pdDay=i;UI.pdItems=JSON.parse(JSON.stringify(exMyPlan()[i]));
+ openModal("Meu treino de "+DAYN[i].toLowerCase(),`<div class="stack"><div id="pd_rows" class="stack">${exDayRows(UI.pdItems)}</div>
+ <button class="btn line" data-act="pdAdd">+ Adicionar atividade</button>
+ <label class="field"><span>Copiar de outro dia</span><select id="pd_copy"><option value="">Escolha um dia</option>${DAYN.map((d,k)=>k===i?"":`<option value="${k}">${d}${exMyPlan()[k].length?"":" (descanso)"}</option>`).join("")}</select></label>
+ <button class="btn block" data-act="pdSave">Salvar ${DAYN[i].toLowerCase()}</button>
+ <button class="btn ghost" data-act="pdRest">Marcar como descanso</button></div>`,m=>{const c=$("#pd_copy");c.addEventListener("change",()=>{if(c.value==="")return;UI.pdItems=JSON.parse(JSON.stringify(exMyPlan()[+c.value]));$("#pd_rows").innerHTML=exDayRows(UI.pdItems);UI.mDirty=true;c.value=""})})}
 /* calorias: com a contagem (saltos, passos, km…) calcula pelo trabalho feito; sem ela, pelo tempo */
 const exWorkMin=l=>{const t=EXT[l.type]||EXT.outro;const n=+l.n||0;return t.q&&n>0?n/t.q.per:(+l.min||0)};
 const kcal=(l)=>{const met=(EXT[l.type]||EXT.outro).met;const w=+S.profile.weight||70;return Math.round(met*3.5*w/200*exWorkMin(l))};
@@ -2816,7 +2834,10 @@ function exPlanView(){const p=S.profile;if(!p.age||!p.weight)return `<div class=
  <div class="card stack"><div class="row between"><div class="stack-s"><span class="tiny muted">Nível</span><b>${pl.lvName}</b></div><div class="stack-s" style="text-align:right"><span class="tiny muted">Meta semanal</span><b class="num">${pl.target} min</b></div></div>
  <div class="row wrap small muted" style="gap:14px"><span>${p.age} anos</span><span>${p.weight} kg</span>${b?`<span>IMC ${b.toFixed(1).replace(".",",")}</span>`:""}</div>
  <button class="btn ghost sm" data-act="exProfile" style="align-self:flex-start">Atualizar meus dados</button></div>
- <div class="section"><div class="label">Sugestão para a semana</div><div class="card list">${pl.days.map((d,i)=>`<div class="item" style="align-items:flex-start;${i===dow?"background:var(--surface2);margin-inline:-16px;padding-inline:16px":""}"><b style="width:72px;flex:none" class="small">${d.d}${i===dow?'<br><span class="tiny" style="color:var(--pig-deep)">hoje</span>':""}</b><div class="grow stack-s">${d.items.length?d.items.map(it=>`<div class="row between"><span class="small">${esc(it.n)}</span><span class="pill ${it.int==="vigorosa"?"bad":it.int==="moderada"?"warn":"good"} num">${it.min} min</span></div>`).join(""):`<span class="small muted">Descanso ativo: alongue e caminhe leve se quiser.</span>`}</div></div>`).join("")}</div>
+ <div class="section"><div class="label">${pl.mine?"Meu treino da semana":"Sugestão para a semana"}</div>
+ <div class="subtabs" style="margin-bottom:10px"><button class="${pl.mine?"":"on"}" data-act="exMode" data-v="sug">Sugestões do Prumo</button><button class="${pl.mine?"on":""}" data-act="exMode" data-v="mine">Do meu jeito</button></div>
+ ${pl.mine&&!pl.days.some(d=>d.items.length)?`<p class="small muted" style="margin:0 0 10px">Já tem um treino certo, como o da academia? Toque em cada dia e coloque o que você faz. O Prumo usa o seu treino como meta da semana.</p>`:""}
+ <div class="card list">${pl.days.map((d,i)=>`<div class="item" ${pl.mine?`data-act="exDay" data-v="${i}" style="cursor:pointer;align-items:flex-start;`:`style="align-items:flex-start;`}${i===dow?"background:var(--surface2);margin-inline:-16px;padding-inline:16px":""}"><b style="width:72px;flex:none" class="small">${d.d}${i===dow?'<br><span class="tiny" style="color:var(--pig-deep)">hoje</span>':""}</b><div class="grow stack-s">${d.items.length?d.items.map(it=>`<div class="row between" style="gap:8px"><span class="small">${esc(it.n)}${it.note?`<br><span class="tiny muted" style="white-space:pre-line">${esc(it.note)}</span>`:""}</span><span class="pill ${it.int==="vigorosa"?"bad":it.int==="moderada"?"warn":"good"} num" style="flex:none">${it.min} min</span></div>`).join("")+(pl.mine&&i===dow?`<button class="btn sm" data-act="exDo" data-v="${i}" style="align-self:flex-start;margin-top:4px">Registrar o treino de hoje</button>`:""):`<span class="small muted">${pl.mine?"Descanso. Toque para editar.":"Descanso ativo: alongue e caminhe leve se quiser."}</span>`}</div>${pl.mine?`<span class="tiny" style="color:var(--pig-deep);flex:none">Editar</span>`:""}</div>`).join("")}</div>
  <div class="row tiny muted wrap" style="gap:12px"><span class="row" style="gap:5px"><span class="pill good">leve</span>conversa fácil</span><span class="row" style="gap:5px"><span class="pill warn">moderada</span>fala, mas não canta</span><span class="row" style="gap:5px"><span class="pill bad">vigorosa</span>difícil falar</span></div></div>
  <div class="card stack prose small">${pl.notes.map(n=>`<p>${esc(n)}</p>`).join("")}<p class="muted">Esta é uma sugestão geral baseada nas diretrizes da Organização Mundial da Saúde e não substitui avaliação médica ou de um profissional de educação física.</p></div>${trackLink("ex","Aprender sobre exercício")}`}
 function exWeekView(){const pl=exPlan();const logs=exWeek();const eq=Math.round(logs.reduce((s,l)=>s+exEq(l),0));const ws=weekStart(today());
@@ -3408,6 +3429,13 @@ const A={
  // exercícios
  addEx:()=>{if(!S.profile.age&&UI.tab==="ex"&&UI.ex==="plano"){exForm();return}exForm()},
  editEx:el=>{const l=S.ex.logs[el.dataset.v];if(l)exForm(l)},
+ exMode:el=>{S.ex.planMode=el.dataset.v==="mine"?"mine":"sug";if(S.ex.planMode==="mine")exMyPlan();commit();render()},
+ exDay:(el,e)=>{if(e&&e.target.closest('[data-act="exDo"]'))return;exDayForm(+el.dataset.v)},
+ exDo:el=>{const it=exPlan().days[+el.dataset.v].items;if(!it.length)return;const f=it[0];exForm({type:f.type||"outro",min:f.min,int:f.int,desc:it.map(x=>x.n).join(" + ")})},
+ pdAdd:()=>{UI.pdItems=exDayRead();UI.pdItems.push({type:"forca",min:60,n:"",note:"",int:"moderada"});$("#pd_rows").innerHTML=exDayRows(UI.pdItems);UI.mDirty=true},
+ pdDel:el=>{UI.pdItems=exDayRead();UI.pdItems.splice(+el.dataset.v,1);$("#pd_rows").innerHTML=exDayRows(UI.pdItems);UI.mDirty=true},
+ pdRest:()=>{exMyPlan()[UI.pdDay]=[];commit();UI.mDirty=false;closeModal();toast(DAYN[UI.pdDay]+" ficou como descanso.")},
+ pdSave:()=>{const it=exDayRead();if(it.some(x=>!x.min)){toast("Informe os minutos de cada atividade.");return}exMyPlan()[UI.pdDay]=it;commit();UI.mDirty=false;closeModal();toast("Treino de "+DAYN[UI.pdDay].toLowerCase()+" salvo.")},
  saveEx:el=>{let min=+v("e_min")||0;{const tq=(EXT[v("e_type")]||{}).q;const nn=tq?parseFloat(String(v("e_n")).replace(",","."))||0:0;if(!min&&nn>0)min=Math.max(1,Math.round(nn/tq.per))}if(!min){toast("Informe os minutos.");return}const id=el.dataset.v||rid();const old=S.ex.logs[id];const before=envLevel();
   const nq=EXT[v("e_type")]&&EXT[v("e_type")].q?parseFloat(String(v("e_n")).replace(",","."))||0:0;S.ex.logs[id]={id,type:v("e_type"),min,int:v("e_int"),desc:v("e_desc").trim(),date:v("e_date")||today(),t:old?old.t:Date.now(),...(nq>0?{n:nq}:{})};markActive(v("e_date")||today());commit();closeModal();
   const after=envLevel();toast(after>before&&S.profile.pet?`O ambiente melhorou: ${ENV_LEVELS[after].n.toLowerCase()}!`:"Exercício registrado.")},

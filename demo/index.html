@@ -819,12 +819,16 @@ function applyResched(t,to,reason){const lb=taskDecay().lost;t.reschedLog=t.resc
 function taskLostToast(before){const after=taskDecay().lost;if(after<before&&S.profile.pet&&UI.tab!=="home"&&UI.tab!=="pig")setTimeout(()=>toast(`${petCap()} recuperou um acessório! Veja no Início.`),600)}
 /* Guarda-roupa animado: mostra o acessório sendo guardado ou devolvido */
 function lostAll(){return [...new Set([...studyDecay().lostIds,...taskDecay().lostIds])].filter(id=>S.pet.owned[id])}
-const SLOT_XY={head:[160,92],face:[160,136],neck:[160,196]};const WD_DX=34;
+const SLOT_XY={head:[160,92],face:[160,136],neck:[160,196],body:[160,150]};
+/* desenho do item que viaja entre o guarda-roupa e o porquinho (roupas inteiras também) */
+function wdArt(a){if(a.slot!=="body")return accSVG(a.id,0,0,a.slot==="head"?.8:.85);
+ if(a.id==="capa")return `<path d="M-52 22 Q-90 43 -83 64 Q0 74 83 64 Q90 43 52 22 Z" fill="#D63B3B"/>`;
+ try{return bodySVG(a.id,0,0,74,62)}catch(e){return""}}const WD_DX=34;
 function wardrobeSVG(add,back,give){/* give: "give" (item novo), "keep" (guardou de propósito), "wear" (tirou de propósito) */const items=[...add.map(id=>({id,dir:"store"})),...back.map(id=>({id,dir:"back"}))];const T=12+.9*(items.length-1);
  const door=(cls,x,mirror)=>`<g class="${cls}" style="animation-duration:${T}s"><rect x="${x}" y="6" width="24" height="72" rx="2" fill="#C08A57" stroke="#7A4E2D" stroke-width="1.5"/><rect x="${x+4}" y="12" width="16" height="26" rx="2" fill="none" stroke="#9C6B43" stroke-width="1.2"/><rect x="${x+4}" y="44" width="16" height="28" rx="2" fill="${mirror?"#CFE8F6":"none"}" stroke="#9C6B43" stroke-width="1.2"/>${mirror?`<path d="M${x+7} 50 l6 -4 M${x+7} 58 l9 -6" stroke="#fff" stroke-width="1.5" opacity=".8"/>`:""}<circle cx="${cls==="wd-dl"?x+21:x+3}" cy="42" r="2" fill="#F2C230"/></g>`;
  const hanger=(x,c,k)=>`<g class="wd-hanger ${k}"><path d="M${x} 16 v3 l-7 5 h14 z" fill="none" stroke="#C9C9C9" stroke-width="1.5" stroke-linejoin="round"/><path d="M${x-8} 24 h16 l2 18 h-20 z" fill="${c}"/></g>`;
  const fly=items.map((it,i)=>{const a=ACCESSORIES.find(x=>x.id===it.id);if(!a)return"";const [px,py]=SLOT_XY[a.slot]||[160,140];const wx=282,wy=150;const st=it.dir==="store";
-  return `<g class="wd-fly ${st?"st":"gv"}" style="animation-duration:${T}s;animation-delay:${i*.12}s;--px:${px}px;--py:${py}px;--qx:${px+WD_DX}px;--wx:${wx}px;--wy:${wy}px">${accSVG(it.id,0,0,a.slot==="head"?.8:.85)}</g>`}).join("");
+  return `<g class="wd-fly ${st?"st":"gv"}" style="animation-duration:${T}s;animation-delay:${i*.12}s;--px:${px}px;--py:${py}px;--qx:${px+WD_DX}px;--wx:${wx}px;--wy:${wy}px">${wdArt(a)}</g>`}).join("");
  const sad=!give&&add.length>0&&!back.length;const MY={lapis:"meu lápis",escuros:"meus óculos",faixa:"minha medalha de campeão",laco:"meu laço",oculos:"meus óculos",gravata:"minha gravata",cachecol:"meu cachecol",bone:"meu boné",fone:"meu fone",capelo:"meu capelo",coroa:"minha coroa",cartola:"minha cartola",medalha:"minha medalha"};
  const plural=ids=>ids.length>1||/óculos/.test(MY[ids[0]]||"");
  const say=sad?(add.length>1?"Ah, não... minhas coisas!":`Ah, não... ${MY[add[0]]||"meu acessório"}!`):give==="keep"?"Vou guardar aqui.":give==="wear"?(add.length?"Vou trocar!":"Hoje vou de "+((ACCESSORIES.find(x=>x.id===back[0])||{n:"novo"}).n.toLowerCase())+"!"):give?"Oba, é pra mim?":(plural(back)?"Eba, voltaram!":"Eba, voltou!");

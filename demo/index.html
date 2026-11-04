@@ -849,8 +849,8 @@ function wardrobePlay(){const p=UI.wdPending;if(!p)return;UI.wdPending=null;if(!
  setTimeout(()=>{ov.remove();st.classList.remove("wd-look","wd-sad","wd-happy");UI.wdBusy=false;const hadHide=!!UI.wdHide;UI.wdHide=null;if(hadHide)render()},w.T*1000+150)}
 /* item novo (comprado ou conquistado): sai do guarda-roupa e vai até o porquinho */
 function wdGive(a,msg){S.pet.owned[a.id]=today();S.pet.equip[a.slot]=a.id;UI.wdHide=new Set([a.id]);commit();
- const st=document.querySelector(".pigstage");if(st&&st.getBoundingClientRect().top<0)st.scrollIntoView({behavior:"smooth",block:"center"});
- setTimeout(()=>{if(UI.wdBusy){UI.wdHide=null;render();toast(msg,4500);return}UI.wdPending={add:[],back:[a.id],now:S.pet.seenLost||[],msg,give:1};wardrobePlay()},st&&st.getBoundingClientRect().top<0?650:300)}
+ const st=document.querySelector(".pigstage");const r=st&&st.getBoundingClientRect();const off=!!r&&(r.top<0||r.bottom>window.innerHeight);if(off)st.scrollIntoView({behavior:"smooth",block:"center"});
+ setTimeout(()=>{if(UI.wdBusy){UI.wdHide=null;render();toast(msg,4500);return}UI.wdPending={add:[],back:[a.id],now:S.pet.seenLost||[],msg,give:1};wardrobePlay()},off?700:300)}
 function effectiveEquip(){const L=new Set([...studyDecay().lostIds,...taskDecay().lostIds,...(UI.wdHide||[])]);const e={};for(const k in S.pet.equip){const id=S.pet.equip[k];e[k]=id&&!L.has(id)?id:null}return e}
 function studyWarning(){const st=studyDecay();if(!S.profile.pet||st.gap<1||st.lost>=st.owned.length)return"";
  const next=ACCESSORIES.find(a=>a.id===st.owned[st.lost][0]);

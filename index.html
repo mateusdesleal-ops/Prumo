@@ -3531,7 +3531,8 @@ const MEDS=[
  {id:"trab",n:"Pausa no trabalho",d:"Solte a tensão e volte com foco.",durs:[5,10],b:[{f:"trab_01"},{s:8},{f:"trab_02"},{s:20,g:1},{f:"trab_03"},{s:60,g:1},{f:"trab_04"},{s:90,g:1},{bell:1},{f:"trab_05"},{s:10},{f:"trab_06"},{bell:1}]},
  {id:"sono",n:"Dormir melhor",d:"Para ouvir já deitado. Termina em silêncio, sem te acordar.",durs:[10,20],sleep:1,b:[{f:"sono_01"},{s:15},{f:"sono_02"},{s:30,g:1},{f:"sono_03"},{s:30,g:1},{f:"sono_04"},{s:60,g:1},{f:"sono_05"},{s:90,g:1},{f:"sono_06"},{s:120,g:1},{f:"sono_07"},{s:60,g:1,end:1}]},
  {id:"grat",n:"Gratidão",d:"Treine o olhar para o que está dando certo.",durs:[5,10],b:[{f:"grat_01"},{s:8},{f:"grat_02"},{s:20,g:1},{f:"grat_03"},{s:45,g:1},{f:"grat_04"},{s:45,g:1},{f:"grat_05"},{s:60,g:1},{bell:1},{f:"grat_06"},{bell:1}]}];
-const MED_READY={}; /* preenchido quando os áudios existirem: MED_READY.ans=true */
+/* meditações já gravadas (os áudios ficam em med/ no site) */
+const MED_READY=/prumovidaemordem|localhost|127\.0\.0\.1/.test(location.hostname)?{resp:true}:{};
 const SOUNDS=[["none","Silêncio"],["chuva","Chuva"],["mar","Mar"],["calmo","Calmo"]];
 function medStore(){S.med=S.med&&typeof S.med==="object"?S.med:{};S.med.log=Array.isArray(S.med.log)?S.med.log:[];return S.med}
 function medWeekMin(){const m=medStore(),lim=ymd(new Date(Date.now()-6*864e5));return Math.round(m.log.filter(x=>x.d>=lim).reduce((s,x)=>s+(+x.min||0),0))}

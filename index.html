@@ -82,7 +82,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .iconbtn{border:0;background:var(--surface2);border-radius:12px;width:40px;height:40px;display:inline-grid;place-items:center;flex:none}
 .iconbtn svg{width:20px;height:20px}
-.chip[hidden]{display:none!important}
+.chip[hidden],.fab[hidden]{display:none!important}
 .chip{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;white-space:nowrap}
 .chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
@@ -115,6 +115,23 @@ textarea{min-height:80px;resize:vertical}
 .tab{border:0;background:none;padding:8px 2px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:700;color:var(--muted)}
 .tab svg{width:24px;height:24px}
 .tab.on{color:var(--pig-deep)}
+#medP{position:fixed;inset:0;z-index:300;display:flex;flex-direction:column;color:#fff;background:radial-gradient(circle at 50% 38%,#4a3a5e 0,#2b2140 45%,#17121f 100%);padding:max(14px,env(safe-area-inset-top)) 18px max(18px,env(safe-area-inset-bottom));animation:medIn .4s ease}
+@keyframes medIn{from{opacity:0}to{opacity:1}}
+#medP .iconbtn{background:rgba(255,255,255,.1);color:#fff}
+.medTop{display:flex;align-items:center;justify-content:space-between;gap:10px;max-width:520px;width:100%;margin:0 auto}
+.medTitle{text-align:center;display:flex;flex-direction:column}.medTitle b{font-size:17px}.medTitle span{font-size:13px;opacity:.7}
+.medStage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:240px}
+.medCirc{width:min(70vw,320px);height:min(70vw,320px);border-radius:50%;background:radial-gradient(circle at 40% 35%,rgba(255,190,214,.95),rgba(217,84,127,.55) 60%,rgba(217,84,127,.15));box-shadow:0 0 80px rgba(242,138,168,.45),inset 0 0 40px rgba(255,255,255,.25);transform:scale(.62);will-change:transform}
+.medCue{position:absolute;text-align:center;font-size:26px;font-weight:800;letter-spacing:-.3px;text-shadow:0 2px 12px rgba(0,0,0,.35);display:flex;flex-direction:column;align-items:center;gap:4px;padding:0 20px}
+.medN{font-size:44px;font-weight:800;opacity:.9}
+.medCtl{max-width:520px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+.medSeek{width:100%;accent-color:#F28AA8}
+.medPlay{width:72px;height:72px;border-radius:50%;border:0;background:#fff;color:#2b2140;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 30px rgba(0,0,0,.35);cursor:pointer}
+.medB{background:rgba(255,255,255,.1);border:0;color:#fff;border-radius:999px;padding:10px 14px;font-weight:700;font-size:14px;cursor:pointer;min-height:44px}
+.medSounds{display:flex;gap:6px;background:rgba(255,255,255,.08);padding:4px;border-radius:14px}
+.medSounds button{flex:1;border:0;background:none;color:rgba(255,255,255,.75);border-radius:10px;padding:9px 6px;font-weight:700;font-size:13px;cursor:pointer;min-height:40px}
+.medSounds button.on{background:rgba(255,255,255,.92);color:#2b2140}
+.medVol{display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:13px;opacity:.9}.medVol input[type=range]{flex:1;max-width:260px;accent-color:#F28AA8}
 .subtabs{display:flex;gap:6px;background:var(--surface2);padding:4px;border-radius:14px;overflow-x:auto;scrollbar-width:none}
 .subtabs button{flex:1;border:0;background:none;border-radius:10px;padding:8px 10px;font-weight:700;font-size:13px;color:var(--muted);white-space:nowrap}
 .subtabs button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
@@ -2465,7 +2482,7 @@ function render(){
  app.innerHTML=header()+envBar()+(views[UI.tab]||views.home)();
  window.scrollTo(0,sy);
  if(UI.wdPending)setTimeout(wardrobePlay,250);
- const fab={home:null,vaq:"addVaq",chal:UI.chalOpen?"chalCheckin":"addChal",fin:(TEAM&&!teamHas("fin"))||finLocked()?null:"addExpense",study:"addStudy",ex:UI.ex==="comida"?"addFood":"addEx",agenda:UI.agendaSub==="tasks"?"addTask":UI.agendaSub==="proj"?(UI.projOpen?"projAddStep":"addProject"):"addEvent"}[UI.tab];
+ const fab={home:null,vaq:"addVaq",chal:UI.chalOpen?"chalCheckin":"addChal",fin:(TEAM&&!teamHas("fin"))||finLocked()?null:"addExpense",study:"addStudy",ex:UI.ex==="medit"?null:UI.ex==="comida"?"addFood":"addEx",agenda:UI.agendaSub==="tasks"?"addTask":UI.agendaSub==="proj"?(UI.projOpen?"projAddStep":"addProject"):"addEvent"}[UI.tab];
  const f=$("#fab");f.hidden=!fab;f.dataset.act=fab||"";f.innerHTML=I.plus;
  f.setAttribute("aria-label",{fin:"Adicionar gasto",study:"Registrar estudo",ex:UI.ex==="comida"?"Adicionar alimento":"Registrar exercício",agenda:UI.agendaSub==="tasks"?"Nova tarefa":UI.agendaSub==="proj"?(UI.projOpen?"Nova etapa":"Novo projeto"):"Novo compromisso"}[UI.tab]||"Adicionar");
  renderTFull();tickTimer();
@@ -2826,8 +2843,8 @@ function studyHistory(){const ls=studyLogs();const total=totalStudyMin();const b
  ${ls.length?Object.keys(groups).sort().reverse().map(d=>`<div class="card" style="padding:6px 16px"><div class="tiny muted" style="padding-top:8px;font-weight:700;text-transform:capitalize">${dayLabel(d)}</div><div class="list">${groups[d].map(l=>`<button class="item" style="width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;padding-inline:0" data-act="editStudy" data-v="${l.id}"><span class="ico" style="background:var(--pig-soft);color:var(--pig-deep)">${(STUDY_TYPES[l.type]||"E").slice(0,2)}</span><div class="grow stack-s" style="gap:1px"><p><b>${esc(l.desc||STUDY_TYPES[l.type])}</b></p><p class="tiny muted">${STUDY_TYPES[l.type]||""}${l.pages?` · ${l.pages} páginas`:""}${l.src==="timer"?" · timer":""}</p></div><span class="amount">${l.min} min</span></button>`).join("")}</div></div>`).join(""):`<div class="card empty">Seu histórico de estudos aparece aqui: livros, podcasts, cursos e sessões de foco.</div>`}`}
 
 /* ---------- Exercícios ---------- */
-function viewEx(){const sub=[["comida","Alimentação"],["peso","Peso"],["plano","Exercícios"],["semana","Semana"],["historico","Histórico"]];
- return `<div class="stack"><h1 style="margin-top:4px">Saúde</h1><div class="subtabs">${sub.map(([id,n])=>`<button class="${UI.ex===id?"on":""}" data-act="exsub" data-v="${id}">${n}</button>`).join("")}</div>${{comida:foodView,peso:weightView,plano:exPlanView,semana:exWeekView,historico:exHistory}[UI.ex]()}</div>`}
+function viewEx(){const sub=[["comida","Alimentação"],["peso","Peso"],["plano","Exercícios"],["semana","Semana"],["medit","Meditação"],["historico","Histórico"]];
+ return `<div class="stack"><h1 style="margin-top:4px">Saúde</h1><div class="subtabs">${sub.map(([id,n])=>`<button class="${UI.ex===id?"on":""}" data-act="exsub" data-v="${id}">${n}</button>`).join("")}</div>${{comida:foodView,peso:weightView,plano:exPlanView,semana:exWeekView,medit:medView,historico:exHistory}[UI.ex]()}</div>`}
 function exPlanView(){const p=S.profile;if(!p.age||!p.weight)return `<div class="card stack"><h3>Monte seu plano</h3><p class="muted">Informe idade, peso, altura e seu nível atual para receber uma sugestão de exercícios.</p><button class="btn" data-act="exProfile">Preencher meus dados</button></div>`;
  const pl=exPlan();const b=bmi();const dow=(new Date().getDay()+6)%7;
  return `${pl.parq?`<div class="banner warn"><span>Você marcou um ponto de atenção no questionário de saúde. O plano ficou leve. Procure um médico antes de aumentar a intensidade.</span></div>`:""}
@@ -3501,6 +3518,104 @@ let wake=null;async function requestWake(){try{if(navigator.wakeLock)wake=await 
 function releaseWake(){try{if(wake)wake.release();wake=null}catch(e){}}
 
 /* eventos globais */
+/* ---------- Meditação: respiração guiada + meditações narradas ---------- */
+const BREATHS=[
+ {id:"quad",n:"Respiração quadrada",d:"Inspira 4, segura 4, solta 4, segura 4. Boa para foco e para acalmar antes de algo importante.",ph:[["Inspire",4,"in"],["Segure",4,"hold"],["Solte",4,"out"],["Segure",4,"holdout"]]},
+ {id:"relax",n:"Respiração 4-7-8",d:"Inspira 4, segura 7, solta 8. A saída longa ajuda o corpo a desacelerar, ótima antes de dormir.",ph:[["Inspire",4,"in"],["Segure",7,"hold"],["Solte devagar",8,"out"]]},
+ {id:"coer",n:"Respiração coerente",d:"Inspira 5, solta 5, sem pausas. Ritmo suave para baixar a ansiedade em poucos minutos.",ph:[["Inspire",5,"in"],["Solte",5,"out"]]}];
+/* Meditações narradas. b = blocos: {f:"arquivo"} voz · {s:seg} silêncio fixo · {s:seg,g:1} silêncio que cresce · {bell:1} sino · {end:1} silêncio final do sono */
+const MED_BASE="med/";
+const MEDS=[
+ {id:"resp",n:"Respiração de 3 minutos",d:"Uma pausa curta para qualquer hora do dia.",durs:[3],b:[{f:"resp_01"},{s:8},{f:"resp_02"},{s:45},{f:"resp_03"},{s:50},{f:"resp_04"},{bell:1}]},
+ {id:"ans",n:"Acalmar a ansiedade",d:"Para quando o coração acelera ou a cabeça não para.",durs:[5,10,15],b:[{f:"ans_01"},{s:10},{f:"ans_02"},{s:20,g:1},{f:"ans_03"},{s:60,g:1},{f:"ans_04"},{s:60,g:1},{f:"ans_05"},{s:90,g:1},{bell:1},{f:"ans_06"},{s:20},{f:"ans_07"},{bell:1}]},
+ {id:"trab",n:"Pausa no trabalho",d:"Solte a tensão e volte com foco.",durs:[5,10],b:[{f:"trab_01"},{s:8},{f:"trab_02"},{s:20,g:1},{f:"trab_03"},{s:60,g:1},{f:"trab_04"},{s:90,g:1},{bell:1},{f:"trab_05"},{s:10},{f:"trab_06"},{bell:1}]},
+ {id:"sono",n:"Dormir melhor",d:"Para ouvir já deitado. Termina em silêncio, sem te acordar.",durs:[10,20],sleep:1,b:[{f:"sono_01"},{s:15},{f:"sono_02"},{s:30,g:1},{f:"sono_03"},{s:30,g:1},{f:"sono_04"},{s:60,g:1},{f:"sono_05"},{s:90,g:1},{f:"sono_06"},{s:120,g:1},{f:"sono_07"},{s:60,g:1,end:1}]},
+ {id:"grat",n:"Gratidão",d:"Treine o olhar para o que está dando certo.",durs:[5,10],b:[{f:"grat_01"},{s:8},{f:"grat_02"},{s:20,g:1},{f:"grat_03"},{s:45,g:1},{f:"grat_04"},{s:45,g:1},{f:"grat_05"},{s:60,g:1},{bell:1},{f:"grat_06"},{bell:1}]}];
+const MED_READY={}; /* preenchido quando os áudios existirem: MED_READY.ans=true */
+const SOUNDS=[["none","Silêncio"],["chuva","Chuva"],["mar","Mar"],["calmo","Calmo"]];
+function medStore(){S.med=S.med&&typeof S.med==="object"?S.med:{};S.med.log=Array.isArray(S.med.log)?S.med.log:[];return S.med}
+function medWeekMin(){const m=medStore(),lim=ymd(new Date(Date.now()-6*864e5));return Math.round(m.log.filter(x=>x.d>=lim).reduce((s,x)=>s+(+x.min||0),0))}
+function medStreak(){const ds=new Set(medStore().log.map(x=>x.d));let n=0,d=new Date();if(!ds.has(ymd(d)))d=new Date(Date.now()-864e5);while(ds.has(ymd(d))){n++;d=new Date(d.getTime()-864e5)}return n}
+function medView(){const m=medStore(),bd=UI.medBreathDur||3,wk=medWeekMin(),st=medStreak();
+ return `<div class="section"><div class="card" style="display:flex;gap:14px;align-items:center"><div class="grow"><div class="label" style="margin:0">Esta semana</div><div class="big num" style="margin-top:2px">${wk} min</div><div class="small muted">${st>1?`${st} dias seguidos meditando`:m.log.length?"Cada minuto conta. Volte amanhã.":"Comece com 3 minutos. É o suficiente."}</div></div><div style="width:84px;flex:none">${pigSVG({score:90,mood:"feliz",equip:{},env:0,mini:true})}</div></div></div>
+ <div class="section"><div class="label">Respire agora</div><div class="card stack">
+  <div class="row between" style="gap:8px;flex-wrap:wrap"><span class="small muted">Duração</span><div class="chips">${[1,3,5,10].map(n=>`<button class="chip ${bd===n?"on":""}" data-act="medBDur" data-v="${n}">${n} min</button>`).join("")}</div></div>
+  <div class="list">${BREATHS.map(b=>`<button class="item" data-act="medBreath" data-v="${b.id}" style="width:100%;text-align:left;background:none;border:0;font:inherit;color:inherit;cursor:pointer;align-items:center"><div class="grow"><b>${b.n}</b><div class="small muted">${b.d}</div></div><span class="pill">${b.ph.map(p=>p[1]).join("-")}</span></button>`).join("")}</div></div></div>
+ <div class="section"><div class="label">Meditações guiadas</div><div class="card list">${MEDS.map(md=>{const ok=MED_READY[md.id];return `<button class="item" data-act="medGuided" data-v="${md.id}" style="width:100%;text-align:left;background:none;border:0;font:inherit;color:inherit;cursor:pointer;align-items:center;${ok?"":"opacity:.75"}"><div class="grow"><b>${esc(md.n)}</b><div class="small muted">${esc(md.d)}</div></div><span class="pill ${ok?"good":""}" style="flex:none">${ok?md.durs.join(" / ")+" min":"Em breve"}</span></button>`}).join("")}</div>
+ <p class="tiny muted" style="margin-top:8px">As meditações guiadas serão narradas pelo criador do Prumo, com voz gerada por IA. Meditação não substitui acompanhamento profissional. Em crise, ligue 188 (CVV).</p></div>`}
+/* ---- motor de áudio ---- */
+const MP={};
+function medCtx(){if(!MP.ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;MP.ctx=new C();MP.bgGain=MP.ctx.createGain();MP.bgGain.gain.value=.5;MP.bgGain.connect(MP.ctx.destination);MP.voGain=MP.ctx.createGain();MP.voGain.gain.value=1;MP.voGain.connect(MP.ctx.destination)}if(MP.ctx.state==="suspended")MP.ctx.resume();return MP.ctx}
+function medNoise(kind){const c=MP.ctx,len=c.sampleRate*4,buf=c.createBuffer(1,len,c.sampleRate),d=buf.getChannelData(0);let last=0;for(let i=0;i<len;i++){const w=Math.random()*2-1;if(kind==="brown"){last=(last+.02*w)/1.02;d[i]=last*3.5}else d[i]=w}const s=c.createBufferSource();s.buffer=buf;s.loop=true;return s}
+function medBgStart(kind){medBgStop();const c=medCtx();if(!c||kind==="none")return;const out=c.createGain();out.gain.value=0;out.gain.linearRampToValueAtTime(1,c.currentTime+2);out.connect(MP.bgGain);const nodes=[out];
+ if(kind==="chuva"){const n=medNoise("white"),hp=c.createBiquadFilter(),lp=c.createBiquadFilter(),g=c.createGain();hp.type="highpass";hp.frequency.value=500;lp.type="lowpass";lp.frequency.value=5000;g.gain.value=.16;n.connect(hp);hp.connect(lp);lp.connect(g);g.connect(out);n.start();nodes.push(n)
+  const n2=medNoise("brown"),g2=c.createGain();g2.gain.value=.35;n2.connect(g2);g2.connect(out);n2.start();nodes.push(n2)}
+ else if(kind==="mar"){const n=medNoise("brown"),lp=c.createBiquadFilter(),g=c.createGain(),lfo=c.createOscillator(),lg=c.createGain();lp.type="lowpass";lp.frequency.value=700;g.gain.value=.45;lfo.frequency.value=.09;lg.gain.value=.38;lfo.connect(lg);lg.connect(g.gain);n.connect(lp);lp.connect(g);g.connect(out);n.start();lfo.start();nodes.push(n,lfo)}
+ else if(kind==="calmo"){const lp=c.createBiquadFilter();lp.type="lowpass";lp.frequency.value=900;lp.connect(out);[110,164.81,220,277.18,329.63].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain(),l=c.createOscillator(),lg=c.createGain();o.type=i%2?"sine":"triangle";o.frequency.value=f;o.detune.value=(i-2)*3;g.gain.value=.05;l.frequency.value=.05+i*.03;lg.gain.value=.035;l.connect(lg);lg.connect(g.gain);o.connect(g);g.connect(lp);o.start();l.start();nodes.push(o,l)})}
+ MP.bg={kind,nodes,out}}
+function medBgStop(fade){const b=MP.bg;if(!b)return;MP.bg=null;const c=MP.ctx,t=fade||.6;try{b.out.gain.cancelScheduledValues(c.currentTime);b.out.gain.setValueAtTime(b.out.gain.value,c.currentTime);b.out.gain.linearRampToValueAtTime(0,c.currentTime+t)}catch(e){}setTimeout(()=>b.nodes.forEach(n=>{try{n.stop&&n.stop()}catch(e){}try{n.disconnect()}catch(e){}}),t*1000+100)}
+function medBell(when,vol){const c=MP.ctx;if(!c)return;[[528,1],[1056,.4],[1584,.15]].forEach(([f,a])=>{const o=c.createOscillator(),g=c.createGain();o.frequency.value=f;g.gain.setValueAtTime(0,when);g.gain.linearRampToValueAtTime(.22*a*(vol||1),when+.02);g.gain.exponentialRampToValueAtTime(.0001,when+5);o.connect(g);g.connect(MP.voGain);o.start(when);o.stop(when+5.2);(MP.live||(MP.live=[])).push(o)})}
+function medTick(when){const c=MP.ctx;if(!c||!UI.medTick)return;const o=c.createOscillator(),g=c.createGain();o.frequency.value=392;g.gain.setValueAtTime(0,when);g.gain.linearRampToValueAtTime(.06,when+.03);g.gain.exponentialRampToValueAtTime(.0001,when+.9);o.connect(g);g.connect(MP.voGain);o.start(when);o.stop(when+1);(MP.live||(MP.live=[])).push(o)}
+/* linha do tempo: itens {t,dur,kind:"voice"|"bell"|"sil"|"phase",...} */
+function medTimelineBreath(b,min){const cyc=b.ph.reduce((s,p)=>s+p[1],0),n=Math.max(1,Math.round(min*60/cyc)),items=[];let t=0;for(let i=0;i<n;i++)b.ph.forEach(p=>{items.push({t,dur:p[1],kind:"phase",label:p[0],mode:p[2]});t+=p[1]});items.push({t,dur:4,kind:"bell"});return{items,total:t+4}}
+function medTimelineGuided(md,min,bufs){const voice=md.b.filter(x=>x.f).reduce((s,x)=>s+bufs[x.f].duration,0),fixed=md.b.filter(x=>x.s&&!x.g).reduce((s,x)=>s+x.s,0)+md.b.filter(x=>x.bell).length*4,grow=md.b.filter(x=>x.g).reduce((s,x)=>s+x.s,0);
+ const k=grow?Math.max(.3,(min*60-voice-fixed)/grow):1;const items=[];let t=0;md.b.forEach(x=>{if(x.f){const d=bufs[x.f].duration;items.push({t,dur:d,kind:"voice",buf:bufs[x.f]});t+=d}else if(x.bell){items.push({t,dur:4,kind:"bell"});t+=4}else{const d=x.g?x.s*k:x.s;items.push({t,dur:d,kind:"sil",end:x.end});t+=d}});return{items,total:t}}
+function medPos(){return MP.playing?MP.pos0+(MP.ctx.currentTime-MP.ctx0):MP.pos0}
+function medStopSources(){(MP.live||[]).forEach(s=>{try{s.stop()}catch(e){}});MP.live=[]}
+function medSchedule(){const c=MP.ctx,pos=MP.pos0,now=c.currentTime+.05;MP.ctx0=now;medStopSources();MP.live=[];
+ MP.tl.items.forEach((it,i)=>{const end=it.t+it.dur;if(end<=pos)return;const when=now+Math.max(0,it.t-pos),off=Math.max(0,pos-it.t);
+  if(it.kind==="voice"){const s=c.createBufferSource();s.buffer=it.buf;s.connect(MP.voGain);s.start(when,off);MP.live.push(s)}
+  else if(it.kind==="bell"&&off<.3)medBell(when);
+  else if(it.kind==="phase"&&off<.05&&i>0)medTick(when)});
+ if(MP.sleep){const fadeAt=MP.tl.total-45;if(fadeAt>pos){MP.bgGain.gain.cancelScheduledValues(c.currentTime);MP.bgGain.gain.setValueAtTime(UI.medBgVol??.5,now+(fadeAt-pos));MP.bgGain.gain.linearRampToValueAtTime(0,now+(MP.tl.total-pos))}}}
+function medPlay(){const c=medCtx();if(!c)return;if(MP.pos0>=MP.tl.total)MP.pos0=0;MP.playing=true;medSchedule();if(!MP.bg&&MP.sound!=="none")medBgStart(MP.sound);medWake(true);medLoop();medPaint()}
+function medPause(){if(!MP.playing)return;MP.pos0=medPos();MP.playing=false;medStopSources();medWake(false);medPaint()}
+function medSeek(p){const was=MP.playing;if(was){MP.pos0=medPos();MP.playing=false;medStopSources()}MP.pos0=Math.max(0,Math.min(MP.tl.total,p));if(was){MP.playing=true;medSchedule()}medPaint()}
+async function medWake(on){try{if(on&&navigator.wakeLock&&!MP.lock)MP.lock=await navigator.wakeLock.request("screen");if(!on&&MP.lock){MP.lock.release();MP.lock=null}}catch(e){}}
+function medLoop(){cancelAnimationFrame(MP.raf);const f=()=>{if(!MP.open)return;const p=medPos();if(MP.playing&&p>=MP.tl.total){MP.pos0=MP.tl.total;MP.playing=false;medStopSources();medWake(false);medPaint();medDone(true);return}medPaint();if(MP.playing)MP.raf=requestAnimationFrame(f)};MP.raf=requestAnimationFrame(f)}
+const mmss=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
+function medPaint(){const el=document.getElementById("medP");if(!el)return;const p=Math.min(medPos(),MP.tl.total),it=MP.tl.items.find(x=>p>=x.t&&p<x.t+x.dur)||MP.tl.items[MP.tl.items.length-1];
+ let sc=.62,cue="";if(MP.type==="breath"){const k=Math.min(1,(p-it.t)/it.dur);if(it.kind==="phase"){sc=it.mode==="in"?.55+.45*k:it.mode==="out"?1-.45*k:it.mode==="hold"?1:.55;cue=`${it.label}<span class="medN">${Math.max(1,Math.ceil(it.dur-(p-it.t)))}</span>`}else cue="Muito bem"}
+ else{sc=.72+.06*Math.sin(p*2*Math.PI/10);cue=it.kind==="voice"?"":it.kind==="bell"?"":it.end?"Descanse":"Respire no seu ritmo"}
+ if(!MP.playing&&p===0)cue=MP.type==="breath"?"Toque em começar":"Pronto quando você estiver";if(!MP.playing&&p>=MP.tl.total)cue="Concluído";
+ el.querySelector(".medCirc").style.transform=`scale(${sc.toFixed(3)})`;el.querySelector(".medCue").innerHTML=cue;el.querySelector(".medEl").textContent=mmss(p);el.querySelector(".medTot").textContent=mmss(MP.tl.total);
+ const r=el.querySelector(".medSeek");if(!MP.drag)r.value=Math.round(p);r.max=Math.round(MP.tl.total);el.querySelector('[data-act="medPP"]').innerHTML=MP.playing?'<svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>':'<svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>';
+ el.querySelector('[data-act="medPP"]').setAttribute("aria-label",MP.playing?"Pausar":"Começar")}
+function medOpenPlayer(o){medClose(true);Object.assign(MP,{open:true,playing:false,pos0:0,logged:false,sound:UI.medSound||"chuva"},o);
+ const el=document.createElement("div");el.id="medP";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");el.setAttribute("aria-label",o.title);
+ el.innerHTML=`<div class="medTop"><button class="iconbtn" data-act="medClose" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div class="medTitle"><b>${esc(o.title)}</b><span>${esc(o.sub||"")}</span></div><span style="width:40px"></span></div>
+ <div class="medStage"><div class="medCirc"></div><div class="medCue" aria-live="polite"></div></div>
+ <div class="medCtl"><div class="row between tiny" style="opacity:.8"><span class="medEl num">0:00</span><span class="medTot num">0:00</span></div>
+ <input type="range" class="medSeek" min="0" max="100" step="1" value="0" aria-label="Posição">
+ <div class="row" style="justify-content:center;gap:22px;margin:6px 0 4px"><button class="medB" data-act="medJump" data-v="-15" aria-label="Voltar 15 segundos">−15s</button><button class="medPlay" data-act="medPP"></button><button class="medB" data-act="medJump" data-v="15" aria-label="Avançar 15 segundos">+15s</button></div>
+ <div class="medSounds">${SOUNDS.map(([id,n])=>`<button class="${MP.sound===id?"on":""}" data-act="medSound" data-v="${id}">${n}</button>`).join("")}</div>
+ <label class="medVol"><span>Som de fundo</span><input type="range" class="medBgV" min="0" max="100" value="${Math.round((UI.medBgVol??.5)*100)}"></label>
+ ${o.type==="guided"?`<label class="medVol"><span>Voz</span><input type="range" class="medVoV" min="0" max="100" value="${Math.round((UI.medVoVol??1)*100)}"></label>`:`<label class="medVol" style="justify-content:flex-start;gap:10px"><input type="checkbox" class="medTk" ${UI.medTick?"checked":""} style="width:auto"><span>Sininho baixo a cada troca</span></label>`}</div>`;
+ document.body.appendChild(el);document.body.style.overflow="hidden";
+ const r=el.querySelector(".medSeek");r.addEventListener("input",()=>{MP.drag=true;el.querySelector(".medEl").textContent=mmss(+r.value)});r.addEventListener("change",()=>{MP.drag=false;medSeek(+r.value)});
+ el.querySelector(".medBgV").addEventListener("input",e=>{UI.medBgVol=e.target.value/100;medCtx();MP.bgGain.gain.cancelScheduledValues(MP.ctx.currentTime);MP.bgGain.gain.value=UI.medBgVol;try{localStorage.setItem("prumo.medBg",UI.medBgVol)}catch(x){}});
+ const vv=el.querySelector(".medVoV");if(vv)vv.addEventListener("input",e=>{UI.medVoVol=e.target.value/100;medCtx();MP.voGain.gain.value=UI.medVoVol});
+ const tk=el.querySelector(".medTk");if(tk)tk.addEventListener("change",e=>{UI.medTick=e.target.checked;try{localStorage.setItem("prumo.medTick",UI.medTick?"1":"")}catch(x){}});
+ el.addEventListener("keydown",e=>{if(e.key==="Escape")medClose();if(e.key===" "&&e.target.tagName!=="INPUT"){e.preventDefault();MP.playing?medPause():medPlay()}});
+ const c=medCtx();if(c){MP.bgGain.gain.value=UI.medBgVol??.5;MP.voGain.gain.value=UI.medVoVol??1}
+ medPaint();setTimeout(()=>el.querySelector('[data-act="medPP"]').focus(),50)}
+function medDone(full){if(MP.logged)return;const p=Math.min(medPos(),MP.tl.total),min=Math.round(p/60*10)/10;if(min<1&&!full)return;MP.logged=true;const m=medStore();m.log.push({d:today(),min:Math.max(1,Math.round(min)),k:MP.type,id:MP.id,at:Date.now()});if(m.log.length>2000)m.log=m.log.slice(-2000);commit();
+ toast(full?`Pronto! ${Math.max(1,Math.round(min))} min de meditação. O porquinho ficou zen.`:`${Math.max(1,Math.round(min))} min registrados. Bom trabalho.`)}
+function medClose(silent){if(!MP.open)return;if(!silent)medDone(false);MP.open=false;MP.playing=false;cancelAnimationFrame(MP.raf);medStopSources();medBgStop(1);medWake(false);if(MP.ctx){MP.bgGain.gain.cancelScheduledValues(MP.ctx.currentTime);MP.bgGain.gain.value=UI.medBgVol??.5}const el=document.getElementById("medP");if(el)el.remove();document.body.style.overflow="";if(!silent&&UI.tab==="ex"&&UI.ex==="medit")render()}
+async function medLoadGuided(md){const c=medCtx();if(!c)throw new Error("noaudio");MP.cache=MP.cache||{};const bufs={};for(const x of md.b.filter(x=>x.f)){if(!MP.cache[x.f]){const r=await fetch(MED_BASE+x.f+".mp3");if(!r.ok)throw new Error("404");const ab=await r.arrayBuffer();MP.cache[x.f]=await new Promise((ok,ko)=>c.decodeAudioData(ab,ok,ko))}bufs[x.f]=MP.cache[x.f]}return bufs}
+try{UI.medBgVol=+(localStorage.getItem("prumo.medBg")??.5);UI.medTick=!!localStorage.getItem("prumo.medTick")}catch(e){}
+Object.assign(A,{
+ medBDur:el=>{UI.medBreathDur=+el.dataset.v;render()},
+ medBreath:el=>{const b=BREATHS.find(x=>x.id===el.dataset.v),min=UI.medBreathDur||3;medCtx();medOpenPlayer({type:"breath",id:b.id,title:b.n,sub:`${min} min · ${b.ph.map(p=>p[1]).join("-")}`,tl:medTimelineBreath(b,min)})},
+ medGuided:el=>{const md=MEDS.find(x=>x.id===el.dataset.v);if(!MED_READY[md.id]){toast("Essa meditação está sendo gravada. Enquanto isso, experimente a respiração guiada.");return}
+  if(md.durs.length===1){A.medGo({dataset:{v:md.id+":"+md.durs[0]}});return}
+  openModal(md.n,`<div class="stack"><p class="small muted" style="margin:0">${esc(md.d)} A narração é a mesma; nas versões longas os silêncios ficam maiores.</p><div class="stack-s">${md.durs.map(n=>`<button class="btn line block" data-act="medGo" data-v="${md.id}:${n}">${n} minutos</button>`).join("")}</div></div>`)},
+ medGo:async el=>{const [id,n]=el.dataset.v.split(":"),md=MEDS.find(x=>x.id===id);closeModal&&closeModal();medCtx();toast("Carregando a meditação…");try{const bufs=await medLoadGuided(md);medOpenPlayer({type:"guided",id,title:md.n,sub:n+" min",sleep:!!md.sleep,tl:medTimelineGuided(md,+n,bufs)})}catch(e){toast("Não consegui carregar o áudio. Confira a internet e tente de novo.")}},
+ medPP:()=>{MP.playing?medPause():medPlay()},
+ medJump:el=>medSeek(medPos()+(+el.dataset.v)),
+ medSound:el=>{MP.sound=UI.medSound=el.dataset.v;document.querySelectorAll("#medP .medSounds button").forEach(b=>b.classList.toggle("on",b===el));medCtx();if(MP.sound==="none")medBgStop();else if(MP.playing||MP.bg)medBgStart(MP.sound);else{medBgStart(MP.sound);setTimeout(()=>{if(!MP.playing)medBgStop(1.5)},2500)}},
+ medClose:()=>medClose()});
+
 document.addEventListener("click",ev=>{const lk=ev.target.closest("a[href]");if(lk&&!lk.hasAttribute("data-act"))return;const el=ev.target.closest("[data-act]");if(!el)return;const fn=A[el.dataset.act];if(!fn)return;if(el.tagName==="INPUT"||el.tagName==="SELECT")return;if(el.dataset.act==="closeScrim"&&ev.target!==el)return;ev.preventDefault();unlockAudio();fn(el,ev)});
 document.addEventListener("change",ev=>{const el=ev.target;if(el.id==="petToggle")A.petToggle(el);if(el.id==="petNameInp"){S.pet.name=el.value.trim().slice(0,20)||null;commit();toast(S.pet.name?`Agora o porquinho se chama ${S.pet.name}.`:"Nome removido.")}if(el.id==="prayerToggle"){S.profile.prayer=el.checked;if(el.checked&&!S.prayer.trad)S.prayer.trad="catolica";commit();if(el.checked)toast("Aba de Oração ativada. Escolha sua tradição em Oração.")}if(el.id==="prayerTradSel"){S.prayer.trad=el.value;S.prayer.daily=null;commit()}if(el.id==="themeSel"){S.profile.theme=el.value;applyTheme();commit()}if(el.id==="importFile"&&el.files[0])importBackup(el.files[0]);if(el.id==="photoFile"&&el.files[0])setPhoto(el.files[0])});
 document.addEventListener("keydown",ev=>{if((ev.key==="Enter"||ev.key===" ")&&ev.target.dataset&&ev.target.dataset.act==="pigPoke"){ev.preventDefault();A.pigPoke(ev.target);return}if(ev.key==="Escape"&&$("#modal").innerHTML)modalSoftClose();if(ev.key==="Enter"&&ev.target.tagName==="INPUT"&&$("#modal").innerHTML){if(ev.target.id==="fq")return;if(ev.target.id==="tk_newsub"){ev.preventDefault();A.tkAddSub();return}const b=document.querySelector('.sheet [data-act="quickFood"],.sheet [data-act="addPicked"],.sheet [data-act^="save"],.sheet [data-act="joinGo"]');if(b){ev.preventDefault();b.click()}}if(ev.key==="Enter"&&ev.target.id==="o_name"){A.onbNext()}});

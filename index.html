@@ -521,6 +521,7 @@ const ACCESSORIES=[
  {id:"palha",n:"Chapéu de palha",slot:"head",cost:50},
  {id:"gorro",n:"Gorro com pompom",slot:"head",cost:60},
  {id:"flores",n:"Coroa de flores",slot:"head",cost:80},
+ {id:"zen",n:"Faixa zen",slot:"head",cost:0,med:7},
  {id:"chef",n:"Chapéu de chef",slot:"head",cost:90},
  {id:"cowboy",n:"Chapéu de cowboy",slot:"head",cost:110},
  {id:"bigode",n:"Bigode",slot:"face",cost:40},
@@ -782,7 +783,7 @@ function finActivity(day){for(const k of [mkey(day),shiftMonth(mkey(day),1),shif
 const studyLogs=()=>vals(S.study.logs).sort((a,b)=>(b.date+b.t).localeCompare(a.date+a.t));
 const studyMin=day=>vals(S.study.logs).filter(l=>l.date===day).reduce((s,l)=>s+(+l.min||0),0);
 const totalStudyMin=()=>vals(S.study.logs).reduce((s,l)=>s+(+l.min||0),0);
-function devPoints(){const earned=Math.floor(totalStudyMin()/5)+Object.keys(S.learn.read).length*10+quizDone()*5+Object.keys(S.missionDays||{}).length*5+vals(S.study.books).filter(b=>b.status==="lido").length*30+Object.values((S.vocab||{}).words||{}).filter(x=>x&&x.fr).length*5+Math.floor(vals(S.study.logs).reduce((s,l)=>s+(+l.pages||0),0)/10);
+function devPoints(){const earned=Math.floor(totalStudyMin()/5)+Math.floor(medTotalMin()/5)+Object.keys(S.learn.read).length*10+quizDone()*5+Object.keys(S.missionDays||{}).length*5+vals(S.study.books).filter(b=>b.status==="lido").length*30+Object.values((S.vocab||{}).words||{}).filter(x=>x&&x.fr).length*5+Math.floor(vals(S.study.logs).reduce((s,l)=>s+(+l.pages||0),0)/10);
  const spent=Object.keys(S.pet.owned).reduce((s,id)=>{const a=ACCESSORIES.find(x=>x.id===id);return s+(a?a.cost:0)},0);return{earned,spent,avail:earned-spent}}
 const exLogs=()=>vals(S.ex.logs).sort((a,b)=>(b.date+b.t).localeCompare(a.date+a.t));
 const exEq=l=>(+l.min||0)*(INT_W[l.int]||1);
@@ -846,7 +847,7 @@ function wardrobeSVG(add,back,give){/* give: "give" (item novo), "keep" (guardou
  const hanger=(x,c,k)=>`<g class="wd-hanger ${k}"><path d="M${x} 16 v3 l-7 5 h14 z" fill="none" stroke="#C9C9C9" stroke-width="1.5" stroke-linejoin="round"/><path d="M${x-8} 24 h16 l2 18 h-20 z" fill="${c}"/></g>`;
  const fly=items.map((it,i)=>{const a=ACCESSORIES.find(x=>x.id===it.id);if(!a)return"";const [px,py]=SLOT_XY[a.slot]||[160,140];const wx=282,wy=150;const st=it.dir==="store";
   return `<g class="wd-fly ${st?"st":"gv"}" style="animation-duration:${T}s;animation-delay:${i*.12}s;--px:${px}px;--py:${py}px;--qx:${px+WD_DX}px;--wx:${wx}px;--wy:${wy}px">${wdArt(a)}</g>`}).join("");
- const sad=!give&&add.length>0&&!back.length;const MY={lapis:"meu lápis",escuros:"meus óculos",faixa:"minha medalha de campeão",laco:"meu laço",oculos:"meus óculos",gravata:"minha gravata",cachecol:"meu cachecol",bone:"meu boné",fone:"meu fone",capelo:"meu capelo",coroa:"minha coroa",cartola:"minha cartola",medalha:"minha medalha"};
+ const sad=!give&&add.length>0&&!back.length;const MY={zen:"minha faixa zen",lapis:"meu lápis",escuros:"meus óculos",faixa:"minha medalha de campeão",laco:"meu laço",oculos:"meus óculos",gravata:"minha gravata",cachecol:"meu cachecol",bone:"meu boné",fone:"meu fone",capelo:"meu capelo",coroa:"minha coroa",cartola:"minha cartola",medalha:"minha medalha"};
  const plural=ids=>ids.length>1||/óculos/.test(MY[ids[0]]||"");
  const say=sad?(add.length>1?"Ah, não... minhas coisas!":`Ah, não... ${MY[add[0]]||"meu acessório"}!`):give==="keep"?"Vou guardar aqui.":give==="wear"?(add.length?"Vou trocar!":"Hoje vou de "+((ACCESSORIES.find(x=>x.id===back[0])||{n:"novo"}).n.toLowerCase())+"!"):give?"Oba, é pra mim?":(plural(back)?"Eba, voltaram!":"Eba, voltou!");
  const bw=Math.max(92,say.length*6.4+20);
@@ -1025,6 +1026,7 @@ function accSVG(id,x,y,s){ // desenha acessório na posição (x,y) com escala s
   case"festa":return g(`<path d="M-22 2 L0 -54 L22 2 Z" fill="#8E5CF6"/><path d="M-15 -16 L15 -16 M-9 -32 L9 -32 M-18 -6 L18 -6" stroke="#F2C230" stroke-width="4"/><circle cx="0" cy="-56" r="7" fill="#E23D6D"/>`);
   case"palha":return g(`<ellipse cx="0" cy="0" rx="64" ry="12" fill="#E7C46A" stroke="#C9A24A" stroke-width="2"/><path d="M-32 0 Q-32 -36 0 -36 Q32 -36 32 0 Z" fill="#EBCB72" stroke="#C9A24A" stroke-width="2"/><path d="M-32 -6 Q0 2 32 -6 L32 -1 Q0 7 -32 -1 Z" fill="#E23D6D"/>`);
   case"gorro":return g(`<path d="M-40 4 Q-40 -46 0 -46 Q40 -46 40 4 Z" fill="#3C6FD1"/><rect x="-44" y="-6" width="88" height="16" rx="7" fill="#F5F5F5"/><path d="M-30 -20 L-30 -38 M-15 -24 L-15 -44 M0 -26 L0 -46 M15 -24 L15 -44 M30 -20 L30 -38" stroke="#2E57B0" stroke-width="3"/><circle cx="0" cy="-52" r="11" fill="#F5F5F5"/>`);
+  case"zen":return g(`<path d="M-54 10 Q0 -6 54 10 L53 22 Q0 7 -53 22 Z" fill="#8FD3B6"/><path d="M-54 10 Q0 -6 54 10" fill="none" stroke="#5FB592" stroke-width="2.5"/><g transform="translate(46 18)"><path d="M0 0 Q14 -2 20 10 Q8 10 0 0 Z" fill="#8FD3B6" stroke="#5FB592" stroke-width="2"/><path d="M0 0 Q6 12 -2 24 Q-8 12 0 0 Z" fill="#8FD3B6" stroke="#5FB592" stroke-width="2"/></g><g transform="translate(0 4)"><path d="M0 -10 Q5 -3 0 4 Q-5 -3 0 -10 Z" fill="#F7A8C4"/><path d="M0 4 Q-9 0 -11 -6 Q-4 -5 0 4 Z" fill="#F7A8C4"/><path d="M0 4 Q9 0 11 -6 Q4 -5 0 4 Z" fill="#F7A8C4"/></g>`);
   case"flores":return g(`${[-44,-26,-8,10,28,44].map((x,i)=>`<circle cx="${x}" cy="${-Math.abs(x)*.12}" r="9" fill="${["#F28AB0","#F2C230","#B57EDC","#F28AB0","#7FC8F8","#F2C230"][i]}"/><circle cx="${x}" cy="${-Math.abs(x)*.12}" r="3.4" fill="#fff"/>`).join("")}<path d="M-52 4 Q0 -6 52 4" stroke="#4FB15A" stroke-width="3" fill="none"/>`);
   case"chef":return g(`<rect x="-26" y="-14" width="52" height="18" rx="3" fill="#fff" stroke="#B9B9B9" stroke-width="2"/><circle cx="-18" cy="-28" r="16" fill="#fff" stroke="#C4C4C4" stroke-width="2"/><circle cx="0" cy="-38" r="18" fill="#fff" stroke="#C4C4C4" stroke-width="2"/><circle cx="18" cy="-28" r="16" fill="#fff" stroke="#C4C4C4" stroke-width="2"/><rect x="-24" y="-20" width="48" height="10" fill="#fff"/>`);
   case"cowboy":return g(`<path d="M-66 0 Q-60 -14 -40 -6 Q0 6 40 -6 Q60 -14 66 0 Q40 14 0 12 Q-40 14 -66 0 Z" fill="#8B5A2B"/><path d="M-30 -4 Q-34 -44 -10 -40 Q0 -30 10 -40 Q34 -44 30 -4 Q0 4 -30 -4 Z" fill="#9C6634"/><path d="M-30 -10 Q0 -2 30 -10 L30 -4 Q0 4 -30 -4 Z" fill="#5A3A1C"/>`);
@@ -1072,7 +1074,7 @@ function doveFly(hy,walking){const w=walking;const xl=134+(w?30.18:0),xt=134+(w?
 const dovePerch=hy=>`<g transform="translate(134 ${hy})"><g class="dvperch"><g transform="scale(1.15)">${DOVE_PERCH}</g></g></g>`;
 const doveGround=()=>`<g class="dvground"><g class="dvgwalk"><g transform="scale(1.25)"><g class="dvgstep">${DOVE_FRONT}</g></g></g></g>`;
 function pigSVG(o){
- const {score=60,mood="ok",equip={},env=0,mini=false,dry=false,peace=0}=o;
+ const {score=60,mood="ok",equip={},env=0,mini=false,dry=false,peace=0,zen=0}=o;const pz=Math.max(peace,zen);
  const s=score/100;const sx=.74+s*.42, sy=.86+s*.18;
  const cx=160, cy=150, rx=74*sx, ry=62*sy;
  const body="#F7A8BE", shade="#EC8CA8", snout="#F48CAA", dark="#2B1E24";
@@ -1131,7 +1133,7 @@ function pigSVG(o){
  const vb=mini?"60 60 200 170":"0 0 320 240";
  const hy=Math.round(cy-ry-29-(equip.head?({laco:6,fone:2,lapis:4}[equip.head]??26):0));const dv=!mini&&peace>=1;
  const walk=!mini&&(mood==="feliz"||mood==="ok");
- return `<svg viewBox="${vb}" role="img" aria-label="Porquinho ${mood}" class="m-${mood} ${walk?"walking":""}" style="${dvDelay()}">${mini?"":envSVG(env,dry,peace)}<g class="pig-walk">${coins}${peace>=7&&!mini?`<ellipse class="glow" cx="${cx}" cy="${cy+6}" rx="${rx+34}" ry="${ry+30}" fill="#FFF3B0"/>`:""}<g class="pig-bob"><g class="pig-breathe">${p}</g>${dv?dovePerch(hy):""}</g>${heart}</g>${dv?doveGround()+doveFly(hy,walk):""}</svg>`}
+ return `<svg viewBox="${vb}" role="img" aria-label="Porquinho ${mood}" class="m-${mood} ${walk?"walking":""}" style="${dvDelay()}">${mini?"":envSVG(env,dry,pz)}<g class="pig-walk">${coins}${pz>=7&&!mini?`<ellipse class="glow" cx="${cx}" cy="${cy+6}" rx="${rx+34}" ry="${ry+30}" fill="#FFF3B0"/>`:""}<g class="pig-bob"><g class="pig-breathe">${p}</g>${dv?dovePerch(hy):""}</g>${heart}</g>${dv?doveGround()+doveFly(hy,walk):""}</svg>`}
 function bodySVG(id,cx,cy,rx,ry){const cid="cl"+Math.random().toString(36).slice(2,7);const top=cy+ry*.5,nb=cy+48;const L=cx-rx-4,W=rx*2+8,B=cy+ry+4,H=B-top;
  const neck=`M${L} ${top} L${cx-26} ${top} Q${cx} ${nb+6} ${cx+26} ${top} L${L+W} ${top} L${L+W} ${B} L${L} ${B} Z`;
  const clip=`<clipPath id="${cid}a"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/></clipPath><clipPath id="${cid}b"><path d="${neck}"/></clipPath>`;
@@ -2155,6 +2157,8 @@ function prDaily(){const tr=PRAYER_TRADS[S.prayer.trad]||PRAYER_TRADS.outra;retu
 const prDone=(id,day)=>!!((S.prayer.log[day||today()]||{})[id]);
 function prayerDaysLast7(){let n=0;for(let i=0;i<7;i++){const l=S.prayer.log[addDays(today(),-i)];if(l&&Object.values(l).some(Boolean))n++}return n}
 const prayerPeace=()=>S.profile.prayer?prayerDaysLast7():0;
+/* meditação: 3+ dias na semana acendem os brilhinhos, 7 dias a luz em volta do porquinho (a pomba fica só para a oração) */
+const zenPeace=()=>{const n=medDaysLast7();return n>=7?7:n>=3?4:0};
 function prayerStreak(){let n=0,d=today();const has=x=>{const l=S.prayer.log[x];return l&&Object.values(l).some(Boolean)};if(!has(d))d=addDays(d,-1);while(has(d)){n++;d=addDays(d,-1)}return n}
 function viewPrayer(){if(!S.prayer.trad)return `<div class="stack"><h1 style="margin-top:4px">Oração</h1>${prayerTradPicker()}</div>`;
  const tr=PRAYER_TRADS[S.prayer.trad];const daily=prDaily();const done=daily.filter(id=>prDone(id)).length;const extra=Object.keys(S.prayer.log[today()]||{}).filter(id=>S.prayer.log[today()][id]&&!daily.includes(id)).length;
@@ -2594,7 +2598,7 @@ function tourPopup(){const p=S.profile;if(p.tour1||!p.created||UI.needAuth||(UI.
   ["agenda","🗓️","Agenda","Tarefas, compromissos e projetos num lugar só, com lembretes."]];
  if(p.pet)A_.push(["pig","🐷","Seu porquinho","Cada área que você cuida deixa ele mais feliz e rende moedas para roupinhas e acessórios."]);
  openModal("Tem muito mais aqui",`<div class="stack" style="gap:12px">
- <div class="stack-s" style="align-items:center;text-align:center;gap:6px">${p.pet?`<div style="width:110px;border-radius:18px;overflow:hidden">${(()=>{try{return pigSVG({score:100,mood:"feliz",equip:effectiveEquip(),env:Math.max(2,envLevel()),dry:false,peace:prayerPeace()})}catch(e){return'<div style="font-size:56px">🐷</div>'}})()}</div>`:`<div style="font-size:52px;line-height:1">🐷</div>`}
+ <div class="stack-s" style="align-items:center;text-align:center;gap:6px">${p.pet?`<div style="width:110px;border-radius:18px;overflow:hidden">${(()=>{try{return pigSVG({score:100,mood:"feliz",equip:effectiveEquip(),env:Math.max(2,envLevel()),dry:false,peace:prayerPeace(),zen:zenPeace()})}catch(e){return'<div style="font-size:56px">🐷</div>'}})()}</div>`:`<div style="font-size:52px;line-height:1">🐷</div>`}
  <h2 style="margin:0">${first?esc(first)+", o":"O"} Prumo é muito mais ${inCh?"que o desafio":"do que você já viu"}</h2>
  <p class="small">Você já está cuidando ${inCh?"de um hábito":"de uma parte da sua vida"}. Que tal colocar o resto da vida em ordem também? Leva 1 minuto por dia.</p></div>
  <div class="stack-s">${A_.map(([id,e,t,d])=>`<button class="card row" style="text-align:left;gap:12px;padding:12px;align-items:center;width:100%" data-act="tourGo" data-v="${id}"><span style="font-size:28px;flex:none">${e}</span><span class="grow stack-s" style="gap:2px"><b>${t}${used[id]?' <span class="pill good">você já usa</span>':""}</b><span class="tiny muted">${d}</span></span><span style="flex:none;color:var(--muted)">›</span></button>`).join("")}</div>
@@ -2614,7 +2618,7 @@ function viewHome(){
  const up=(()=>{const seen={};return upcoming(14).filter(e=>{const k=e.id||e.title;if(seen[k])return false;seen[k]=1;return true}).slice(0,3)})();
  const moodTxt={feliz:"está gordinho e feliz",ok:"está bem",preocupado:"está preocupado",triste:"está magrinho e triste"}[h.mood];
  const pigCard=S.profile.pet?`<button class="card" data-act="tab" data-v="pig" style="padding:0;text-align:left;border:0;overflow:hidden">
-   <div class="pigstage">${pigSVG({score:h.score,mood:h.mood,equip:effectiveEquip(),env:envLevel(),dry:envDry(),peace:prayerPeace()})}</div>
+   <div class="pigstage">${pigSVG({score:h.score,mood:h.mood,equip:effectiveEquip(),env:envLevel(),dry:envDry(),peace:prayerPeace(),zen:zenPeace()})}</div>
    <div style="padding:14px 16px" class="row between"><div class="stack-s"><h3>${S.pet.name?esc(S.pet.name):"Seu porquinho"} ${moodTxt}</h3><p class="small muted">Saúde financeira ${h.score} de 100. Toque para ver o motivo.</p></div>${I.right.replace('<svg','<svg width="22" height="22"')}</div></button>`
   :`<div class="card stack"><div class="row between"><h3>Saúde financeira</h3><span class="pill ${h.score>=70?"good":h.score>=45?"warn":"bad"}">${h.score}/100</span></div><div class="meter"><i style="width:${h.score}%"></i></div><button class="btn ghost sm" data-act="tab" data-v="pig">Ver motivos e dicas</button></div>`;
  const ring=(pct,color,label,val)=>{const r=26,c=2*Math.PI*r;return `<div class="stack-s" style="align-items:center;text-align:center"><svg width="70" height="70" viewBox="0 0 70 70"><circle cx="35" cy="35" r="${r}" fill="none" stroke="var(--surface2)" stroke-width="8"/><circle cx="35" cy="35" r="${r}" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-clamp(pct,0,1))}" transform="rotate(-90 35 35)"/>${pct>=1?`<g transform="translate(23 23)" color="${color}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></g>`:""}</svg><b class="small">${label}</b><span class="tiny muted num">${val}</span></div>`};
@@ -2652,7 +2656,7 @@ function viewPig(){
  const plainTitle={feliz:"Finanças saudáveis",ok:"Finanças estáveis",preocupado:"Finanças pedem atenção",triste:"Finanças em alerta"}[h.mood];
  return `<div class="stack">
  <div class="row"><button class="iconbtn" data-act="tab" data-v="home" aria-label="Voltar">${I.left}</button><h2 class="grow">${pet?(S.pet.name?esc(S.pet.name):"Seu porquinho"):"Saúde financeira"}</h2>${pet?`<button class="btn ghost sm" data-act="petName">${S.pet.name?"Renomear":"Dar um nome"}</button>`:""}</div>
- ${pet?`<div class="pigstage card" style="padding:0" data-act="pigPoke" role="button" aria-label="Fazer carinho em ${S.pet.name?esc(S.pet.name):"seu porquinho"}" tabindex="0">${pigSVG({score:h.score,mood:h.mood,equip:effectiveEquip(),env:lv,dry:envDry(),peace:prayerPeace()})}</div>`:""}
+ ${pet?`<div class="pigstage card" style="padding:0" data-act="pigPoke" role="button" aria-label="Fazer carinho em ${S.pet.name?esc(S.pet.name):"seu porquinho"}" tabindex="0">${pigSVG({score:h.score,mood:h.mood,equip:effectiveEquip(),env:lv,dry:envDry(),peace:prayerPeace(),zen:zenPeace()})}</div>`:""}
  <div class="card stack"><div class="row between"><h3>${pet?moodTitle:plainTitle}</h3><span class="pill ${h.score>=70?"good":h.score>=45?"warn":"bad"} num">${h.score}/100</span></div>
   <div class="meter"><i style="width:${h.score}%;background:${h.score>=70?"var(--good)":h.score>=45?"var(--warn)":"var(--bad)"}"></i></div>
   <p class="small muted">${pet?"A saúde do porquinho":"Esta nota"} depende só do dinheiro: quanto você gastou da renda, quanto separou para o futuro, como estão os desejos, as dívidas e se você registra todo dia.</p></div>
@@ -2663,8 +2667,8 @@ function viewPig(){
   <p class="tiny muted">Tarefas concluídas liberam acessórios especiais: ${TASK_REWARDS.map(r=>`${r.n.toLowerCase()} (${r.tasks})`).join(", ")}. Você já concluiu ${+S.tasks.doneTotal||0}. Se uma tarefa ficar atrasada ${TASK_LATE_DAYS} dias ou mais, um desses acessórios é guardado até você concluir, remarcar ou apagar a tarefa.</p>
   <p class="small muted">Ganhe pontos estudando: 1 ponto a cada 5 minutos, 1 a cada 10 páginas, 10 por lição lida e 30 por livro terminado.</p>
   ${studyWarning()}${sd.lost?`<p class="small" style="color:var(--bad)">O porquinho guardou ${sd.lost} ${sd.lost===1?"acessório":"acessórios"} por ficar sem estudar. Estude mais ${RECOVER_MIN-sd.pool} minutos para recuperar o próximo.</p>`:""}
-  ${ACC_SLOTS.map(([slot,sn])=>`<div class="tiny muted" style="font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin:12px 0 6px">${sn}</div><div class="closet">${ACCESSORIES.filter(a=>a.slot===slot).map(a=>{const owned=!!S.pet.owned[a.id];const tlost=taskDecay().lostIds.has(a.id);if(owned&&(sd.lostIds.has(a.id)||tlost))return `<button class="locked" data-act="acc" data-v="${a.id}" style="border-style:dashed;border-color:var(--bad)">${accThumb(a.id)}<span>${a.n}</span><span class="tiny" style="color:var(--bad)">${tlost?"Guardado: tarefa atrasada":"Guardado"}</span></button>`;const on=S.pet.equip[a.slot]===a.id;const canBuy=a.supporter?!!S.profile.supporter:a.tasks?(+S.tasks.doneTotal||0)>=a.tasks:a.streak?bestStreak()>=a.streak:pts.avail>=a.cost;
-   return `<button class="${on?"on":""} ${!owned&&!canBuy?"locked":""}" data-act="acc" data-v="${a.id}" aria-pressed="${on}">${accThumb(a.id)}<span>${a.n}</span><span class="tiny muted">${owned?(on?"Usando":"Vestir"):a.supporter?"Apoiadores":a.tasks?`${a.tasks} tarefas`:a.streak?`Sequência de ${a.streak} dias`:a.cost+" pts"}</span></button>`}).join("")}</div>`).join("")}</div>
+  ${ACC_SLOTS.map(([slot,sn])=>`<div class="tiny muted" style="font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin:12px 0 6px">${sn}</div><div class="closet">${ACCESSORIES.filter(a=>a.slot===slot).map(a=>{const owned=!!S.pet.owned[a.id];const tlost=taskDecay().lostIds.has(a.id);if(owned&&(sd.lostIds.has(a.id)||tlost))return `<button class="locked" data-act="acc" data-v="${a.id}" style="border-style:dashed;border-color:var(--bad)">${accThumb(a.id)}<span>${a.n}</span><span class="tiny" style="color:var(--bad)">${tlost?"Guardado: tarefa atrasada":"Guardado"}</span></button>`;const on=S.pet.equip[a.slot]===a.id;const canBuy=a.supporter?!!S.profile.supporter:a.tasks?(+S.tasks.doneTotal||0)>=a.tasks:a.med?medDays()>=a.med:a.streak?bestStreak()>=a.streak:pts.avail>=a.cost;
+   return `<button class="${on?"on":""} ${!owned&&!canBuy?"locked":""}" data-act="acc" data-v="${a.id}" aria-pressed="${on}">${accThumb(a.id)}<span>${a.n}</span><span class="tiny muted">${owned?(on?"Usando":"Vestir"):a.supporter?"Apoiadores":a.tasks?`${a.tasks} tarefas`:a.med?`${a.med} dias meditando`:a.streak?`Sequência de ${a.streak} dias`:a.cost+" pts"}</span></button>`}).join("")}</div>`).join("")}</div>
  <div class="section"><div class="label">Ambiente</div>${envWarning()}
   <div class="card stack"><div class="row between"><b>${ENV_LEVELS[lv].n}</b><span class="small muted num">${exm} min de exercício</span></div>
   <div class="envsteps">${ENV_LEVELS.map((e,i)=>`<i class="${i<=lv?"on":i<=es.unlocked?"lost":""}"></i>`).join("")}</div>
@@ -3478,6 +3482,7 @@ const A={
   if(owned){wdToggle(a);return}
   if(a.tasks){if((+S.tasks.doneTotal||0)>=a.tasks){wdGive(a,`${a.n} conquistado com tarefas concluídas! ${petCap()} já está usando.`)}else toast(`Conclua ${a.tasks-(+S.tasks.doneTotal||0)} tarefas a mais para ganhar este acessório.`);return}
   if(a.supporter){if(S.profile.supporter){wdGive(a,"Obrigado por apoiar o Prumo!")}else toast("Este acessório é um agradecimento para quem apoia o Prumo.");return}
+  if(a.med){if(medDays()>=a.med){wdGive(a,`Faixa zen conquistada com ${a.med} dias de meditação! ${petCap()} está em paz.`)}else toast(`Medite em ${a.med-medDays()} dia(s) a mais para ganhar a faixa zen. Já são ${medDays()}.`);return}
   if(a.streak){if(bestStreak()>=a.streak){wdGive(a,"Coroa conquistada!")}else toast(`Alcance uma sequência de ${a.streak} dias para ganhar a coroa.`);return}
   const pts=devPoints();if(pts.avail<a.cost){toast(`Faltam ${a.cost-pts.avail} pontos. Estude mais um pouco!`);return}
   wdGive(a,`${a.n} comprado com ${a.cost} pontos. ${petCap()} adorou!`)},
@@ -3535,10 +3540,17 @@ const MEDS=[
 const MED_READY=/prumovidaemordem|localhost|127\.0\.0\.1/.test(location.hostname)?{resp:true,ans:true,trab:true}:{};
 const SOUNDS=[["none","Silêncio"],["chuva","Chuva"],["mar","Mar"],["calmo","Calmo"]];
 function medStore(){S.med=S.med&&typeof S.med==="object"?S.med:{};S.med.log=Array.isArray(S.med.log)?S.med.log:[];return S.med}
+function medTotalMin(){const m=S.med&&Array.isArray(S.med.log)?S.med.log:[];return m.reduce((s,x)=>s+(+x.min||0),0)}
+function medDays(){const m=S.med&&Array.isArray(S.med.log)?S.med.log:[];return new Set(m.map(x=>x.d)).size}
+function medDaysLast7(){const m=S.med&&Array.isArray(S.med.log)?S.med.log:[];const lim=ymd(new Date(Date.now()-6*864e5));return new Set(m.filter(x=>x.d>=lim).map(x=>x.d)).size}
 function medWeekMin(){const m=medStore(),lim=ymd(new Date(Date.now()-6*864e5));return Math.round(m.log.filter(x=>x.d>=lim).reduce((s,x)=>s+(+x.min||0),0))}
 function medStreak(){const ds=new Set(medStore().log.map(x=>x.d));let n=0,d=new Date();if(!ds.has(ymd(d)))d=new Date(Date.now()-864e5);while(ds.has(ymd(d))){n++;d=new Date(d.getTime()-864e5)}return n}
 function medView(){const m=medStore(),bd=UI.medBreathDur||3,wk=medWeekMin(),st=medStreak();
- return `<div class="section"><div class="card" style="display:flex;gap:14px;align-items:center"><div class="grow"><div class="label" style="margin:0">Esta semana</div><div class="big num" style="margin-top:2px">${wk} min</div><div class="small muted">${st>1?`${st} dias seguidos meditando`:m.log.length?"Cada minuto conta. Volte amanhã.":"Comece com 3 minutos. É o suficiente."}</div></div><div style="width:84px;flex:none">${pigSVG({score:90,mood:"feliz",equip:{},env:0,mini:true})}</div></div></div>
+ return `<div class="section"><div class="card" style="display:flex;gap:14px;align-items:center"><div class="grow"><div class="label" style="margin:0">Esta semana</div><div class="big num" style="margin-top:2px">${wk} min</div><div class="small muted">${st>1?`${st} dias seguidos meditando`:m.log.length?"Cada minuto conta. Volte amanhã.":"Comece com 3 minutos. É o suficiente."}</div></div><div style="width:84px;flex:none">${pigSVG({score:90,mood:"feliz",equip:{},env:0,mini:true})}</div></div>
+ <div class="card stack-s" style="margin-top:10px"><div class="label" style="margin:0">O que o porquinho ganha</div>
+  <div class="row between small" style="gap:10px"><span>Pontos para o guarda-roupa</span><b class="num">${Math.floor(medTotalMin()/5)} pts</b></div><div class="tiny muted" style="margin-top:-4px">1 ponto a cada 5 minutos meditando.</div>
+  <div class="row between small" style="gap:10px"><span>Brilho de paz em volta dele</span><b class="num">${medDaysLast7()}/7 dias</b></div><div class="tiny muted" style="margin-top:-4px">${medDaysLast7()>=7?"Semana completa: ele está envolto em luz.":medDaysLast7()>=3?"Os brilhinhos já apareceram. Com 7 dias na semana, vem a luz.":`Medite em ${3-medDaysLast7()} dia(s) a mais nesta semana para os brilhinhos aparecerem.`}</div>
+  <div class="row between small" style="gap:10px"><span>Faixa zen (acessório)</span><b class="num">${S.pet&&S.pet.owned&&S.pet.owned.zen?"Conquistada":Math.min(7,medDays())+"/7 dias"}</b></div><div class="tiny muted" style="margin-top:-4px">Meditar também conta na sua sequência de dias.</div></div></div>
  <div class="section"><div class="label">Respire agora</div><div class="card stack">
   <div class="row between" style="gap:8px;flex-wrap:wrap"><span class="small muted">Duração</span><div class="chips">${[1,3,5,10].map(n=>`<button class="chip ${bd===n?"on":""}" data-act="medBDur" data-v="${n}">${n} min</button>`).join("")}</div></div>
   <div class="list">${BREATHS.map(b=>`<button class="item" data-act="medBreath" data-v="${b.id}" style="width:100%;text-align:left;background:none;border:0;font:inherit;color:inherit;cursor:pointer;align-items:center"><div class="grow"><b>${b.n}</b><div class="small muted">${b.d}</div></div><span class="pill">${b.ph.map(p=>p[1]).join("-")}</span></button>`).join("")}</div></div></div>
@@ -3600,8 +3612,9 @@ function medOpenPlayer(o){medClose(true);Object.assign(MP,{open:true,playing:fal
  el.addEventListener("keydown",e=>{if(e.key==="Escape")medClose();if(e.key===" "&&e.target.tagName!=="INPUT"){e.preventDefault();MP.playing?medPause():medPlay()}});
  const c=medCtx();if(c){MP.bgGain.gain.value=UI.medBgVol??.3;MP.voGain.gain.value=UI.medVoVol??1}
  medPaint();setTimeout(()=>el.querySelector('[data-act="medPP"]').focus(),50)}
-function medDone(full){if(MP.logged)return;const p=Math.min(medPos(),MP.tl.total),min=Math.round(p/60*10)/10;if(min<1&&!full)return;MP.logged=true;const m=medStore();m.log.push({d:today(),min:Math.max(1,Math.round(min)),k:MP.type,id:MP.id,at:Date.now()});if(m.log.length>2000)m.log=m.log.slice(-2000);commit();
- toast(full?`Pronto! ${Math.max(1,Math.round(min))} min de meditação. O porquinho ficou zen.`:`${Math.max(1,Math.round(min))} min registrados. Bom trabalho.`)}
+function medDone(full){if(MP.logged)return;const p=Math.min(medPos(),MP.tl.total),min=Math.round(p/60*10)/10;if(min<1&&!full)return;MP.logged=true;markActive();const m=medStore();const ptsBefore=Math.floor(medTotalMin()/5),daysBefore=medDays();m.log.push({d:today(),min:Math.max(1,Math.round(min)),k:MP.type,id:MP.id,at:Date.now()});if(m.log.length>2000)m.log=m.log.slice(-2000);commit();
+ const gp=Math.floor(medTotalMin()/5)-ptsBefore,nd=medDays();
+ toast((full?`Pronto! ${Math.max(1,Math.round(min))} min de meditação.`:`${Math.max(1,Math.round(min))} min registrados.`)+(gp>0?` +${gp} ponto${gp>1?"s":""} para o guarda-roupa.`:"")+(nd>daysBefore&&nd===7?" A Faixa zen foi liberada no guarda-roupa!":nd>daysBefore&&nd<7?` ${nd} de 7 dias para a Faixa zen.`:""),4500)}
 function medClose(silent){if(!MP.open)return;if(!silent)medDone(false);MP.open=false;MP.playing=false;cancelAnimationFrame(MP.raf);medStopSources();medBgStop(1);medWake(false);if(MP.ctx){MP.bgGain.gain.cancelScheduledValues(MP.ctx.currentTime);MP.bgGain.gain.value=UI.medBgVol??.3}const el=document.getElementById("medP");if(el)el.remove();document.body.style.overflow="";if(!silent&&UI.tab==="ex"&&UI.ex==="medit")render()}
 async function medLoadGuided(md){const c=medCtx();if(!c)throw new Error("noaudio");MP.cache=MP.cache||{};const bufs={};for(const x of md.b.filter(x=>x.f)){if(!MP.cache[x.f]){const r=await fetch(MED_BASE+x.f+".mp3");if(!r.ok)throw new Error("404");const ab=await r.arrayBuffer();MP.cache[x.f]=await new Promise((ok,ko)=>c.decodeAudioData(ab,ok,ko))}bufs[x.f]=MP.cache[x.f]}return bufs}
 try{UI.medBgVol=+(localStorage.getItem("prumo.medBg")??.3);UI.medTick=!!localStorage.getItem("prumo.medTick")}catch(e){}

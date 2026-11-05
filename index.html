@@ -794,7 +794,7 @@ function finActivity(day){for(const k of [mkey(day),shiftMonth(mkey(day),1),shif
 const studyLogs=()=>vals(S.study.logs).sort((a,b)=>(b.date+b.t).localeCompare(a.date+a.t));
 const studyMin=day=>vals(S.study.logs).filter(l=>l.date===day).reduce((s,l)=>s+(+l.min||0),0);
 const totalStudyMin=()=>vals(S.study.logs).reduce((s,l)=>s+(+l.min||0),0);
-function devPoints(){const earned=Math.floor(totalStudyMin()/5)+Math.floor(medTotalMin()/5)+foodMealDays()+Object.keys(S.learn.read).length*10+quizDone()*5+Object.keys(S.missionDays||{}).length*5+vals(S.study.books).filter(b=>b.status==="lido").length*30+Object.values((S.vocab||{}).words||{}).filter(x=>x&&x.fr).length*5+Math.floor(vals(S.study.logs).reduce((s,l)=>s+(+l.pages||0),0)/10);
+function devPoints(){const earned=Math.floor(totalStudyMin()/5)+medPtsDays()+foodMealDays()+Object.keys(S.learn.read).length*10+quizDone()*5+Object.keys(S.missionDays||{}).length*5+vals(S.study.books).filter(b=>b.status==="lido").length*30+Object.values((S.vocab||{}).words||{}).filter(x=>x&&x.fr).length*5+Math.floor(vals(S.study.logs).reduce((s,l)=>s+(+l.pages||0),0)/10);
  const spent=Object.keys(S.pet.owned).reduce((s,id)=>{const a=ACCESSORIES.find(x=>x.id===id);return s+(a?a.cost:0)},0);return{earned,spent,avail:earned-spent}}
 const exLogs=()=>vals(S.ex.logs).sort((a,b)=>(b.date+b.t).localeCompare(a.date+a.t));
 const exEq=l=>(+l.min||0)*(INT_W[l.int]||1);
@@ -2729,7 +2729,7 @@ function pigGains(area){if(!S.profile.pet||TEAM)return"";const nm=S.pet&&S.pet.n
    ["Cuidado","",`A cada ${DECAY_DAYS} dias seguidos sem exercício, ${nm} perde o item mais recente do cenário. Cada ${RECOVER_MIN} minutos trazem um de volta.`]];
   if(es.lost)rows.unshift(["Itens perdidos",`${es.lost}`,`Faça mais ${RECOVER_MIN-es.pool} minutos de exercício para recuperar um.`])}
  else if(area==="study"){const pts=devPoints(),sd=studyDecay();
-  rows=[["Pontos para o guarda-roupa",`${pts.avail} pts`,"1 ponto a cada 5 min de estudo ou de meditação, 1 a cada 10 páginas, 10 por lição lida, 30 por livro terminado e 1 por dia com refeições registradas."],
+  rows=[["Pontos para o guarda-roupa",`${pts.avail} pts`,"1 ponto a cada 5 min de estudo, 1 por dia de meditação completa, 1 a cada 10 páginas, 10 por lição lida, 30 por livro terminado e 1 por dia com refeições registradas."],
    ["Cuidado","",`A cada ${STUDY_DECAY_DAYS} dias seguidos sem estudar, ${nm} guarda o acessório mais recente. Cada ${RECOVER_MIN} minutos de estudo devolvem um.`]];
   if(sd.lost)rows.unshift(["Acessórios guardados",`${sd.lost}`,`Estude mais ${RECOVER_MIN-sd.pool} minutos para devolver um.`])}
  else if(area==="tasks"){if(teamAg())return"";const tot=+S.tasks.doneTotal||0,nx=TASK_REWARDS.find(r=>tot<r.tasks),td=taskDecay();
@@ -2742,9 +2742,9 @@ function pigGains(area){if(!S.profile.pet||TEAM)return"";const nm=S.pet&&S.pet.n
    ["Garrafinha de água (acessório)",S.pet&&S.pet.owned&&S.pet.owned.garrafa?"Conquistada":Math.min(7,wt)+"/7 dias","Liberada no guarda-roupa ao bater a meta de água em 7 dias."]];
   foot="Aqui o porquinho ganha pelo cuidado, nunca por comer menos. Também conta na sua sequência de dias."}
  else if(area==="medit"){const d7=medDaysLast7();
-  rows=[["Pontos para o guarda-roupa",`${Math.floor(medTotalMin()/5)} pts`,"1 ponto a cada 5 minutos meditando."],
+  rows=[["Pontos para o guarda-roupa",`${medPtsDays()} ${medPtsDays()===1?"pt":"pts"}`,"1 ponto por dia ao completar uma meditação ou respiração, ouvindo até o fim sem pular. Repetir no mesmo dia não soma de novo."],
    ["Brilho de paz em volta dele",`${d7}/7 dias`,d7>=7?"Semana completa: ele está envolto em luz.":d7>=3?"Os brilhinhos já apareceram. Com 7 dias na semana, vem a luz.":`Medite em ${3-d7} dia(s) a mais nesta semana para os brilhinhos aparecerem.`],
-   ["Faixa zen (acessório)",S.pet&&S.pet.owned&&S.pet.owned.zen?"Conquistada":Math.min(7,medDays())+"/7 dias","Liberada no guarda-roupa ao completar 7 dias meditando."]]}
+   ["Faixa zen (acessório)",S.pet&&S.pet.owned&&S.pet.owned.zen?"Conquistada":Math.min(7,medDays())+"/7 dias","Liberada no guarda-roupa ao completar meditações inteiras em 7 dias diferentes."]]}
  else return"";
  return `<details class="card pgain" data-pg="${area}" ${pgClosed(area)?"":"open"}><summary><span class="pgT">Você cresce, ${nm} também</span><span class="pgPig" aria-hidden="true">${pigFace(effectiveEquip())}</span></summary>
  <div class="stack-s" style="margin-top:10px">${rows.map(([l,v,h])=>`<div><div class="row between small" style="gap:10px"><span>${l}</span>${v?`<b class="num" style="text-align:right">${v}</b>`:""}</div>${h?`<div class="tiny muted">${h}</div>`:""}</div>`).join("")}
@@ -3643,9 +3643,11 @@ const MEDS=[
 const MED_READY=/prumovidaemordem|localhost|127\.0\.0\.1/.test(location.hostname)?{resp:true,ans:true,trab:true}:{};
 const SOUNDS=[["none","Silêncio"],["chuva","Chuva"],["mar","Mar"],["calmo","Calmo"]];
 function medStore(){S.med=S.med&&typeof S.med==="object"?S.med:{};S.med.log=Array.isArray(S.med.log)?S.med.log:[];return S.med}
+const medOk=x=>x.full!==false;
+function medPtsDays(){const m=S.med&&Array.isArray(S.med.log)?S.med.log:[];return new Set(m.filter(medOk).map(x=>x.d)).size}
 function medTotalMin(){const m=S.med&&Array.isArray(S.med.log)?S.med.log:[];return m.reduce((s,x)=>s+(+x.min||0),0)}
-function medDays(){const m=S.med&&Array.isArray(S.med.log)?S.med.log:[];return new Set(m.map(x=>x.d)).size}
-function medDaysLast7(){const m=S.med&&Array.isArray(S.med.log)?S.med.log:[];const lim=ymd(new Date(Date.now()-6*864e5));return new Set(m.filter(x=>x.d>=lim).map(x=>x.d)).size}
+function medDays(){return medPtsDays()}
+function medDaysLast7(){const m=S.med&&Array.isArray(S.med.log)?S.med.log:[];const lim=ymd(new Date(Date.now()-6*864e5));return new Set(m.filter(x=>x.d>=lim&&medOk(x)).map(x=>x.d)).size}
 function medWeekMin(){const m=medStore(),lim=ymd(new Date(Date.now()-6*864e5));return Math.round(m.log.filter(x=>x.d>=lim).reduce((s,x)=>s+(+x.min||0),0))}
 function medStreak(){const ds=new Set(medStore().log.map(x=>x.d));let n=0,d=new Date();if(!ds.has(ymd(d)))d=new Date(Date.now()-864e5);while(ds.has(ymd(d))){n++;d=new Date(d.getTime()-864e5)}return n}
 function medView(){const m=medStore(),bd=UI.medBreathDur||3,wk=medWeekMin(),st=medStreak();
@@ -3682,10 +3684,11 @@ function medSchedule(){const c=MP.ctx,pos=MP.pos0,now=c.currentTime+.05;MP.ctx0=
   else if(it.kind==="phase"&&off<.05&&i>0)medTick(when)});
  if(MP.sleep){const fadeAt=MP.tl.total-45;if(fadeAt>pos){MP.bgGain.gain.cancelScheduledValues(c.currentTime);MP.bgGain.gain.setValueAtTime(UI.medBgVol??.3,now+(fadeAt-pos));MP.bgGain.gain.linearRampToValueAtTime(0,now+(MP.tl.total-pos))}}}
 function medPlay(){const c=medCtx();if(!c)return;if(MP.pos0>=MP.tl.total)MP.pos0=0;MP.playing=true;medSchedule();if(!MP.bg&&MP.sound!=="none")medBgStart(MP.sound);medWake(true);medLoop();medPaint()}
-function medPause(){if(!MP.playing)return;MP.pos0=medPos();MP.playing=false;medStopSources();medWake(false);medPaint()}
-function medSeek(p){const was=MP.playing;if(was){MP.pos0=medPos();MP.playing=false;medStopSources()}MP.pos0=Math.max(0,Math.min(MP.tl.total,p));if(was){MP.playing=true;medSchedule()}medPaint()}
+function medHeard(){if(MP.playing&&MP.ctx)MP.heard=(MP.heard||0)+Math.max(0,Math.min(MP.ctx.currentTime-MP.ctx0,MP.tl.total-MP.pos0))}
+function medPause(){if(!MP.playing)return;medHeard();MP.pos0=medPos();MP.playing=false;medStopSources();medWake(false);medPaint()}
+function medSeek(p){const was=MP.playing;if(was){medHeard();MP.pos0=medPos();MP.playing=false;medStopSources()}MP.pos0=Math.max(0,Math.min(MP.tl.total,p));if(was){MP.playing=true;medSchedule()}medPaint()}
 async function medWake(on){try{if(on&&navigator.wakeLock&&!MP.lock)MP.lock=await navigator.wakeLock.request("screen");if(!on&&MP.lock){MP.lock.release();MP.lock=null}}catch(e){}}
-function medLoop(){cancelAnimationFrame(MP.raf);const f=()=>{if(!MP.open)return;const p=medPos();if(MP.playing&&p>=MP.tl.total){MP.pos0=MP.tl.total;MP.playing=false;medStopSources();medWake(false);medPaint();medDone(true);return}medPaint();if(MP.playing)MP.raf=requestAnimationFrame(f)};MP.raf=requestAnimationFrame(f)}
+function medLoop(){cancelAnimationFrame(MP.raf);const f=()=>{if(!MP.open)return;const p=medPos();if(MP.playing&&p>=MP.tl.total){medHeard();MP.pos0=MP.tl.total;MP.playing=false;medStopSources();medWake(false);medPaint();medDone(true);return}medPaint();if(MP.playing)MP.raf=requestAnimationFrame(f)};MP.raf=requestAnimationFrame(f)}
 const mmss=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
 function medPaint(){const el=document.getElementById("medP");if(!el)return;const p=Math.min(medPos(),MP.tl.total),it=MP.tl.items.find(x=>p>=x.t&&p<x.t+x.dur)||MP.tl.items[MP.tl.items.length-1];
  let sc=.62,cue="";if(MP.type==="breath"){const k=Math.min(1,(p-it.t)/it.dur);if(it.kind==="phase"){sc=it.mode==="in"?.55+.45*k:it.mode==="out"?1-.45*k:it.mode==="hold"?1:.55;cue=`${it.label}<span class="medN">${Math.max(1,Math.ceil(it.dur-(p-it.t)))}</span>`}else cue="Muito bem"}
@@ -3694,7 +3697,7 @@ function medPaint(){const el=document.getElementById("medP");if(!el)return;const
  el.querySelector(".medCirc").style.transform=`scale(${sc.toFixed(3)})`;el.querySelector(".medCue").innerHTML=cue;el.querySelector(".medEl").textContent=mmss(p);el.querySelector(".medTot").textContent=mmss(MP.tl.total);
  const r=el.querySelector(".medSeek");if(!MP.drag)r.value=Math.round(p);r.max=Math.round(MP.tl.total);el.querySelector('[data-act="medPP"]').innerHTML=MP.playing?'<svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>':'<svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>';
  el.querySelector('[data-act="medPP"]').setAttribute("aria-label",MP.playing?"Pausar":"Começar")}
-function medOpenPlayer(o){medClose(true);Object.assign(MP,{open:true,playing:false,pos0:0,logged:false,sound:UI.medSound||"none"},o);
+function medOpenPlayer(o){medClose(true);Object.assign(MP,{open:true,playing:false,pos0:0,heard:0,logged:false,sound:UI.medSound||"none"},o);
  const el=document.createElement("div");el.id="medP";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");el.setAttribute("aria-label",o.title);
  el.innerHTML=`<div class="medTop"><button class="iconbtn" data-act="medClose" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div class="medTitle"><b>${esc(o.title)}</b><span>${esc(o.sub||"")}</span></div><span style="width:40px"></span></div>
  <div class="medStage"><div class="medCirc"></div><div class="medCue" aria-live="polite"></div></div>
@@ -3712,9 +3715,17 @@ function medOpenPlayer(o){medClose(true);Object.assign(MP,{open:true,playing:fal
  el.addEventListener("keydown",e=>{if(e.key==="Escape")medClose();if(e.key===" "&&e.target.tagName!=="INPUT"){e.preventDefault();MP.playing?medPause():medPlay()}});
  const c=medCtx();if(c){MP.bgGain.gain.value=UI.medBgVol??.3;MP.voGain.gain.value=UI.medVoVol??1}
  medPaint();setTimeout(()=>el.querySelector('[data-act="medPP"]').focus(),50)}
-function medDone(full){if(MP.logged)return;const p=Math.min(medPos(),MP.tl.total),min=Math.round(p/60*10)/10;if(min<1&&!full)return;MP.logged=true;markActive();if(full)setTimeout(()=>pigSay("med"),5200);const m=medStore();const ptsBefore=Math.floor(medTotalMin()/5),daysBefore=medDays();m.log.push({d:today(),min:Math.max(1,Math.round(min)),k:MP.type,id:MP.id,at:Date.now()});if(m.log.length>2000)m.log=m.log.slice(-2000);commit();
- const gp=Math.floor(medTotalMin()/5)-ptsBefore,nd=medDays();
- toast((full?`Pronto! ${Math.max(1,Math.round(min))} min de meditação.`:`${Math.max(1,Math.round(min))} min registrados.`)+(gp>0?` +${gp} ponto${gp>1?"s":""} para o guarda-roupa.`:"")+(nd>daysBefore&&nd===7?" A Faixa zen foi liberada no guarda-roupa!":nd>daysBefore&&nd<7?` ${nd} de 7 dias para a Faixa zen.`:""),4500)}
+function medDone(ended){if(MP.logged)return;const p=Math.min(medPos(),MP.tl.total),min=Math.round(p/60*10)/10;if(min<1&&!ended)return;
+ /* recompensa só para quem ouviu até o fim, sem pular: pelo menos 90% do tempo tocando de verdade */
+ const full=!!ended&&(MP.heard||0)>=MP.tl.total*0.9;const heardMin=Math.max(1,Math.round((MP.heard||p)/60));
+ MP.logged=true;const m=medStore();const td=today(),hadToday=m.log.some(x=>x.d===td&&medOk(x)),daysBefore=medDays();
+ if(full){markActive();setTimeout(()=>pigSay("med"),5200)}
+ m.log.push({d:td,min:full?Math.max(1,Math.round(MP.tl.total/60)):heardMin,k:MP.type,id:MP.id,at:Date.now(),full});if(m.log.length>2000)m.log=m.log.slice(-2000);commit();
+ const nd=medDays();let msg;
+ if(full)msg=`Pronto! ${Math.max(1,Math.round(MP.tl.total/60))} min de meditação.`+(hadToday?" O ponto de hoje já estava garantido.":" +1 ponto para o guarda-roupa.")+(nd>daysBefore&&nd===7?" A Faixa zen foi liberada no guarda-roupa!":nd>daysBefore&&nd<7?` ${nd} de 7 dias para a Faixa zen.`:"");
+ else if(ended)msg="Você chegou ao fim, mas pulou partes. Para o porquinho ganhar, ouça a meditação inteira.";
+ else msg=`${heardMin} min registrados. Para o porquinho ganhar, vá até o fim sem pular.`;
+ toast(msg,5000)}
 function medClose(silent){if(!MP.open)return;if(!silent)medDone(false);MP.open=false;MP.playing=false;cancelAnimationFrame(MP.raf);medStopSources();medBgStop(1);medWake(false);if(MP.ctx){MP.bgGain.gain.cancelScheduledValues(MP.ctx.currentTime);MP.bgGain.gain.value=UI.medBgVol??.3}const el=document.getElementById("medP");if(el)el.remove();document.body.style.overflow="";if(!silent&&UI.tab==="ex"&&UI.ex==="medit")render()}
 async function medLoadGuided(md){const c=medCtx();if(!c)throw new Error("noaudio");MP.cache=MP.cache||{};const bufs={};for(const x of md.b.filter(x=>x.f)){if(!MP.cache[x.f]){const r=await fetch(MED_BASE+x.f+".mp3");if(!r.ok)throw new Error("404");const ab=await r.arrayBuffer();MP.cache[x.f]=await new Promise((ok,ko)=>c.decodeAudioData(ab,ok,ko))}bufs[x.f]=MP.cache[x.f]}return bufs}
 try{UI.medBgVol=+(localStorage.getItem("prumo.medBg")??.3);UI.medTick=!!localStorage.getItem("prumo.medTick")}catch(e){}

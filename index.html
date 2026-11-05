@@ -135,6 +135,13 @@ textarea{min-height:80px;resize:vertical}
 .pgain{padding:14px 16px}.pgain summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;min-height:36px}.pgain summary::-webkit-details-marker{display:none}
 .pgT{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}.pgain summary:after{content:"";width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);margin:0 4px 4px 0;flex:none}.pgain[open] summary:after{transform:rotate(-135deg);margin-top:6px}
 .pgPig{width:34px;height:34px;margin-left:auto;flex:none;border-radius:50%;overflow:hidden}.pgain a{color:var(--pig-deep);font-weight:700;text-decoration:none}.pgPig svg{width:100%;height:100%}
+.nmHero{position:relative;height:190px;border-radius:22px;overflow:hidden;background:radial-gradient(circle at 50% 45%,#5a4772 0,#2b2140 60%,#17121f 100%);display:flex;align-items:flex-end;justify-content:center}
+.nmGlow{position:absolute;left:50%;top:46%;width:210px;height:210px;margin:-105px 0 0 -105px;border-radius:50%;background:radial-gradient(circle,rgba(255,190,214,.55),rgba(217,84,127,.15) 60%,transparent 70%);animation:nmBreath 6s ease-in-out infinite}
+@keyframes nmBreath{0%,100%{transform:scale(.8)}50%{transform:scale(1.08)}}
+@media (prefers-reduced-motion:reduce){.nmGlow{animation:none}}
+.nmPig{position:relative;width:190px;margin-bottom:-6px}.nmPig .pig-coin,.nmPig .pig-heart{display:none}.nmPig svg{width:100%;height:auto;display:block}
+.nmTag{position:absolute;top:12px;left:12px;background:#F28AA8;color:#2b2140;font-weight:800;font-size:11px;letter-spacing:.1em;border-radius:999px;padding:5px 10px}
+.nmDot{width:26px;height:26px;border-radius:50%;background:var(--pig-deep);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none}
 .subtabs{display:flex;gap:6px;background:var(--surface2);padding:4px;border-radius:14px;overflow-x:auto;scrollbar-width:none}
 .subtabs button{flex:1;border:0;background:none;border-radius:10px;padding:8px 10px;font-weight:700;font-size:13px;color:var(--muted);white-space:nowrap}
 .subtabs button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
@@ -2650,7 +2657,25 @@ function tourPopup(){const p=S.profile;if(p.tour1||!p.created||UI.needAuth||(UI.
  <button class="btn block" data-act="tourGo" data-v="${used.fin?(used.ex?"study":"ex"):"fin"}">Começar por ${used.fin?(used.ex?"Estudos":"Saúde"):"Finanças"}</button>
  <button class="btn ghost block" data-act="closeModal">Agora não</button></div>`);
  const sc=document.querySelector("#modal .scrim");if(sc)sc.classList.add("center")}
+/* Novidade: aba de Meditação (aparece uma vez para cada pessoa) */
+function newsMedPopup(){const p=S.profile;if(p.newsMed||!p.created||UI.needAuth||UI.popShown||(UI.onb>=0&&UI.onb<3)||p.created>=today())return;
+ if(typeof TEAM!=="undefined"&&TEAM)return;if($("#modal").innerHTML||document.getElementById("medP"))return;
+ p.newsMed=today();saveApp();UI.popShown=1;const first=(p.name||"").split(" ")[0];
+ let pig="";try{pig=pigSVG({score:100,mood:"feliz",equip:Object.assign({},p.pet?effectiveEquip():{},{head:"zen"}),env:0,dry:false,peace:0,zen:0,mini:true})}catch(e){}
+ openModal("Novidade no Prumo",`<div class="stack" style="gap:14px">
+ <div class="nmHero"><div class="nmGlow"></div><div class="nmPig">${pig}</div><span class="nmTag">NOVIDADE</span></div>
+ <div class="stack-s" style="text-align:center;gap:6px"><h2 style="margin:0">${first?esc(first)+", agora":"Agora"} o Prumo tem Meditação</h2>
+ <p class="small" style="margin:0">Uma pausa de 3 minutos já muda o dia. Respire, acalme a cabeça e volte com mais foco.</p></div>
+ <div class="card flat stack-s" style="gap:10px">
+  <div class="row" style="gap:12px;align-items:flex-start"><span class="nmDot">1</span><span class="small"><b>Meditações guiadas</b>, narradas pelo criador do Prumo: acalmar a ansiedade, pausa no trabalho e respiração de 3 minutos.</span></div>
+  <div class="row" style="gap:12px;align-items:flex-start"><span class="nmDot">2</span><span class="small"><b>Respiração guiada na tela</b>, com um círculo que acompanha você e sons de chuva ou de mar, se quiser.</span></div>
+  <div class="row" style="gap:12px;align-items:flex-start"><span class="nmDot">3</span><span class="small"><b>O porquinho ganha junto:</b> pontos para o guarda-roupa, brilho de paz e a nova Faixa zen.</span></div></div>
+ <button class="btn block" data-act="newsMedGo">Experimentar agora</button>
+ <button class="btn ghost block" data-act="closeModal">Depois</button>
+ <p class="tiny muted" style="text-align:center;margin:0">Fica em Saúde → Meditação.</p></div>`);
+ const sc=document.querySelector("#modal .scrim");if(sc)sc.classList.add("center")}
 {const _rs=render;let tmr=null;render=function(){_rs.apply(this,arguments);clearTimeout(tmr);tmr=setTimeout(tourPopup,2500)}}
+{const _rs2=render;let tm2=null;render=function(){_rs2.apply(this,arguments);if(!tm2&&!S.profile.newsMed)tm2=setTimeout(()=>{tm2=null;newsMedPopup()},3200)}}
 
 
 function viewHome(){
@@ -3929,6 +3954,7 @@ document.addEventListener("change",ev=>{const el=ev.target;if(!UI.imp)return;
 document.addEventListener("input",ev=>{const id=ev.target&&ev.target.id;if(id==="f_v"||id==="f_date")ccPreview()});
 document.addEventListener("change",ev=>{const id=ev.target&&ev.target.id;if(id==="f_n"||id==="f_date")ccPreview()});
 
+A.newsMedGo=()=>{closeModal();UI.tab="ex";UI.ex="medit";window.scrollTo(0,0);render()};
 A.tourGo=el=>{closeModal();if(typeof TEAM!=="undefined"&&TEAM&&typeof teamExit==="function")teamExit();UI.tab=el.dataset.v;if(UI.tab==="fin")UI.fin="mes";window.scrollTo(0,0);render()};
 Object.assign(A,{
  ccBuy:el=>expenseForm({card:el.dataset.v||(cardsList()[0]||{}).id,date:today()},null),

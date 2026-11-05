@@ -3568,7 +3568,7 @@ function medSchedule(){const c=MP.ctx,pos=MP.pos0,now=c.currentTime+.05;MP.ctx0=
   if(it.kind==="voice"){const s=c.createBufferSource();s.buffer=it.buf;s.connect(MP.voGain);s.start(when,off);MP.live.push(s)}
   else if(it.kind==="bell"&&off<.3)medBell(when);
   else if(it.kind==="phase"&&off<.05&&i>0)medTick(when)});
- if(MP.sleep){const fadeAt=MP.tl.total-45;if(fadeAt>pos){MP.bgGain.gain.cancelScheduledValues(c.currentTime);MP.bgGain.gain.setValueAtTime(UI.medBgVol??.5,now+(fadeAt-pos));MP.bgGain.gain.linearRampToValueAtTime(0,now+(MP.tl.total-pos))}}}
+ if(MP.sleep){const fadeAt=MP.tl.total-45;if(fadeAt>pos){MP.bgGain.gain.cancelScheduledValues(c.currentTime);MP.bgGain.gain.setValueAtTime(UI.medBgVol??.3,now+(fadeAt-pos));MP.bgGain.gain.linearRampToValueAtTime(0,now+(MP.tl.total-pos))}}}
 function medPlay(){const c=medCtx();if(!c)return;if(MP.pos0>=MP.tl.total)MP.pos0=0;MP.playing=true;medSchedule();if(!MP.bg&&MP.sound!=="none")medBgStart(MP.sound);medWake(true);medLoop();medPaint()}
 function medPause(){if(!MP.playing)return;MP.pos0=medPos();MP.playing=false;medStopSources();medWake(false);medPaint()}
 function medSeek(p){const was=MP.playing;if(was){MP.pos0=medPos();MP.playing=false;medStopSources()}MP.pos0=Math.max(0,Math.min(MP.tl.total,p));if(was){MP.playing=true;medSchedule()}medPaint()}
@@ -3582,7 +3582,7 @@ function medPaint(){const el=document.getElementById("medP");if(!el)return;const
  el.querySelector(".medCirc").style.transform=`scale(${sc.toFixed(3)})`;el.querySelector(".medCue").innerHTML=cue;el.querySelector(".medEl").textContent=mmss(p);el.querySelector(".medTot").textContent=mmss(MP.tl.total);
  const r=el.querySelector(".medSeek");if(!MP.drag)r.value=Math.round(p);r.max=Math.round(MP.tl.total);el.querySelector('[data-act="medPP"]').innerHTML=MP.playing?'<svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>':'<svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>';
  el.querySelector('[data-act="medPP"]').setAttribute("aria-label",MP.playing?"Pausar":"Começar")}
-function medOpenPlayer(o){medClose(true);Object.assign(MP,{open:true,playing:false,pos0:0,logged:false,sound:UI.medSound||"chuva"},o);
+function medOpenPlayer(o){medClose(true);Object.assign(MP,{open:true,playing:false,pos0:0,logged:false,sound:UI.medSound||"none"},o);
  const el=document.createElement("div");el.id="medP";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");el.setAttribute("aria-label",o.title);
  el.innerHTML=`<div class="medTop"><button class="iconbtn" data-act="medClose" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div class="medTitle"><b>${esc(o.title)}</b><span>${esc(o.sub||"")}</span></div><span style="width:40px"></span></div>
  <div class="medStage"><div class="medCirc"></div><div class="medCue" aria-live="polite"></div></div>
@@ -3590,7 +3590,7 @@ function medOpenPlayer(o){medClose(true);Object.assign(MP,{open:true,playing:fal
  <input type="range" class="medSeek" min="0" max="100" step="1" value="0" aria-label="Posição">
  <div class="row" style="justify-content:center;gap:22px;margin:6px 0 4px"><button class="medB" data-act="medJump" data-v="-15" aria-label="Voltar 15 segundos">−15s</button><button class="medPlay" data-act="medPP"></button><button class="medB" data-act="medJump" data-v="15" aria-label="Avançar 15 segundos">+15s</button></div>
  <div class="medSounds">${SOUNDS.map(([id,n])=>`<button class="${MP.sound===id?"on":""}" data-act="medSound" data-v="${id}">${n}</button>`).join("")}</div>
- <label class="medVol"><span>Som de fundo</span><input type="range" class="medBgV" min="0" max="100" value="${Math.round((UI.medBgVol??.5)*100)}"></label>
+ <label class="medVol"><span>Som de fundo</span><input type="range" class="medBgV" min="0" max="100" value="${Math.round((UI.medBgVol??.3)*100)}"></label>
  ${o.type==="guided"?`<label class="medVol"><span>Voz</span><input type="range" class="medVoV" min="0" max="100" value="${Math.round((UI.medVoVol??1)*100)}"></label>`:`<label class="medVol" style="justify-content:flex-start;gap:10px"><input type="checkbox" class="medTk" ${UI.medTick?"checked":""} style="width:auto"><span>Sininho baixo a cada troca</span></label>`}</div>`;
  document.body.appendChild(el);document.body.style.overflow="hidden";
  const r=el.querySelector(".medSeek");r.addEventListener("input",()=>{MP.drag=true;el.querySelector(".medEl").textContent=mmss(+r.value)});r.addEventListener("change",()=>{MP.drag=false;medSeek(+r.value)});
@@ -3598,13 +3598,13 @@ function medOpenPlayer(o){medClose(true);Object.assign(MP,{open:true,playing:fal
  const vv=el.querySelector(".medVoV");if(vv)vv.addEventListener("input",e=>{UI.medVoVol=e.target.value/100;medCtx();MP.voGain.gain.value=UI.medVoVol});
  const tk=el.querySelector(".medTk");if(tk)tk.addEventListener("change",e=>{UI.medTick=e.target.checked;try{localStorage.setItem("prumo.medTick",UI.medTick?"1":"")}catch(x){}});
  el.addEventListener("keydown",e=>{if(e.key==="Escape")medClose();if(e.key===" "&&e.target.tagName!=="INPUT"){e.preventDefault();MP.playing?medPause():medPlay()}});
- const c=medCtx();if(c){MP.bgGain.gain.value=UI.medBgVol??.5;MP.voGain.gain.value=UI.medVoVol??1}
+ const c=medCtx();if(c){MP.bgGain.gain.value=UI.medBgVol??.3;MP.voGain.gain.value=UI.medVoVol??1}
  medPaint();setTimeout(()=>el.querySelector('[data-act="medPP"]').focus(),50)}
 function medDone(full){if(MP.logged)return;const p=Math.min(medPos(),MP.tl.total),min=Math.round(p/60*10)/10;if(min<1&&!full)return;MP.logged=true;const m=medStore();m.log.push({d:today(),min:Math.max(1,Math.round(min)),k:MP.type,id:MP.id,at:Date.now()});if(m.log.length>2000)m.log=m.log.slice(-2000);commit();
  toast(full?`Pronto! ${Math.max(1,Math.round(min))} min de meditação. O porquinho ficou zen.`:`${Math.max(1,Math.round(min))} min registrados. Bom trabalho.`)}
-function medClose(silent){if(!MP.open)return;if(!silent)medDone(false);MP.open=false;MP.playing=false;cancelAnimationFrame(MP.raf);medStopSources();medBgStop(1);medWake(false);if(MP.ctx){MP.bgGain.gain.cancelScheduledValues(MP.ctx.currentTime);MP.bgGain.gain.value=UI.medBgVol??.5}const el=document.getElementById("medP");if(el)el.remove();document.body.style.overflow="";if(!silent&&UI.tab==="ex"&&UI.ex==="medit")render()}
+function medClose(silent){if(!MP.open)return;if(!silent)medDone(false);MP.open=false;MP.playing=false;cancelAnimationFrame(MP.raf);medStopSources();medBgStop(1);medWake(false);if(MP.ctx){MP.bgGain.gain.cancelScheduledValues(MP.ctx.currentTime);MP.bgGain.gain.value=UI.medBgVol??.3}const el=document.getElementById("medP");if(el)el.remove();document.body.style.overflow="";if(!silent&&UI.tab==="ex"&&UI.ex==="medit")render()}
 async function medLoadGuided(md){const c=medCtx();if(!c)throw new Error("noaudio");MP.cache=MP.cache||{};const bufs={};for(const x of md.b.filter(x=>x.f)){if(!MP.cache[x.f]){const r=await fetch(MED_BASE+x.f+".mp3");if(!r.ok)throw new Error("404");const ab=await r.arrayBuffer();MP.cache[x.f]=await new Promise((ok,ko)=>c.decodeAudioData(ab,ok,ko))}bufs[x.f]=MP.cache[x.f]}return bufs}
-try{UI.medBgVol=+(localStorage.getItem("prumo.medBg")??.5);UI.medTick=!!localStorage.getItem("prumo.medTick")}catch(e){}
+try{UI.medBgVol=+(localStorage.getItem("prumo.medBg")??.3);UI.medTick=!!localStorage.getItem("prumo.medTick")}catch(e){}
 Object.assign(A,{
  medBDur:el=>{UI.medBreathDur=+el.dataset.v;render()},
  medBreath:el=>{const b=BREATHS.find(x=>x.id===el.dataset.v),min=UI.medBreathDur||3;medCtx();medOpenPlayer({type:"breath",id:b.id,title:b.n,sub:`${min} min · ${b.ph.map(p=>p[1]).join("-")}`,tl:medTimelineBreath(b,min)})},

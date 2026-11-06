@@ -454,9 +454,9 @@ const BUCKETS={N:{name:"Necessidades",color:"var(--need)",desc:"O que você prec
                F:{name:"Futuro",color:"var(--future)",desc:"Você pagando você: reserva, investimentos e quitar dívidas."}};
 const CATS=[
  {id:"moradia",n:"Moradia",b:"N",i:"Mo"},{id:"contas",n:"Contas da casa",b:"N",i:"Ct"},{id:"mercado",n:"Mercado",b:"N",i:"Me"},
- {id:"transporte",n:"Transporte",b:"N",i:"Tr"},{id:"saude",n:"Saúde",b:"N",i:"Sa"},{id:"educacao",n:"Educação",b:"N",i:"Ed"},{id:"impostos",n:"Impostos e taxas",b:"N",i:"It"},
+ {id:"transporte",n:"Transporte",b:"N",i:"Tr"},{id:"combustivel",n:"Combustível",b:"N",i:"Cb"},{id:"saude",n:"Saúde",b:"N",i:"Sa"},{id:"educacao",n:"Educação",b:"N",i:"Ed"},{id:"impostos",n:"Impostos e taxas",b:"N",i:"It"},
  {id:"filhos",n:"Filhos e pets",b:"N",i:"Fi"},{id:"outrosN",n:"Outros",b:"N",i:"Ou"},
- {id:"lazer",n:"Lazer",b:"D",i:"La"},{id:"delivery",n:"Restaurante e delivery",b:"D",i:"Rd"},{id:"compras",n:"Compras",b:"D",i:"Co"},
+ {id:"lazer",n:"Lazer",b:"D",i:"La"},{id:"delivery",n:"Restaurante e delivery",b:"D",i:"Rd"},{id:"compras",n:"Compras",b:"D",i:"Co"},{id:"roupas",n:"Roupas e calçados",b:"D",i:"Rp"},
  {id:"assinaturas",n:"Assinaturas",b:"D",i:"As"},{id:"beleza",n:"Beleza e cuidados",b:"D",i:"Be"},{id:"presentes",n:"Presentes",b:"D",i:"Pr"},{id:"outros",n:"Outros",b:"D",i:"Ou"},
  {id:"reserva",n:"Reserva de emergência",b:"F",i:"Re"},{id:"investimento",n:"Investimentos",b:"F",i:"In"},{id:"divida",n:"Pagamento de dívida",b:"F",i:"Dv"},{id:"sonho",n:"Sonhos e objetivos",b:"F",i:"So"},{id:"outrosF",n:"Outros",b:"F",i:"Ou"},
 ];
@@ -3884,7 +3884,9 @@ function cardForm(c){c=c||{};const isEdit=!!c.id;UI.ccColor=c.color||CARD_COLORS
 /* ---------- Importar fatura ---------- */
 const CAT_RULES=[
  [/ifood|i food|rappi|aiqfome|restaur|lanchon|pizz|burger|mc ?donald|mcdonalds|bk |subway|outback|padaria|panific|cafeteria|starbucks|sorvet|acai|açai|açaí|churrasc|sushi|bar e |boteco/i,"delivery"],
- [/uber|99 ?(pop|app|taxi|food)?\b|cabify|posto|shell|ipiranga|petrobras|br mania|combust|auto posto|estacion|sem ?parar|conectcar|veloe|pedagio|pedágio|metro|metrô|onibus|ônibus|bilhete unico|zul\b/i,"transporte"],
+ [/\bposto\b|auto ?posto|shell|ipiranga|petrobras|\bbr mania|combust|gasolina|etanol|alcool comb|diesel|\bgnv\b|raizen|vibra energia|ale combust|graal/i,"combustivel"],
+ [/renner|riachuelo|c&a|\bcea\b|zara|hering|marisa|pernambucanas|youcom|reserva\b|farm rio|\bshein\b|centauro|netshoes|nike|adidas|puma|olympikus|havaianas|arezzo|schutz|sapat|cal[cç]ado|roupa|moda|vestu|boutique|lingerie|hope\b|malwee|lupo|track ?field|dafiti|zattini|lojas torra/i,"roupas"],
+ [/uber|99 ?(pop|app|taxi|food)?\b|cabify|estacion|sem ?parar|conectcar|veloe|pedagio|pedágio|metro|metrô|onibus|ônibus|bilhete unico|zul\b/i,"transporte"],
  [/supermerc|mercado(?! ?livre| ?pago)|carrefour|atacad|assai|assaí|p[aã]o de a[cç]ucar|extra hiper|big bompre|condor|muffato|sams club|hortifruti|a[cç]ougue|sacol[aã]o|quitanda|mercearia|dia brasil/i,"mercado"],
  [/farm[aá]c|drog|raia|pague menos|panvel|nissei|hospital|cl[ií]nic|laborat|odonto|m[eé]dic|unimed|exame|[oó]tica/i,"saude"],
  [/netflix|spotify|disney|hbo|max\.com|\bmax\b|prime video|amazon prime|primevideo|globoplay|youtube|deezer|apple\.com|icloud|google one|google storage|paramount|crunchyroll|chatgpt|openai|claude\.ai|anthropic|canva|microsoft|xbox game pass|playstation plus|smart ?fit|bluefit|academia|gympass|wellhub|totalpass/i,"assinaturas"],
@@ -3895,7 +3897,7 @@ const CAT_RULES=[
  [/vivo|claro|\btim\b|\boi\b|internet|telecom|energia|copel|cemig|enel|light s|celesc|sabesp|sanepar|embasa|compesa|g[aá]s\b|condom[ií]nio/i,"contas"],
  [/petz|cobasi|pet ?shop|veterin|petlove/i,"filhos"],
  [/iof|anuidade|tarifa|juros|multa|encargo/i,"impostos"]];
-const IGNORE_RE=/pagamento (recebido|efetuado|de fatura|fatura)|pgto|pag fatura|pagto|estorno|cr[eé]dito de|credito em|devolu[cç][aã]o|cashback|desconto antecip|saldo anterior|total da fatura|limite dispon/i;
+const IGNORE_RE=/d[oó]lar\s*:|cota[cç][aã]o d|pagamento (recebido|efetuado|de fatura|fatura)|pgto|pag fatura|pagto|estorno|cr[eé]dito de|credito em|devolu[cç][aã]o|cashback|desconto antecip|saldo anterior|total da fatura|limite dispon/i;
 const normDesc=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/parc(ela)?\.?\s*\d{1,2}\s*(\/|de)\s*\d{1,2}/g,"").replace(/\b\d{1,2}\/\d{1,2}\b/g,"").replace(/[^a-z]+/g," ").trim().slice(0,22);
 function guessCat(desc){const nd=normDesc(desc);if(nd){const ms=allMonths();for(let j=ms.length-1;j>=Math.max(0,ms.length-6);j--)for(const e of monthData(ms[j]).expenses)if(e.cat&&normDesc(e.desc)===nd)return e.cat}
  for(const [re,c] of CAT_RULES)if(re.test(desc))return c;return"outros"}

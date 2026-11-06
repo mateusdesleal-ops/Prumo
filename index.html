@@ -665,10 +665,10 @@ const teamNick=uid=>{if(uid===ME.uid)return"Você";const m=teamMembers().find(x=
 /* nas equipes, no lugar da inicial aparece o porquinho de cada pessoa (com as roupinhas e o humor) */
 let MYPIG=null;
 function myPigSig(){if(MYPIG&&Date.now()-MYPIG.t<4000)return MYPIG.v;let v={pet:false};const T=TEAM;
- try{TEAM=null;v=withPersonal(()=>{if(!S.profile.pet)return{pet:false};const h=pigHealth();return{pet:true,equip:effectiveEquip(),mood:h.mood,score:Math.round(h.score)}})}catch(e){}finally{TEAM=T}
+ try{TEAM=null;v=withPersonal(()=>{if(!S.profile.pet)return{pet:false};return{pet:true,equip:effectiveEquip(),mood:"feliz",score:90} /* sigilo: para a equipe o porquinho está sempre feliz; o humor real fica só com a pessoa */})}catch(e){}finally{TEAM=T}
  MYPIG={t:Date.now(),v};return v}
 const PIGAV={};
-function pigAvatar(p){const k=JSON.stringify([p.equip||{},p.mood||"feliz",Math.round((p.score||75)/10)]);if(!PIGAV[k])PIGAV[k]=pigSVG({score:p.score||75,mood:p.mood||"feliz",equip:p.equip||{},env:0,mini:true}).replace(/viewBox="[^"]*"/,'viewBox="62 50 196 196"').replace('<svg ','<svg class="avpig" aria-hidden="true" ');return PIGAV[k]}
+function pigAvatar(p){p={equip:p.equip||{},mood:"feliz",score:90};const k=JSON.stringify([p.equip]);if(!PIGAV[k])PIGAV[k]=pigSVG({score:90,mood:"feliz",equip:p.equip,env:0,mini:true}).replace(/viewBox="[^"]*"/,'viewBox="62 50 196 196"').replace('<svg ','<svg class="avpig" aria-hidden="true" ');return PIGAV[k]}
 const teamInitials=uid=>{const pg=uid===ME.uid?myPigSig():((teamMembers().find(x=>x.uid===uid)||{}).pig);if(pg&&pg.pet)return pigAvatar(pg);
  const n=uid===ME.uid?(S.profile.name||"Eu"):teamNick(uid);return n.split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase()};
 function envBar(){return typeof teamEnvBar==="function"?teamEnvBar():""}
@@ -3126,7 +3126,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.71</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.72</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -5869,7 +5869,7 @@ function chPendPopup(cid,d){const c=CHP().items[cid];if(!c||!chPend(c,d)||(((c.c
 
 
 /* ---------- arte para os stories: começo do desafio e resultado ---------- */
-const chPigOf=u=>{const pg=u===ME.uid?myPigSig():((teamMembers().find(x=>x.uid===u)||{}).pig);return pg&&pg.pet?pg:{equip:{},mood:"feliz",score:80}};
+const chPigOf=u=>{const pg=u===ME.uid?myPigSig():((teamMembers().find(x=>x.uid===u)||{}).pig);return pg&&pg.pet?{equip:pg.equip||{},mood:"feliz",score:90}:{equip:{},mood:"feliz",score:80}};
 const chEnded=c=>today()>chEnd(c);
 function chWinners(c){const r=chRank(c);const top=r.length?r[0].p:0;return top>0?r.filter(x=>x.p===top):[]}
 async function chStoryArt(c,mode){const W=1080,H=1920,F=STK_F;const cv=document.createElement("canvas");cv.width=W;cv.height=H;const x=cv.getContext("2d");

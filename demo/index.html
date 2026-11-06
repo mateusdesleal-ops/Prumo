@@ -3127,7 +3127,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.69</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.70</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -4121,12 +4121,12 @@ function parseCSV(t){const lines=t.split(/\r?\n/).filter(l=>l.trim());if(lines.l
  const start=di<0||vi<0?0:1;if(di<0)di=0;if(xi<0)xi=1;if(vi<0)vi=head.length-1;const out=[];
  for(const l of lines.slice(start)){const c=csvSplit(l,sep);const date=parseDateAny(c[di]);const val=moneyNum(c[vi]);if(!date||val===null)continue;out.push({date,v:val,desc:c[xi]||""})}
  return out}
-function parseText(t){const out=[];const lines=t.split(/\r?\n/).map(l=>l.replace(/ /g," ").trim()).filter(Boolean);
- const dre=/^(\d{1,2})\s*(?:[\/\-.]\s*(\d{1,2})|\s+de\s+([a-zç]{3})[a-z]*\.?|\s*([a-zç]{3})[a-z]*\.?)(?:\s*[\/\-.]\s*(\d{2,4}))?\s+(.*)$/i;
+function parseText(t){const out=[];const plusMode=/\+\s*R\$\s*\d/.test(t); /* faturas (ex.: Inter) marcam créditos com "+" e usam "-" como coluna vazia */const lines=t.split(/\r?\n/).map(l=>l.replace(/ /g," ").trim()).filter(Boolean);
+ const dre=/^(\d{1,2})\s*(?:[\/\-.]\s*(\d{1,2})|\s*de\s*([a-zç]{3})[a-z]*\.?|\s*([a-zç]{3})[a-z]*\.?)(?:\s*[\/\-.]\s*(\d{2,4})|\s*(?:de\s*)?(20\d{2})(?=\s))?\s+(.*)$/i;
  const vre=/(-?\s*(?:R\$)?\s*-?\s*\d{1,3}(?:\.\d{3})*,\d{2}|-?\s*(?:R\$)?\s*\d+,\d{2})\s*(?:[CD]\b)?\s*$/i;
- for(let j=0;j<lines.length;j++){const m=dre.exec(lines[j]);if(!m)continue;const date=mkDate(m[1],m[2]||m[3]||m[4],m[5]);if(!date)continue;let rest=m[6];let vm=vre.exec(rest);
+ for(let j=0;j<lines.length;j++){const m=dre.exec(lines[j]);if(!m)continue;const date=mkDate(m[1],m[2]||m[3]||m[4],m[5]||m[6]);if(!date)continue;let rest=m[7];let vm=vre.exec(rest);
   if(!vm&&lines[j+1]&&vre.test(lines[j+1])&&!dre.test(lines[j+1])){vm=vre.exec(lines[j+1]);rest=rest+" "+lines[j+1];j++;vm=vre.exec(rest)}
-  if(!vm)continue;let val=moneyNum(vm[1]);if(val===null)continue;if(/\bC\s*$/.test(rest))val=-Math.abs(val);const desc=rest.slice(0,vm.index).replace(/\s*R\$\s*$/,"").trim();if(!desc)continue;out.push({date,v:val,desc})}
+  if(!vm)continue;let val=moneyNum(vm[1]);if(val===null)continue;if(plusMode)val=Math.abs(val);if(/\bC\s*$/.test(rest)||/\+\s*(?:R\$)?\s*$/.test(rest.slice(0,vm.index)))val=-Math.abs(val);const desc=rest.slice(0,vm.index).replace(/\s*\+?\s*R\$\s*$/,"").replace(/\s+[-+]\s*$/,"").trim();if(!desc)continue;out.push({date,v:val,desc})}
  return out}
 function normalizeRows(raw,card,k){if(!raw.length)return[];
  const negs=raw.filter(r=>r.v<0).length;const flip=negs>raw.length/2; // OFX costuma trazer compras negativas
@@ -4168,9 +4168,9 @@ function pdfLib(){if(PDFJS)return PDFJS;PDFJS=new Promise((ok,ko)=>{const srcs=[
 async function pdfToText(file,password){const lib=await pdfLib();const data=new Uint8Array(await file.arrayBuffer());const doc=await lib.getDocument({data,password:password||undefined}).promise;const out=[];
  const dstart=/^\d{1,2}\s*(?:[\/\-.]\s*\d{1,2}|\s*(?:de\s+)?[a-zç]{3})/i;
  for(let pn=1;pn<=doc.numPages;pn++){const pg=await doc.getPage(pn);const vp=pg.getViewport({scale:1});const tc=await pg.getTextContent();const rows=[];
-  tc.items.forEach(it=>{const str=(it.str||"");if(!str.trim())return;const x=it.transform[4],y=it.transform[5],w=it.width||str.length*4;let r=rows.find(r=>Math.abs(r.y-y)<2.5);if(!r){r={y,items:[]};rows.push(r)}r.items.push({x,w,s:str})});
+  tc.items.forEach(it=>{const str=(it.str||"");if(!str.trim())return;const fs=Math.hypot(it.transform[0],it.transform[1])||8;const x=it.transform[4],y=it.transform[5],w=it.width||str.length*fs*.5;let r=rows.find(r=>Math.abs(r.y-y)<Math.max(2.5,fs*.3));if(!r){r={y,items:[]};rows.push(r)}r.items.push({x,w,s:str,fs})});
   rows.sort((a,b)=>b.y-a.y).forEach(r=>{r.items.sort((a,b)=>a.x-b.x);let chunks=[[]],last=null;
-   r.items.forEach(it=>{if(last){const gap=it.x-(last.x+last.w);if(gap>vp.width*.08&&dstart.test(it.s.trim())&&chunks[chunks.length-1].length){chunks.push([])}else if(gap>1.5){chunks[chunks.length-1].push({s:" "})}}chunks[chunks.length-1].push(it);last=it});
+   r.items.forEach(it=>{if(last){const gap=it.x-(last.x+last.w);if(gap>vp.width*.08&&dstart.test(it.s.trim())&&chunks[chunks.length-1].length){chunks.push([])}else if(gap>Math.min(1.5,(it.fs||8)*.12)){chunks[chunks.length-1].push({s:" "})}}chunks[chunks.length-1].push(it);last=it});
    chunks.forEach(c=>{const line=c.map(x=>x.s).join("").replace(/\s+/g," ").trim();if(line)out.push(line)})})}
  return out.join("\n")}
 async function impPdf(file,password){try{toast("Lendo o PDF da fatura…");const t=await pdfToText(file,password);UI.impPdfFile=null;impLoad(parseText(t),"pdf")}

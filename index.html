@@ -5191,6 +5191,10 @@ const teamsOn=()=>!!((typeof SB_ON!=="undefined"&&SB_ON&&Store.cloud)||Store.dem
 const lsTeam=v=>{try{if(v===undefined)return localStorage.getItem("prumo.team");if(v)localStorage.setItem("prumo.team",v);else localStorage.removeItem("prumo.team")}catch(e){return null}};
 const teamFeatList=t=>TFEATS.filter(([k])=>t.features&&t.features[k]).map(x=>x[1]);
 const iOwn=()=>TEAM&&TEAM.owner===ME.uid;
+/* vaquinha: só quem criou edita/apaga; cada um marca o próprio pagamento; dono da equipe e administrador podem tudo */
+const vqAdm=()=>{if(UI.isAdmin===undefined&&typeof checkAdmin==="function")checkAdmin();return iOwn()||!!UI.isAdmin};
+const vqCanEdit=r=>vqAdm()||(r.by?r.by===ME.uid:r.payer===ME.uid);
+const vqCanPay=(r,u)=>vqCanEdit(r)||u===ME.uid;
 
 function mergeDiff(a,b){const out={};let any=false;a=a||{};
  for(const k in b){const x=a[k],y=b[k];if(y===undefined)continue;
@@ -5331,18 +5335,18 @@ Object.assign(A,{
  /* vaquinha */
  addVaq:()=>vaqForm(),
  vaqOpen:el=>vaqDetail(el.dataset.v),
- vaqEdit:el=>vaqForm(VQ().items[el.dataset.v]),
+ vaqEdit:el=>{const r=VQ().items[el.dataset.v];if(r&&!vqCanEdit(r)){toast("Só quem criou a vaquinha pode editar.");return}vaqForm(r)},
  vaqFilter:el=>{UI.vqF=el.dataset.v;render()},
- vaqSave:el=>{const title=v("vq_title").trim();const total=parseMoney(v("vq_total"));if(!title||!total){toast("Informe o que foi e o valor total.");return}
+ vaqSave:el=>{{const r0=VQ().items[el.dataset.v];if(r0&&!vqCanEdit(r0)){toast("Só quem criou a vaquinha pode editar.");return}}const title=v("vq_title").trim();const total=parseMoney(v("vq_total"));if(!title||!total){toast("Informe o que foi e o valor total.");return}
   const on=[...document.querySelectorAll(".vq_on")].filter(c=>c.checked);if(!on.length){toast("Marque quem participa.");return}
   const id=el.dataset.v||rid();const old=VQ().items[id]||{};const shares={};for(const u in(old.shares||{}))shares[u]=null;
   on.forEach(c=>{const u=c.dataset.u;shares[u]=parseMoney((document.querySelector(`.vq_v[data-u="${u}"]`)||{}).value||"")||0});
   const sum=on.reduce((s,c)=>s+(shares[c.dataset.u]||0),0);if(Math.abs(sum-total)>0.05&&!confirm2(el))return;
   const payer=v("vq_payer")||"";
   vaqPatch({items:{[id]:{id,title,total,date:v("vq_date")||today(),payer,shares,paid:old.paid||{},by:old.by||ME.uid,created:old.created||Date.now(),note:v("vq_note").trim(),pix:v("vq_pix").trim()}}});{const px=v("vq_pix").trim();if(px&&px!==S.profile.vqPix){S.profile.vqPix=px;saveApp()}}closeModal();toast(old.id?"Vaquinha atualizada.":"Vaquinha criada. Muuu!")},
- vaqPaid:el=>{const r=VQ().items[el.dataset.v];if(!r)return;const u=el.dataset.u;const was=!!(r.paid||{})[u];vaqPatch({items:{[r.id]:{paid:{[u]:was?null:today()}}}});
+ vaqPaid:el=>{const r=VQ().items[el.dataset.v];if(!r)return;const u=el.dataset.u;if(!vqCanPay(r,u)){toast("Só quem criou a vaquinha marca o pagamento dos outros.");return}const was=!!(r.paid||{})[u];vaqPatch({items:{[r.id]:{paid:{[u]:was?null:today()}}}});
   if(!was){const r2=VQ().items[r.id];if(!vqOpen(r2))toast("Todo mundo pagou! Vaquinha fechada. 🐮");else toast(`${nm(u)} pagou a parte.`)}vaqDetail(r.id)},
- vaqDelYes:()=>{const id=UI.vqDel;closeModal();vaqPatch({items:{[id]:null}});toast("Vaquinha apagada.")},
+ vaqDelYes:()=>{const id=UI.vqDel;{const r=VQ().items[id];if(r&&!vqCanEdit(r)){toast("Só quem criou a vaquinha pode apagar.");return}}closeModal();vaqPatch({items:{[id]:null}});toast("Vaquinha apagada.")},
 });
 
 /* ---------- Início da equipe ---------- */
@@ -5419,9 +5423,9 @@ function vaqForm(r){r=r||{};const isEdit=!!r.id;const sh=r.shares||{};
 function vaqDetail(id){const r=VQ().items[id];if(!r)return;const sh=Object.entries(r.shares||{}).filter(([,v])=>v!=null);UI.vqDel=id;
  openModal(r.title,`<div class="stack"><div class="row" style="gap:12px">${cowPig(64)}<div class="stack-s" style="gap:2px"><b class="num" style="font-size:22px">${brl(r.total)}</b><span class="tiny muted">${dayLabel(r.date)}${r.payer?` · ${esc(nm(r.payer))} pagou a conta`:""}</span>${r.note?`<span class="small">${esc(r.note)}</span>`:""}</div></div>
  ${r.pix?`<div class="row between" style="gap:8px;background:var(--surface2);border-radius:12px;padding:10px 12px"><span class="stack-s" style="gap:0;min-width:0"><span class="tiny muted">Pix para pagar${r.payer?" · "+esc(nm(r.payer)):""}</span><b style="word-break:break-all">${esc(r.pix)}</b></span><button class="btn ghost sm" data-act="vqCopyPix" data-v="${esc(r.pix)}" style="flex:none">Copiar</button></div>`:""}
- <div class="card list">${[...sh].map((x,i)=>[x,i]).sort(([a,ia],[b,ib])=>{const pd=(r.paid||{}),ra=a[0]===r.payer?2:pd[a[0]]?1:0,rb=b[0]===r.payer?2:pd[b[0]]?1:0;if(ra!==rb)return ra-rb;if(ra===1)return String(pd[a[0]]).localeCompare(String(pd[b[0]]))||ia-ib;return ia-ib}).map(([x])=>x).map(([u,val])=>{const ok=!!(r.paid||{})[u]||u===r.payer;return `<div class="item"><span class="avatar" style="${ok?"background:var(--good)":""}">${teamInitials(u)}</span><div class="grow stack-s" style="gap:0"><b>${esc(nm(u))}</b><span class="tiny ${ok?"":"muted"}" style="${ok?"color:#2f6fdb;font-weight:600":""}">${u===r.payer?"Pagou a conta":ok?"Pagou em "+ddmm((r.paid||{})[u]):"Falta pagar"}</span></div><b class="num">${brl(+val||0)}</b>${u===r.payer?"":`<button class="btn ${ok?"ghost":"line"} sm" data-act="vaqPaid" data-v="${r.id}" data-u="${u}">${ok?"Desfazer":"Pagou"}</button>`}</div>`}).join("")}</div>
- <button class="btn ghost" data-act="vaqEdit" data-v="${r.id}">Editar</button>
- <button class="btn danger sm" data-act="askDel" style="align-self:center">Apagar vaquinha</button>${confirmBox("vaqDel","Apagar esta vaquinha para toda a equipe?")}</div>`)}
+ <div class="card list">${[...sh].map((x,i)=>[x,i]).sort(([a,ia],[b,ib])=>{const pd=(r.paid||{}),ra=a[0]===r.payer?2:pd[a[0]]?1:0,rb=b[0]===r.payer?2:pd[b[0]]?1:0;if(ra!==rb)return ra-rb;if(ra===1)return String(pd[a[0]]).localeCompare(String(pd[b[0]]))||ia-ib;return ia-ib}).map(([x])=>x).map(([u,val])=>{const ok=!!(r.paid||{})[u]||u===r.payer;return `<div class="item"><span class="avatar" style="${ok?"background:var(--good)":""}">${teamInitials(u)}</span><div class="grow stack-s" style="gap:0"><b>${esc(nm(u))}</b><span class="tiny ${ok?"":"muted"}" style="${ok?"color:#2f6fdb;font-weight:600":""}">${u===r.payer?"Pagou a conta":ok?"Pagou em "+ddmm((r.paid||{})[u]):"Falta pagar"}</span></div><b class="num">${brl(+val||0)}</b>${u===r.payer||!vqCanPay(r,u)?"":`<button class="btn ${ok?"ghost":"line"} sm" data-act="vaqPaid" data-v="${r.id}" data-u="${u}">${ok?"Desfazer":u===ME.uid?"Paguei":"Pagou"}</button>`}</div>`}).join("")}</div>
+ ${vqCanEdit(r)?`<button class="btn ghost" data-act="vaqEdit" data-v="${r.id}">Editar</button>
+ <button class="btn danger sm" data-act="askDel" style="align-self:center">Apagar vaquinha</button>${confirmBox("vaqDel","Apagar esta vaquinha para toda a equipe?")}`:`<p class="tiny muted" style="text-align:center;margin:0">${r.by&&r.by!==ME.uid?"Criada por "+esc(nm(r.by))+". ":""}Só quem criou pode editar, apagar e marcar o pagamento dos outros. Você marca o seu.</p>`}</div>`)}
 
 /* ---------- Demonstração: equipe CriaMente3d ---------- */
 function demoTeams(){TEAMS=[{id:"demo-team",name:"CriaMente3d",owner:"demo",features:{agenda:true,tasks:true,fin:true,quotes:true,vaq:true,proj:true},

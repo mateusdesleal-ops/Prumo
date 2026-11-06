@@ -3126,7 +3126,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.68</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.69</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -3304,6 +3304,11 @@ const PS_DED=/inss|irrf|\birf\b|seguro|consigna|vale\s|\bir\b|imposto|i\.?r\.?r\
 const PS_SKIP=/\bbase\s*(?:de\s*)?c[aá]lc|\bbase\s*(?:fgts|inss|irrf|ir)\b|fgts|faixa|sal[aá]rio contrib|sal\. contrib|dep\. ?ir|dependente|banco|ag[eê]ncia|conta|cnpj|cpf|admiss|cargo|fun[cç][aã]o|matr[ií]cula|p[aá]gina|mensagem|declaro|assinatura/i;
 const psNum=x=>{const n=parseFloat(String(x).replace(/\./g,"").replace(",","."));return isFinite(n)?n:null};
 const psR=x=>Math.round(x*100)/100;const r2=psR;
+/* explica por que um PDF não abriu */
+function pdfErrMsg(e,what){const n=(e&&(e.name||""))+" "+(e&&e.message||"");
+ if(/NotReadable|NotFound|read|permission|SecurityError/i.test(n))return `O celular não liberou o arquivo para o Prumo. No app Arquivos, abra o PDF uma vez (se tiver o ícone de nuvem, toque para baixar) ou salve uma cópia em "No meu iPhone" e tente de novo.`;
+ if(/Invalid|Corrupt|FormatError|Unexpected|XRef|stream/i.test(n))return `Este PDF parece estar danificado ou num formato diferente. Abra o PDF, toque em Compartilhar, depois em Imprimir, e salve de novo como PDF. Essa cópia costuma abrir aqui.`;
+ return `Não consegui abrir este PDF (${(e&&e.name)||"erro"}). Abra o PDF, toque em Compartilhar, depois em Imprimir, e salve de novo como PDF, ou ${what}.`}
 const PS_M=/\d{1,3}(?:\.\d{3})+,\d{2}|\d+,\d{2}/g;
 const PS_LAB={g:/total\s*(?:d[eoa]s?\s*)?(?:vencimentos|proventos|cr[eé]+ditos|vencto)|sal[aá]rio\s*bruto|total\s*bruto|valor\s*bruto|bruto\s*total/i,d:/total\s*(?:d[eoa]s?\s*)?(?:descontos|d[eé]+b[il]tos)|descontos\s*totais/i,n:/l[ií]quido\s*(?:a\s*receber)?|valor\s*l[ií]quido|sal[aá]rio\s*l[ií]quido|total\s*l[ií]quido|l[ií]quido\s*do\s*m[eê]s|valor\s*a\s*receber|a\s*receber/i};
 
@@ -3393,7 +3398,7 @@ async function psLoadFile(file,password){try{if(/\.pdf$/i.test(file.name||"")||f
   else UI.ps=parsePayslip("",R.L)}
  else UI.ps=parsePayslip(await readFileText(file));UI.psFile=null;psRefresh()}
  catch(e){if(e&&e.name==="PasswordException"){UI.psFile=file;const r=$("#ps_root");if(r)r.innerHTML=`<div class="stack"><div class="banner warn">${password?"Senha incorreta. Tente de novo.":"Este PDF tem senha."} Muitas empresas usam os primeiros dígitos do CPF. A senha é usada só para abrir o arquivo aqui e não fica guardada.</div><label class="field"><span>Senha do PDF</span><input id="ps_pw" type="password" autocomplete="off"></label><button class="btn block" data-act="psPw">Abrir PDF</button><button class="btn ghost block" data-act="psBack">Voltar</button></div>`;return}
-  toast("Não consegui ler este arquivo. Tente copiar e colar o texto do holerite.")}}
+  toast(pdfErrMsg(e,"copie e cole o texto do holerite"),9000)}}
 document.addEventListener("change",e=>{if(e.target&&e.target.id==="psFile"&&e.target.files&&e.target.files[0])psLoadFile(e.target.files[0])});
 function incomeForm(e,month){e=e||{};const isEdit=!!e.id;
  openModal(isEdit?"Editar renda":"Nova renda",`<div class="stack">
@@ -4169,7 +4174,7 @@ async function pdfToText(file,password){const lib=await pdfLib();const data=new 
  return out.join("\n")}
 async function impPdf(file,password){try{toast("Lendo o PDF da fatura…");const t=await pdfToText(file,password);UI.impPdfFile=null;impLoad(parseText(t),"pdf")}
  catch(e){if(e&&e.name==="PasswordException"){UI.impPdfFile=file;const r=$("#imp_root");if(r)r.innerHTML=`<div class="stack"><div class="banner warn">${password?"Senha incorreta. Tente de novo.":"Este PDF tem senha."} Muitos bancos usam os primeiros dígitos do CPF. A senha é usada só para abrir o arquivo aqui no seu aparelho e não fica guardada.</div><label class="field"><span>Senha do PDF</span><input id="imp_pw" type="password" autocomplete="off" inputmode="numeric"></label><button class="btn block" data-act="impPdfPw">Abrir PDF</button><button class="btn ghost block" data-act="impBack">Voltar</button></div>`;setTimeout(()=>{const i=$("#imp_pw");if(i)i.focus()},50);return}
-  toast("Não consegui abrir este PDF. Tente exportar a fatura em OFX ou CSV, ou copie e cole as linhas.")}}
+  toast(pdfErrMsg(e,"exporte a fatura em OFX ou CSV, ou copie e cole as linhas"),9000)}}
 A.impPdfPw=()=>{const f=UI.impPdfFile,pw=($("#imp_pw")||{}).value||"";if(!f||!pw){toast("Digite a senha do PDF.");return}impPdf(f,pw)};
 async function impFile(file){if(/\.pdf$/i.test(file.name||"")||file.type==="application/pdf"){impPdf(file);return}const t=await readFileText(file);let raw=/<OFX>|<STMTTRN>/i.test(t)?parseOFX(t):parseCSV(t);if(!raw.length)raw=parseText(t);impLoad(raw,"file")}
 document.addEventListener("change",ev=>{const el=ev.target;if(!UI.imp)return;

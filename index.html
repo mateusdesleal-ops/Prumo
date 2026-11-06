@@ -3943,8 +3943,8 @@ function ccImpBody(){const im=UI.imp;const c=cardById(im.card);const cs=cardsLis
  if(!im.rows)return `<p class="small muted">Em vez de digitar compra por compra, traga a fatura do banco. Leva menos de 2 minutos por mês.</p>
  <div class="grid2"><label class="field"><span>Cartão</span><select id="imp_card">${cs.map(x=>`<option value="${x.id}" ${x.id===c.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select></label>
  <label class="field"><span>Fatura que vence em</span><select id="imp_k">${ccImpMonths(c).map(k=>`<option value="${k}" ${k===im.k?"selected":""}>${ddmm(dayIn(k,c.due))}/${k.slice(0,4)}</option>`).join("")}</select></label></div>
- <div class="card flat stack"><b>Jeito 1: arquivo do banco</b><span class="small muted">No app ou site do banco, abra a fatura e procure <b>Exportar</b>, <b>Baixar</b> ou <b>Enviar por e-mail</b>, no formato <b>OFX</b> ou <b>CSV</b>. A maioria dos bancos oferece (Nubank, Itaú, Inter, Bradesco, Santander, BB, C6 e outros).</span>
-  <label class="btn line" style="cursor:pointer;text-align:center">Escolher arquivo da fatura<input type="file" id="ccFile" accept=".ofx,.qfx,.csv,.txt,text/csv,text/plain" style="display:none"></label></div>
+ <div class="card flat stack"><b>Jeito 1: arquivo do banco</b><span class="small muted">No app ou site do banco, abra a fatura e procure <b>Exportar</b>, <b>Baixar</b> ou <b>Enviar por e-mail</b>, no formato <b>PDF</b>, <b>OFX</b> ou <b>CSV</b>. A maioria dos bancos oferece (Nubank, Itaú, Inter, Bradesco, Santander, BB, C6 e outros).</span>
+  <label class="btn line" style="cursor:pointer;text-align:center">Escolher arquivo da fatura<input type="file" id="ccFile" accept=".pdf,.ofx,.qfx,.csv,.txt,application/pdf,text/csv,text/plain" style="display:none"></label></div>
  <div class="card flat stack"><b>Jeito 2: copiar e colar</b><span class="small muted">Abra a fatura no app do banco ou o PDF, selecione as compras, copie e cole aqui. Cada linha precisa ter data, descrição e valor, por exemplo: <i>12/10 Mercado Bom Preço 154,90</i>.</span>
   <textarea id="imp_text" rows="5" placeholder="Cole aqui as linhas da fatura" style="width:100%;font:inherit;padding:10px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)"></textarea>
   <button class="btn" data-act="impParse">Ler compras</button></div>`;
@@ -3955,11 +3955,27 @@ function ccImpBody(){const im=UI.imp;const c=cardById(im.card);const cs=cardsLis
  ${im.rows.some(r=>r.n>r.i)?`<label class="check"><input type="checkbox" id="imp_future" ${im.future?"checked":""}><span class="small">Lançar também as próximas parcelas nos meses seguintes (${fut} parcela(s)). Assim você já vê as faturas futuras.</span></label>`:""}
  ${dayIn(im.k,c.due)<today()?`<label class="check"><input type="checkbox" id="imp_paid" ${im.paid?"checked":""}><span class="small">Esta fatura já venceu. Marcar como paga</span></label>`:""}
  <button class="btn block" data-act="impSave" ${on.length?"":"disabled"}>Importar ${on.length} compra(s) · ${brl(tot)}</button>`
- :`<div class="banner warn">Não consegui encontrar compras. Confira se o arquivo é a fatura do cartão (OFX ou CSV) ou se cada linha colada tem data, descrição e valor.</div>`}`}
+ :`<div class="banner warn">Não consegui encontrar compras. Confira se o arquivo é a fatura do cartão (PDF, OFX ou CSV) ou se cada linha colada tem data, descrição e valor. Se for um PDF escaneado (foto), ele não tem texto para ler: use o arquivo que o banco gera ou copie e cole as linhas.</div>`}`}
 function impRefresh(){const r=$("#imp_root");if(r)r.innerHTML=ccImpBody()}
 function impLoad(raw,src){const im=UI.imp;const c=cardById(im.card);im.rows=normalizeRows(raw,c,im.k);im.src=src;impRefresh()}
 function readFileText(file){return new Promise(res=>{const fr=new FileReader();fr.onload=()=>{const t=String(fr.result||"");if(t.includes("\uFFFD")){const f2=new FileReader();f2.onload=()=>res(String(f2.result||""));f2.readAsText(file,"ISO-8859-1")}else res(t)};fr.readAsText(file,"UTF-8")})}
-async function impFile(file){const t=await readFileText(file);let raw=/<OFX>|<STMTTRN>/i.test(t)?parseOFX(t):parseCSV(t);if(!raw.length)raw=parseText(t);impLoad(raw,"file")}
+/* PDF da fatura: lê o texto com o pdf.js (guardado no próprio site), remonta as linhas e usa o mesmo leitor do "copiar e colar" */
+let PDFJS=null;
+function pdfLib(){if(PDFJS)return PDFJS;PDFJS=new Promise((ok,ko)=>{const srcs=[["/lib/pdf.min.js","/lib/pdf.worker.min.js"],["https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js","https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"]];let i=0;
+ const tryNext=()=>{if(window.pdfjsLib){ok(window.pdfjsLib);return}if(i>=srcs.length){PDFJS=null;ko(new Error("pdfjs"));return}const [a,w]=srcs[i++];const sc=document.createElement("script");sc.src=a;sc.onload=()=>{if(window.pdfjsLib){window.pdfjsLib.GlobalWorkerOptions.workerSrc=w;ok(window.pdfjsLib)}else tryNext()};sc.onerror=tryNext;document.head.appendChild(sc)};tryNext()});return PDFJS}
+async function pdfToText(file,password){const lib=await pdfLib();const data=new Uint8Array(await file.arrayBuffer());const doc=await lib.getDocument({data,password:password||undefined}).promise;const out=[];
+ const dstart=/^\d{1,2}\s*(?:[\/\-.]\s*\d{1,2}|\s*(?:de\s+)?[a-zç]{3})/i;
+ for(let pn=1;pn<=doc.numPages;pn++){const pg=await doc.getPage(pn);const vp=pg.getViewport({scale:1});const tc=await pg.getTextContent();const rows=[];
+  tc.items.forEach(it=>{const str=(it.str||"");if(!str.trim())return;const x=it.transform[4],y=it.transform[5],w=it.width||str.length*4;let r=rows.find(r=>Math.abs(r.y-y)<2.5);if(!r){r={y,items:[]};rows.push(r)}r.items.push({x,w,s:str})});
+  rows.sort((a,b)=>b.y-a.y).forEach(r=>{r.items.sort((a,b)=>a.x-b.x);let chunks=[[]],last=null;
+   r.items.forEach(it=>{if(last){const gap=it.x-(last.x+last.w);if(gap>vp.width*.08&&dstart.test(it.s.trim())&&chunks[chunks.length-1].length){chunks.push([])}else if(gap>1.5){chunks[chunks.length-1].push({s:" "})}}chunks[chunks.length-1].push(it);last=it});
+   chunks.forEach(c=>{const line=c.map(x=>x.s).join("").replace(/\s+/g," ").trim();if(line)out.push(line)})})}
+ return out.join("\n")}
+async function impPdf(file,password){try{toast("Lendo o PDF da fatura…");const t=await pdfToText(file,password);UI.impPdfFile=null;impLoad(parseText(t),"pdf")}
+ catch(e){if(e&&e.name==="PasswordException"){UI.impPdfFile=file;const r=$("#imp_root");if(r)r.innerHTML=`<div class="stack"><div class="banner warn">${password?"Senha incorreta. Tente de novo.":"Este PDF tem senha."} Muitos bancos usam os primeiros dígitos do CPF. A senha é usada só para abrir o arquivo aqui no seu aparelho e não fica guardada.</div><label class="field"><span>Senha do PDF</span><input id="imp_pw" type="password" autocomplete="off" inputmode="numeric"></label><button class="btn block" data-act="impPdfPw">Abrir PDF</button><button class="btn ghost block" data-act="impBack">Voltar</button></div>`;setTimeout(()=>{const i=$("#imp_pw");if(i)i.focus()},50);return}
+  toast("Não consegui abrir este PDF. Tente exportar a fatura em OFX ou CSV, ou copie e cole as linhas.")}}
+A.impPdfPw=()=>{const f=UI.impPdfFile,pw=($("#imp_pw")||{}).value||"";if(!f||!pw){toast("Digite a senha do PDF.");return}impPdf(f,pw)};
+async function impFile(file){if(/\.pdf$/i.test(file.name||"")||file.type==="application/pdf"){impPdf(file);return}const t=await readFileText(file);let raw=/<OFX>|<STMTTRN>/i.test(t)?parseOFX(t):parseCSV(t);if(!raw.length)raw=parseText(t);impLoad(raw,"file")}
 document.addEventListener("change",ev=>{const el=ev.target;if(!UI.imp)return;
  if(el.id==="ccFile"&&el.files&&el.files[0])impFile(el.files[0]);
  if(el.id==="imp_card"){UI.imp.card=el.value;const c=cardById(el.value);UI.imp.k=ccDefK(c);impRefresh()}

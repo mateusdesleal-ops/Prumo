@@ -5392,7 +5392,11 @@ function viewVaq(){if(!TEAM||!teamHas("vaq")){if(lsTeam()&&TEAMS===null)return `
  const f=UI.vqF||"abertas";const all=vqItems();const list=all.filter(r=>f==="abertas"?vqOpen(r):!vqOpen(r));const ds=vqDebts();
  return `<div class="stack"><h1 style="margin-top:4px">Vaquinha</h1>
  <div class="card row" style="gap:12px">${cowPig(72)}<div class="stack-s" style="gap:2px"><b>Dividir a conta sem confusão</b><span class="small muted">Lance a despesa, marque quem participa e quanto cada um paga. Depois é só ir marcando quem já acertou.</span></div></div>
- ${ds.length?`<div class="card stack"><div class="label">Quem deve para quem</div>${ds.map(x=>`<div class="row between small"><span class="row" style="gap:6px"><span class="avatar">${teamInitials(x.from)}</span>${esc(nm(x.from))} → <span class="avatar">${teamInitials(x.to)}</span>${esc(nm(x.to))}</span><b class="num">${brl(x.v)}</b></div>`).join("")}<span class="tiny muted">Já descontado o que um deve para o outro.</span></div>`:""}
+ ${ds.length?(()=>{const ppl=[...new Set(ds.flatMap(x=>[x.from,x.to]))].sort((a,b)=>(a===ME.uid?-1:b===ME.uid?1:nm(a).localeCompare(nm(b),"pt")));const who=ppl.includes(UI.vqWho)?UI.vqWho:"";const dv=who?ds.filter(x=>x.from===who||x.to===who):ds;
+ const owes=who?ds.filter(x=>x.from===who).reduce((s,x)=>s+x.v,0):0,gets=who?ds.filter(x=>x.to===who).reduce((s,x)=>s+x.v,0):0;
+ return `<div class="card stack"><div class="row between" style="gap:10px;flex-wrap:wrap"><div class="label" style="margin:0">Quem deve para quem</div><label class="row small" style="gap:8px"><span class="muted">Ver</span><select class="vq_who" aria-label="Filtrar por pessoa" style="min-width:180px"><option value="">Todo mundo</option>${ppl.map(u=>`<option value="${u}" ${u===who?"selected":""}>${esc(nm(u))}</option>`).join("")}</select></label></div>
+ ${who?`<div class="row small" style="gap:14px;flex-wrap:wrap;background:var(--surface2);border-radius:12px;padding:10px 12px"><span>${who===ME.uid?"Você deve":esc(nm(who))+" deve"}: <b class="num">${brl(owes)}</b></span><span>Tem a receber: <b class="num">${brl(gets)}</b></span></div>`:""}
+ ${dv.map(x=>`<div class="row between small"><span class="row" style="gap:6px"><span class="avatar">${teamInitials(x.from)}</span>${esc(nm(x.from))} → <span class="avatar">${teamInitials(x.to)}</span>${esc(nm(x.to))}</span><b class="num">${brl(x.v)}</b></div>`).join("")}<span class="tiny muted">Já descontado o que um deve para o outro.</span></div>`})():""}
  <div class="chips">${[["abertas","Em aberto"],["fechadas","Quitadas"]].map(([id,n])=>`<button class="chip ${f===id?"on":""}" data-act="vaqFilter" data-v="${id}">${n}</button>`).join("")}</div>
  ${list.length?list.map(r=>{const sh=Object.entries(r.shares||{}).filter(([,v])=>v!=null);const pd=sh.filter(([u])=>(r.paid||{})[u]||u===r.payer).length;return `<button class="card stack" style="text-align:left;gap:6px" data-act="vaqOpen" data-v="${r.id}"><div class="row between"><b>${esc(r.title)}</b><b class="num">${brl(r.total)}</b></div>
   <div class="row" style="gap:4px;flex-wrap:wrap">${sh.map(([u])=>`<span class="avatar" style="${(r.paid||{})[u]||u===r.payer?"background:var(--good)":"background:var(--surface2);color:var(--muted)"}" title="${esc(nm(u))}">${teamInitials(u)}</span>`).join("")}</div>
@@ -5491,6 +5495,7 @@ A.vqxPaid=async el=>{const t=(TEAMS||[]).find(x=>x.id===el.dataset.t);const x=VQ
   if(typeof vqNotifyPaid==="function")vqNotifyPaid(t.id,r,ME.uid,true)}
  catch(e){console.warn(e);el.disabled=false;toast("Não consegui marcar agora. Confira a internet e tente de novo.")}};
 
+document.addEventListener("change",e=>{if(e.target&&e.target.classList&&e.target.classList.contains("vq_who")){UI.vqWho=e.target.value;render()}});
 A.vqCopyPix=el=>copyText(el.dataset.v,"Chave Pix copiada. Cole no app do seu banco.");
 
 /* ============================================================

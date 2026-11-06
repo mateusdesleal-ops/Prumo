@@ -308,6 +308,15 @@ body.team-env .envbtn.cur{border-color:var(--money);background:color-mix(in srgb
 .envbtn .badge{background:var(--pig-deep);color:#fff;border-radius:99px;font-size:10px;padding:1px 6px}
 #fl_pin::placeholder{letter-spacing:0;font-size:15px}
 .desk-only{display:none}@media (min-width:1000px) and (hover:hover){.desk-only{display:flex}}
+.iconbtn.on{box-shadow:0 0 0 2px var(--pig-deep);color:var(--pig-deep);background:var(--pig-soft)}
+.plist{padding:2px 16px}.plist>:last-child{border-bottom:0!important}
+.prow{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;border-bottom:1px solid var(--line);padding:12px 0;text-align:left;color:inherit;font:inherit;cursor:pointer;text-decoration:none;min-height:0}
+.prow-ic{width:36px;height:36px;border-radius:10px;background:var(--pig-soft);color:var(--pig-deep);display:grid;place-items:center;flex:none}
+.check.sw{align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer}.check.sw.nob{border-bottom:0}
+.check.sw input{-webkit-appearance:none;appearance:none;width:46px;height:28px;min-height:0;border-radius:14px;margin:0;background:color-mix(in srgb,var(--muted) 40%,transparent);position:relative;cursor:pointer;transition:background .2s;flex:none;border:0}
+.check.sw input::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
+.check.sw input:checked{background:var(--pig-deep)}.check.sw input:checked::after{transform:translateX(18px)}
+.check.sw input:focus-visible{outline:2px solid var(--pig-deep);outline-offset:2px}
 .pjsteps{padding:6px 14px}.pjstep{display:flex;gap:12px;align-items:center;padding:10px 0;position:relative}
 .pjstep+.pjstep::before{content:"";position:absolute;left:16px;top:-12px;height:24px;border-left:2px dashed var(--line)}
 .pjdot{width:34px;height:34px;border-radius:50%;border:2.5px solid var(--line);background:var(--surface);display:grid;place-items:center;font-weight:800;font-size:13px;flex:none;z-index:1;color:var(--muted)}
@@ -455,9 +464,9 @@ const BUCKETS={N:{name:"Necessidades",color:"var(--need)",desc:"O que você prec
                F:{name:"Futuro",color:"var(--future)",desc:"Você pagando você: reserva, investimentos e quitar dívidas."}};
 const CATS=[
  {id:"moradia",n:"Moradia",b:"N",i:"Mo"},{id:"contas",n:"Contas da casa",b:"N",i:"Ct"},{id:"mercado",n:"Mercado",b:"N",i:"Me"},
- {id:"transporte",n:"Transporte",b:"N",i:"Tr"},{id:"saude",n:"Saúde",b:"N",i:"Sa"},{id:"educacao",n:"Educação",b:"N",i:"Ed"},{id:"impostos",n:"Impostos e taxas",b:"N",i:"It"},
+ {id:"transporte",n:"Transporte",b:"N",i:"Tr"},{id:"combustivel",n:"Combustível",b:"N",i:"Cb"},{id:"saude",n:"Saúde",b:"N",i:"Sa"},{id:"educacao",n:"Educação",b:"N",i:"Ed"},{id:"impostos",n:"Impostos e taxas",b:"N",i:"It"},
  {id:"filhos",n:"Filhos e pets",b:"N",i:"Fi"},{id:"outrosN",n:"Outros",b:"N",i:"Ou"},
- {id:"lazer",n:"Lazer",b:"D",i:"La"},{id:"delivery",n:"Restaurante e delivery",b:"D",i:"Rd"},{id:"compras",n:"Compras",b:"D",i:"Co"},
+ {id:"lazer",n:"Lazer",b:"D",i:"La"},{id:"delivery",n:"Restaurante e delivery",b:"D",i:"Rd"},{id:"compras",n:"Compras",b:"D",i:"Co"},{id:"roupas",n:"Roupas e calçados",b:"D",i:"Rp"},
  {id:"assinaturas",n:"Assinaturas",b:"D",i:"As"},{id:"beleza",n:"Beleza e cuidados",b:"D",i:"Be"},{id:"presentes",n:"Presentes",b:"D",i:"Pr"},{id:"outros",n:"Outros",b:"D",i:"Ou"},
  {id:"reserva",n:"Reserva de emergência",b:"F",i:"Re"},{id:"investimento",n:"Investimentos",b:"F",i:"In"},{id:"divida",n:"Pagamento de dívida",b:"F",i:"Dv"},{id:"sonho",n:"Sonhos e objetivos",b:"F",i:"So"},{id:"outrosF",n:"Outros",b:"F",i:"Ou"},
 ];
@@ -1116,16 +1125,17 @@ function pigSVG(o){
  p+=`<ellipse cx="${cx}" cy="${cy+ry+6}" rx="${rx*.9}" ry="7" fill="rgba(0,0,0,.14)"/>`;
  // pernas
  const legY=cy+ry-14;
- [[-.55,shade,"a"],[.55,shade,"b"],[-.28,body,"b"],[.28,body,"a"]].forEach(([f,c,k])=>{p+=`<g class="leg ${k}"><rect x="${cx+rx*f-9}" y="${legY}" width="18" height="${22}" rx="7" fill="${c}"/><rect x="${cx+rx*f-9}" y="${legY+16}" width="18" height="6" rx="3" fill="#D06C8B"/></g>`});
+ const CW="#F8F6F1",CWS="#E6E1D7",CWL="#B9AFA3";[[-.55,o.cow?CWS:shade,"a"],[.55,o.cow?CWS:shade,"b"],[-.28,o.cow?CW:body,"b"],[.28,o.cow?CW:body,"a"]].forEach(([f,c,k])=>{p+=`<g class="leg ${k}"><rect x="${cx+rx*f-9}" y="${legY}" width="18" height="${22}" rx="7" fill="${c}"${o.cow?` stroke="${CWL}" stroke-width="2.5"`:""}/><rect x="${cx+rx*f-9}" y="${legY+16}" width="18" height="6" rx="3" fill="${o.cow?"#3A2A2E":"#D06C8B"}"/></g>`});
  // rabinho
- p+=`<path class="pig-tail" d="M${cx+rx-4} ${cy+6} q14 -6 10 -16 q-4 -8 -10 0 q-4 8 8 10" fill="none" stroke="${shade}" stroke-width="5" stroke-linecap="round"/>`;
+ p+=o.cow?`<g class="pig-tail"><path d="M${cx+rx-6} ${cy+4} q16 2 18 22" fill="none" stroke="${CWL}" stroke-width="4" stroke-linecap="round"/><path d="M${cx+rx+12} ${cy+24} q-6 4 -2 12 q4 -2 8 2 q2 -8 -6 -14z" fill="#2B1E24"/></g>`:`<path class="pig-tail" d="M${cx+rx-4} ${cy+6} q14 -6 10 -16 q-4 -8 -10 0 q-4 8 8 10" fill="none" stroke="${shade}" stroke-width="5" stroke-linecap="round"/>`;
  // orelhas
  const ear=(side)=>{const x=cx+side*rx*.55, y=cy-ry*.78;const rot=sad?side*38:side*-8;return `<g transform="translate(${x} ${y}) rotate(${rot})"><g class="pig-ear ${side>0?"r":""}"><path d="M-16 8 Q-10 -30 ${side*8} -34 Q22 -10 16 8 Z" fill="${shade}"/><path d="M-9 4 Q-5 -20 ${side*5} -24 Q13 -8 10 4 Z" fill="#E77A99"/></g></g>`};
- p+=ear(-1)+ear(1);
+ const cowEar=side=>`<g transform="translate(${cx+side*rx*.78} ${cy-ry*.55}) rotate(${side*(sad?28:12)})"><g class="pig-ear ${side>0?"r":""}"><ellipse cx="${side*14}" cy="0" rx="22" ry="11" fill="${CW}" stroke="${CWL}" stroke-width="3"/><ellipse cx="${side*15}" cy="1" rx="13" ry="5.5" fill="#F4A3B8"/></g></g>`;
+ p+=o.cow?cowEar(-1)+cowEar(1):ear(-1)+ear(1);
  // corpo
- p+=`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${body}"/>`;
+ p+=`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${o.cow?CW:body}"${o.cow?` stroke="${CWL}" stroke-width="3.5"`:""}/>`;
  p+=`<ellipse cx="${cx-rx*.35}" cy="${cy-ry*.45}" rx="${rx*.28}" ry="${ry*.16}" fill="#fff" opacity=".28"/>`;
- if(o.cow){const cid="cw"+Math.random().toString(36).slice(2,7);p+=`<clipPath id="${cid}"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/></clipPath><g clip-path="url(#${cid})" fill="#2B1E24" opacity=".85"><path d="M${cx-rx-4} ${cy-14} q18 -16 30 2 q8 16 -8 26 q-16 6 -24 -6z"/><path d="M${cx+rx*.42} ${cy-ry+2} q22 -4 30 14 q4 18 -16 18 q-20 -2 -20 -16z"/><path d="M${cx+rx*.55} ${cy+ry*.35} q16 -8 26 6 q2 14 -14 16 q-16 0 -12 -22z"/><ellipse cx="${cx-rx*.4}" cy="${cy+ry*.62}" rx="12" ry="8"/></g>
+ if(o.cow){const cid="cw"+Math.random().toString(36).slice(2,7);p+=`<clipPath id="${cid}"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/></clipPath><g clip-path="url(#${cid})" fill="#2B1E24" opacity=".85"><path d="M${cx-rx-4} ${cy-14} q18 -16 30 2 q8 16 -8 26 q-16 6 -24 -6z"/><path d="M${cx+rx*.42} ${cy-ry+2} q22 -4 30 14 q4 18 -16 18 q-20 -2 -20 -16z"/><path d="M${cx+rx*.55} ${cy+ry*.35} q16 -8 26 6 q2 14 -14 16 q-16 0 -12 -22z"/><ellipse cx="${cx-rx*.4}" cy="${cy+ry*.62}" rx="12" ry="8"/></g><ellipse cx="${cx}" cy="${cy+6}" rx="${rx*.64}" ry="${ry*.66}" fill="${body}" stroke="${CWS}" stroke-width="6"/><ellipse cx="${cx}" cy="${cy+6}" rx="${rx*.64+3}" ry="${ry*.66+3}" fill="none" stroke="${CWL}" stroke-width="1.5" opacity=".7"/><ellipse cx="${cx-rx*.22}" cy="${cy-ry*.3}" rx="${rx*.16}" ry="${ry*.08}" fill="#fff" opacity=".3"/>
  <g fill="#F4E6C8" stroke="#C9A96E" stroke-width="2"><path d="M${cx-rx*.32} ${cy-ry+6} q-6 -22 -18 -24 q8 12 6 26z"/><path d="M${cx+rx*.32} ${cy-ry+6} q6 -22 18 -24 q-8 12 -6 26z"/></g>`}
  // fenda de cofrinho
  p+=`<rect x="${cx-16}" y="${cy-ry+9}" width="32" height="6" rx="3" fill="#C9627F"/>`;
@@ -1794,6 +1804,38 @@ function simulateAll(ds,budget,strategy){const items=ds.filter(d=>d.left>0).map(
   items.forEach(x=>{if(x.b<=0.005&&x.done===null)x.done=m})}
  return{items:items.sort((a,b)=>(a.done||999)-(b.done||999)),months:m,interest,ok:m<600,sumMin}}
 function debtBudgetSuggestion(ds){const inc=refIncome(mkey());const sumMin=ds.filter(d=>d.left>0).reduce((s,d)=>s+Math.min(+d.min||0,d.left),0);const plan=planFor(inc);return Math.ceil(Math.max(sumMin,sumMin+inc*plan.F/100*0.8))}
+/* ---------- Diagnóstico financeiro: dívidas x renda, com plano de ação ---------- */
+const LATE_ORDER={conta:0,financiamento:1,consignado:2,cheque:3,cartao:3,pessoal:4,crediario:5,parcelado:5,outro:6,familia:7};
+function finDiag(){const ds=debts(),open=ds.filter(d=>d.left>0),inc=refIncome(mkey()),k=mkey(),t=totals(k,false);
+ const total=open.reduce((s,d)=>s+d.left,0),sumMin=open.reduce((s,d)=>s+Math.min(+d.min||0,d.left),0),comp=inc?sumMin/inc:0,mult=inc?total/inc:0;
+ const late=open.filter(d=>d.late),lateBasic=late.filter(d=>d.kind==="conta"),costly=open.filter(d=>(+d.rate||0)>=5);
+ const nonDebtSpent=t.expenses.filter(e=>e.cat!=="divida").reduce((s,e)=>s+(+e.v||0),0);const sobra=inc-nonDebtSpent-sumMin;const reserve=reserveNow();const ess=t.b.N||0;
+ let lvl=0;if(costly.length||comp>0.15||mult>3)lvl=1;if(late.length||comp>0.3||mult>6)lvl=2;if(lateBasic.length||comp>0.5||(late.length&&sobra<0)||(inc&&sobra<0&&open.length))lvl=3;
+ return{ds,open,inc,total,sumMin,comp,mult,late,lateBasic,costly,sobra,reserve,ess,desejos:t.b.D||0,lvl}}
+function finDiagMini(){if(TEAM)return"";const g=finDiag();if(g.lvl<2)return"";const c=g.lvl===3?"var(--bad)":"#E77A3B";
+ return `<button class="card" data-act="fin" data-v="dividas" style="display:flex;gap:12px;align-items:center;text-align:left;width:100%;border:2px solid ${c};margin-bottom:12px"><span class="nmDot" style="background:${c}">!</span><span class="grow small"><b>Diagnóstico financeiro: ${g.lvl===3?"Crítico":"Alerta"}</b><br>${g.late.length?`${g.late.length} dívida(s) atrasada(s). `:""}Veja o que pagar primeiro e os planos possíveis.</span><span class="tiny" style="color:${c};font-weight:800;flex:none">Ver plano</span></button>`}
+function finDiagCard(){const g=finDiag();if(!g.open.length&&!g.inc)return"";
+ const L=[["Saudável","var(--good)","Suas dívidas cabem na sua renda. Continue assim e foque em montar a reserva."],["Atenção","var(--warn)","Ainda está sob controle, mas vale agir agora para não apertar."],["Alerta","#E77A3B","As dívidas já pesam no seu mês. Siga o plano abaixo, na ordem."],["Crítico","var(--bad)","Situação séria, mas tem saída. Comece pelo passo 1 e não pule etapas."]][g.lvl];
+ const steps=[];const lateSorted=[...g.late].sort((a,b)=>(LATE_ORDER[a.kind]??6)-(LATE_ORDER[b.kind]??6)||(+b.rate||0)-(+a.rate||0));
+ if(g.lateBasic.length)steps.push(["Garanta o básico primeiro",`Coloque em dia ${g.lateBasic.map(d=>"<b>"+esc(d.name)+"</b>").join(", ")}. Luz, água, gás e aluguel vêm antes de qualquer banco: são o que mantém sua casa funcionando. As empresas costumam parcelar a conta atrasada pelo app ou telefone.`]);
+ if(g.late.length){steps.push(["Organize as atrasadas nesta ordem",`<ol style="margin:6px 0 0;padding-left:20px">${lateSorted.map(d=>`<li><b>${esc(d.name)}</b> · ${brl0(d.left)}${(+d.rate||0)?` · ${String(d.rate).replace(".",",")}% ao mês`:""}<br><span class="tiny muted">${d.kind==="conta"?"Serviço essencial: risco de corte.":d.kind==="financiamento"?"Pode levar à perda do bem (carro ou casa). Negocie antes da busca e apreensão.":d.kind==="cheque"||d.kind==="cartao"?"Juros dos mais altos do país: cresce rápido a cada mês.":d.kind==="familia"?"Combine um prazo com a pessoa: costuma não ter juros.":"Negocie desconto para pagar à vista ou em parcelas que caibam."}</span></li>`).join("")}</ol>`]);
+  steps.push(["Negocie antes de pagar",`Dívida atrasada quase sempre tem desconto. Ligue para cada credor e peça o valor <b>à vista</b> e o <b>parcelado sem juros de atraso</b>. Feirões como o Serasa Limpa Nome e os mutirões do Procon costumam dar descontos grandes. Veja tudo o que está no seu CPF no <b>Registrato</b> (Banco Central), que é gratuito.`])}
+ if(g.comp>0.5||(g.inc&&g.sobra<0&&g.open.length))steps.push(["Se as parcelas não cabem, existe proteção legal",`Suas parcelas somam ${Math.round(g.comp*100)}% da renda${g.sobra<0?` e o mês fecha negativo em ${brl0(-g.sobra)}`:""}. A Lei do Superendividamento (14.181/2021) permite renegociar todas as dívidas juntas, preservando o mínimo para viver. Procure o Procon ou a Defensoria Pública da sua cidade.`]);
+ const notLate=g.open.filter(d=>!d.late);
+ if(notLate.length){const top=[...notLate].sort((a,b)=>(+b.rate||0)-(+a.rate||0))[0];steps.push(["Pague as em dia pela mais cara",`Mantenha as parcelas mínimas de todas e coloque todo dinheiro extra na de <b>juros mais altos</b>: hoje é <b>${esc(top.name)}</b>${(+top.rate||0)?` (${String(top.rate).replace(".",",")}% ao mês)`:""}. Isso é o método avalanche, que paga menos juros no total.`])}
+ if(g.costly.length)steps.push(["Troque dívida cara por barata",`${g.costly.map(d=>"<b>"+esc(d.name)+"</b>").join(", ")} ${g.costly.length>1?"têm":"tem"} juros de 5% ao mês ou mais. Peça ao banco para trocar por um empréstimo mais barato, ou use a <b>portabilidade</b> para levar a dívida a outro banco.`]);
+ if(g.desejos>0&&g.lvl>=1)steps.push(["Libere dinheiro por um tempo",`Este mês foram ${brl0(g.desejos)} em desejos (lazer, delivery, compras). Cortar pela metade libera uns <b>${brl0(g.desejos/2)} por mês</b> para as dívidas.`]);
+ if(g.lvl===0)steps.push(["Próximo passo: reserva de emergência",g.reserve>=g.ess*3&&g.ess?`Sua reserva cobre ${Math.floor(g.reserve/g.ess)} meses de gastos essenciais. Ótimo! Agora é hora de investir.`:`Junte o equivalente a 3 a 6 meses dos seus gastos essenciais${g.ess?` (cerca de ${brl0(g.ess*3)} a ${brl0(g.ess*6)})`:""}. Assim um imprevisto não vira dívida.`]);
+ steps.push(["Não aumente o buraco","Nada de novos parcelamentos, empréstimos ou rotativo enquanto quita. E desconfie de quem cobra adiantado para limpar o nome ou liberar crédito: é golpe."]);
+ let sim="";if(g.open.length&&g.sumMin>0){const st=meta().debtStrategy||"avalanche";const base=simulateAll(g.ds,g.sumMin,st),plus=simulateAll(g.ds,g.sumMin+100,st),plus2=simulateAll(g.ds,g.sumMin+300,st);
+  const rowS=(lab,r)=>`<div class="stack-s" style="gap:0"><span class="tiny muted">${lab}</span><b class="small num">${r.ok?`Livre em ${monthsLabel(r.months)} · ${brl0(r.interest)} de juros`:"Não termina: os juros crescem mais que os pagamentos"}</b></div>`;
+  sim=`<div class="card flat stack-s" style="gap:6px"><b class="small">Planos possíveis</b>${rowS(`Só as parcelas (${brl0(g.sumMin)}/mês)`,base)}${rowS(`+${brl0(100)} por mês`,plus)}${rowS(`+${brl0(300)} por mês`,plus2)}<span class="tiny muted">Simulação com os juros cadastrados em cada dívida.</span></div>`}
+ return `<div class="card stack" style="border:2px solid ${L[1]}"><div class="row between" style="gap:10px"><div class="stack-s" style="gap:2px"><span class="label" style="margin:0">Diagnóstico financeiro</span><b style="font-size:22px;color:${L[1]}">${L[0]}</b></div><span class="pill" style="background:${L[1]};color:#fff;flex:none">${g.lvl+1}/4</span></div>
+ <p class="small" style="margin:0">${L[2]}</p>
+ <div class="grid2">${[["Renda do mês",g.inc?brl0(g.inc):"Lance sua renda"],["Total devido",brl0(g.total)],["Parcelas na renda",g.inc?Math.round(g.comp*100)+"%":"—"],["Dívida em meses de renda",g.inc?(g.mult<0.1?"0":g.mult.toFixed(1).replace(".",","))+"×":"—"],["Atrasadas",String(g.late.length)],["Sobra após contas",g.inc?brl0(g.sobra):"—"]].map(([a,b])=>`<div class="stack-s" style="gap:0"><span class="tiny muted">${a}</span><b class="num">${b}</b></div>`).join("")}</div>
+ ${sim}
+ <div class="stack-s" style="gap:10px"><b class="small">O que fazer, na ordem</b>${steps.map(([h,b],i)=>`<div class="row" style="gap:10px;align-items:flex-start"><span class="nmDot" style="background:${L[1]}">${i+1}</span><div class="small grow"><b>${h}</b><br>${b}</div></div>`).join("")}</div>
+ <p class="tiny muted" style="margin:0">Orientação educativa, baseada nos dados que você lançou. Não substitui um profissional. Referência de mercado: comprometer até 30% da renda com parcelas.</p></div>`}
 function finDebts(){
  const ds=debts();const open=ds.filter(d=>d.left>0);const done=ds.filter(d=>d.left<=0);const m=meta();
  const total=open.reduce((s,d)=>s+d.left,0);const inc=refIncome(mkey());const sumMin=open.reduce((s,d)=>s+Math.min(+d.min||0,d.left),0);
@@ -1801,7 +1843,7 @@ function finDebts(){
  const sim=simulateAll(ds,budget,strategy);const doneAt={};(sim.items||[]).forEach(x=>doneAt[x.id]=x.done);
  const high=inc&&(total>inc*3||comp>0.3);
  const ordered=sim.items&&sim.ok?sim.items.map(x=>open.find(d=>d.id===x.id)):open;
- return `${scopeBanner()}
+ return `${scopeBanner()}${finDiagCard()}
  <div class="card stack"><div class="row between"><div class="stack-s"><span class="tiny muted">Total em aberto</span><span class="big num">${brl0(total)}</span></div><button class="btn" data-act="addDebt">Nova dívida</button></div>
  ${open.length&&inc?`<div class="stack-s"><div class="row between small"><span>Parcelas por mês</span><b class="num" style="color:${comp>0.3?"var(--bad)":comp>0.2?"var(--warn)":"var(--good)"}">${brl0(sumMin)} · ${Math.round(comp*100)}% da renda</b></div><div class="meter"><i style="width:${clamp(comp/0.5,0,1)*100}%;background:${comp>0.3?"var(--bad)":comp>0.2?"var(--warn)":"var(--good)"}"></i></div><span class="tiny muted">O ideal é que as parcelas de dívidas fiquem abaixo de 30% da renda.</span></div>`:""}
  ${!open.length?`<p class="small muted">Nenhuma dívida em aberto. Se tiver cartão, empréstimo, financiamento ou compra parcelada, cadastre para receber um plano de pagamento.</p>`:""}</div>
@@ -2553,7 +2595,7 @@ function logoHTML(px){return `<span role="img" aria-label="Prumo" style="display
 function header(){const st=streak();const first=(S.profile.name||"").split(" ")[0];
  return `<div class="top"><div class="grow"><div class="brand" style="flex-direction:column;align-items:flex-start;gap:2px">${logoHTML(24)}<span style="font-family:var(--f-body);font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em">Vida em ordem</span></div></div>
  <span class="streak" title="Dias seguidos usando o app, com 1 dia de folga por semana">${I.flame}<span class="num">${st}</span><span class="small muted">${st===1?"dia":"dias"}</span></span>
- <span style="position:relative;display:inline-flex"><button class="iconbtn" data-act="tab" data-v="profile" aria-label="Perfil" style="${S.profile.photo?"padding:0;overflow:hidden;border-radius:50%":""}">${S.profile.photo?`<img src="${S.profile.photo}" alt="" style="width:40px;height:40px;object-fit:cover;display:block">`:I.user}</button>${S.profile.supporter?`<span class="supdot" title="Apoiador do Prumo" aria-label="Apoiador">${I.heart.replace('<svg','<svg width="10" height="10"')}</span>`:""}</span></div>`}
+ <span style="position:relative;display:inline-flex"><button class="iconbtn${UI.tab==="profile"?" on":""}" data-act="tab" data-v="profile" aria-label="Perfil" ${UI.tab==="profile"?'aria-current="page"':""} style="${S.profile.photo?"padding:0;overflow:hidden;border-radius:50%":""}">${S.profile.photo?`<img src="${S.profile.photo}" alt="" style="width:40px;height:40px;object-fit:cover;display:block">`:I.user}</button>${S.profile.supporter?`<span class="supdot" title="Apoiador do Prumo" aria-label="Apoiador">${I.heart.replace('<svg','<svg width="10" height="10"')}</span>`:""}</span></div>`}
 
 /* ---------- Início ---------- */
 
@@ -2623,7 +2665,7 @@ async function stkArt(k){const a=STK_AREAS.find(x=>x.k===k);const n=stkCount(k);
 async function storyOpen(k){const a=STK_AREAS.find(x=>x.k===k);const n=stkCount(k);if(n<2){toast("Com 2 dias seguidos você já pode compartilhar.");return}
  openModal("Compartilhar nos stories",`<div class="tiny muted" style="padding:40px 0;text-align:center">Montando a arte…</div>`);
  const b=await stkArt(k);UI.stkArea=k;stkShareModal("Compartilhar nos stories",b,`Arte da sequência de ${n} dias ${a.t}`)}
-function storyAskPopup(){if(S.profile.storyAsk===false||!S.profile.created||UI.needAuth||UI.onb>=0&&UI.onb<3)return;const asked=S.profile.storyAsked||{};
+function storyAskPopup(){if(newsPending()||S.profile.storyAsk===false||!S.profile.created||UI.needAuth||UI.onb>=0&&UI.onb<3)return;const asked=S.profile.storyAsked||{};
  const hit=stkList().find(a=>a.today&&a.n>=10&&a.n%10===0&&asked[a.k]!==a.n);if(!hit)return;
  if($("#modal").innerHTML){setTimeout(storyAskPopup,4000);return}
  S.profile.storyAsked={...asked,[hit.k]:hit.n};saveApp();
@@ -2638,7 +2680,7 @@ function storyAskPopup(){if(S.profile.storyAsk===false||!S.profile.created||UI.n
 function tourAreas(){return withPersonal(()=>{const n=o=>Object.keys(o||{}).length>0;
  const fin=allMonths().some(k=>{const m=monthData(k);return(m.expenses||[]).length||(m.incomes||[]).length});
  return{fin,ex:n(S.ex&&S.ex.logs)||n(S.food&&S.food.logs),study:n(S.study&&S.study.logs)||n(S.study&&S.study.books)||n(VOC().words),agenda:n(S.tasks&&S.tasks.items)}})}
-function tourPopup(){const p=S.profile;if(p.tour1||!p.created||UI.needAuth||(UI.onb>=0&&UI.onb<3))return;
+function tourPopup(){const p=S.profile;if(newsPending()||p.tour1||!p.created||UI.needAuth||(UI.onb>=0&&UI.onb<3))return;
  if(p.created>=today())return;
  if($("#modal").innerHTML){setTimeout(tourPopup,5000);return}
  const used=tourAreas();if(Object.values(used).filter(Boolean).length>=3){p.tour1=today();saveApp();return}
@@ -2659,6 +2701,10 @@ function tourPopup(){const p=S.profile;if(p.tour1||!p.created||UI.needAuth||(UI.
  <button class="btn ghost block" data-act="closeModal">Agora não</button></div>`);
  const sc=document.querySelector("#modal .scrim");if(sc)sc.classList.add("center")}
 /* Novidade: aba de Meditação (aparece uma vez para cada pessoa) */
+/* a novidade da Meditação tem prioridade sobre os outros avisos (convite para instalar, sobrenome, apresentação) */
+function newsPending(){const p=S.profile||{};return !p.newsMed&&!!p.created&&p.created<today()&&!/\/demo\//.test(location.pathname)&&!(typeof TEAM!=="undefined"&&TEAM)}
+function newsMedCard(){const p=S.profile;if(p.medSeen||p.medCardOff||today()>"2026-11-20"||/\/demo\//.test(location.pathname))return"";
+ return `<div class="card" style="display:flex;gap:14px;align-items:center;background:linear-gradient(135deg,#2b2140,#4a3a5e);color:#fff;border:0"><div style="width:62px;flex:none">${pigSVG({score:96,mood:"feliz",equip:{head:"zen"},env:0,mini:true})}</div><div class="grow stack-s" style="gap:4px"><span class="tiny" style="font-weight:800;letter-spacing:.1em;color:#F7C3D3">NOVIDADE</span><b>Agora o Prumo tem Meditação</b><span class="small" style="opacity:.85">Meditações guiadas e respiração de 3 minutos.</span></div><div class="stack-s" style="gap:6px;flex:none"><button class="btn sm" data-act="newsMedGo">Experimentar</button><button class="btn ghost sm" style="color:#fff" data-act="medCardOff" aria-label="Dispensar aviso de meditação">Agora não</button></div></div>`}
 function newsMedPopup(){const p=S.profile;if(/\/demo\//.test(location.pathname)||p.newsMed||!p.created||UI.needAuth||UI.popShown||(UI.onb>=0&&UI.onb<3)||p.created>=today())return;
  if(typeof TEAM!=="undefined"&&TEAM)return;if($("#modal").innerHTML||document.getElementById("medP"))return;
  p.newsMed=today();saveApp();UI.popShown=1;const first=(p.name||"").split(" ")[0];
@@ -2695,7 +2741,7 @@ function viewHome(){
  return `<div class="stack">
  <div class="stack-s" style="margin-top:4px"><h1>${hi}${first?", "+esc(first):""}</h1><p class="muted">${dayLabel(today())==="Hoje"?new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"}):""}</p></div>
  ${whyCard()}
- ${letterHomeCard()}${prumoCard()}${msgCard()}${missionsCard()}${shareCard()}
+ ${newsMedCard()}${letterHomeCard()}${prumoCard()}${msgCard()}${missionsCard()}${shareCard()}
  ${pigCard}
  ${envWarning()}${studyWarning()}${taskWarning()}${vocabCard(true)}${stkHomeCard()}
  <div class="card"><div class="label" style="margin-bottom:12px">Metas de hoje</div>
@@ -2789,7 +2835,7 @@ function viewFin(){
  if(TEAM)sub=sub.filter(([id])=>id==="orc"?teamHas("quotes"):teamHas("fin")&&id!=="comprar"&&id!=="plano");if(!sub.some(x=>x[0]===UI.fin))UI.fin=sub[0][0];
  return `<div class="stack"><div class="row between" style="margin-top:4px"><h1>${TEAM&&!teamHas("fin")?"Orçamentos":"Finanças"}</h1>${finLockOn()?`<button class="btn ghost sm" data-act="finLockNow" title="Trancar as finanças">${LOCK_ICO} Trancar</button>`:""}</div>${sub.length>1?"":"<!--"}
  <div class="subtabs" role="tablist">${sub.map(([id,n])=>`<button class="${UI.fin===id?"on":""}" data-act="fin" data-v="${id}">${n}</button>`).join("")}</div>${sub.length>1?"":"-->"}
- ${{mes:()=>finMonth()+pigGains("fin"),cartoes:finCards,plano:finPlan,fixos:finFixos,dividas:finDebts,comprar:finBuy,orc:finQuotes,aprender:finLearn}[UI.fin]()}</div>`}
+ ${{mes:()=>finDiagMini()+finMonth()+pigGains("fin"),cartoes:finCards,plano:finPlan,fixos:finFixos,dividas:finDebts,comprar:finBuy,orc:finQuotes,aprender:finLearn}[UI.fin]()}</div>`}
 function scopeBanner(){if(finScope()==="t")return `<div class="banner info">${I.people.replace('<svg','<svg width="20" height="20" style="flex:none"')}<span>Finanças da equipe <b>${esc(TEAM.name)}</b>. Todos os membros veem e lançam aqui. Suas finanças pessoais continuam separadas.</span></div>
  <div class="chips">${[["all","Todos"],["me","Só eu"],["other","Outros membros"]].map(([id,n])=>`<button class="chip ${UI.filter===id?"on":""}" data-act="filter" data-v="${id}">${n}</button>`).join("")}</div>`;if(finScope()!=="h")return"";const ms=HH&&HH.members?Object.entries(HH.members).filter(([,v])=>v):[];
  const nm=ms.map(([id,m])=>id===ME.uid?"você":esc(m.nick||"parceiro")).join(" e ");
@@ -2839,7 +2885,7 @@ function txItem(x){const c=x.kind==="in"?null:(CAT[x.cat]||CAT.outros);const who
  const color=x.kind==="in"?"var(--good)":BUCKETS[c.b].color;
  return `<button class="item" style="width:100%;border-left:0;border-right:0;border-top:0;background:none;text-align:left;padding-inline:0" data-act="${x.kind==="in"?"editIncome":"editExpense"}" data-v="${x.id}" data-m="${mkey(x.date)}">
  <span class="ico" style="background:color-mix(in srgb,${color} 16%,transparent);color:${color}">${x.kind==="in"?"R$":c.i}</span>
- <div class="grow stack-s" style="gap:1px"><p><b>${esc(x.desc||(c?c.n:"Renda"))}</b></p><p class="tiny muted">${x.kind==="in"?"Renda":c.n}${x.fixed?" · fixa":""}${x.sub?" · assinatura":""}${x.kind!=="in"&&expSt(x)==="apagar"?` · <span style="color:var(--bad);font-weight:700">a pagar</span>`:x.kind!=="in"&&expSt(x)==="parcial"?` · <span style="color:var(--warn);font-weight:700">falta ${brl0(expLeft(x))}</span>`:""}${x.card?" · "+esc((cardById(x.card)||{name:"cartão"}).name)+(+x.n>1?" "+x.i+"/"+x.n:""):""}${who?" · "+esc(who):""}</p></div>
+ <div class="grow stack-s" style="gap:1px"><p><b>${esc(x.desc||(c?c.n:"Renda"))}</b></p><p class="tiny muted">${x.kind==="in"?(x.pay&&x.pay.gross?`Renda · bruto ${brl0(x.pay.gross)} − descontos ${brl0(x.pay.ded||0)}`:"Renda"):c.n}${x.fixed?" · fixa":""}${x.sub?" · assinatura":""}${x.kind!=="in"&&expSt(x)==="apagar"?` · <span style="color:var(--bad);font-weight:700">a pagar</span>`:x.kind!=="in"&&expSt(x)==="parcial"?` · <span style="color:var(--warn);font-weight:700">falta ${brl0(expLeft(x))}</span>`:""}${x.card?" · "+esc((cardById(x.card)||{name:"cartão"}).name)+(+x.n>1?" "+x.i+"/"+x.n:""):""}${who?" · "+esc(who):""}</p></div>
  <span class="amount ${x.kind==="in"?"pos":"neg"}">${x.kind==="in"?"+":"−"} ${brl(x.v)}</span></button>`}
 function trendChart(){const ms=[];for(let i=5;i>=0;i--)ms.push(shiftMonth(UI.month,-i));const data=ms.map(k=>{const t=totals(k,true);return{k,inc:t.income,sp:t.spent}});
  const max=Math.max(1,...data.map(d=>Math.max(d.inc,d.sp)));if(!data.some(d=>d.inc||d.sp))return"";
@@ -3013,46 +3059,79 @@ function evItem(e){return `<button class="item" style="width:100%;background:non
  <div class="grow stack-s" style="gap:1px"><p><b>${esc(e.title)}</b>${e.task?' <span class="pill info" style="padding:1px 7px;font-size:11px">tarefa</span>':""}</p><p class="tiny muted">${e.day&&e.day!==today()&&UI.tab!=="agenda"?dayLabel(e.day)+" · ":""}${e.place?esc(e.place)+" · ":""}${e.remind>0?"lembrete "+e.remind+" min antes":"lembrete na hora"}${e.repeat&&e.repeat!=="none"?" · "+{daily:"diário",weekly:"semanal",monthly:"mensal",yearly:"anual"}[e.repeat]:""}</p></div></button>`}
 
 /* ---------- Perfil ---------- */
+const pChev=()=>I.right.replace('<svg','<svg width="16" height="16" style="flex:none;color:var(--muted)"');
+const pIco=ic=>`<span class="prow-ic" aria-hidden="true">${ic.startsWith("<")?ic.replace('<svg','<svg width="18" height="18"'):ic}</span>`;
+const pRow=(ic,t,sub,act,right)=>`<button class="prow" data-act="${act}">${pIco(ic)}<span class="grow stack-s" style="gap:1px;min-width:0"><b>${t}</b>${sub?`<span class="tiny muted">${sub}</span>`:""}</span>${right||""}${pChev()}</button>`;
+const pSw=(id,t,sub,on,cls)=>`<label class="check sw${cls?" "+cls:""}"><span class="grow"><b>${t}</b>${sub?`<br><span class="small muted">${sub}</span>`:""}</span><input type="checkbox" id="${id}" role="switch" ${on?"checked":""}></label>`;
+function pfAvatar(p,px){const st=`width:${px}px;height:${px}px;border-radius:50%;display:block;flex:none`;
+ if(p.photo)return `<img src="${p.photo}" alt="" style="${st};object-fit:cover">`;
+ if(p.pet!==false&&typeof pigFace==="function")return `<div class="pigstage" style="${st};overflow:hidden;aspect-ratio:1" aria-hidden="true">${pigFace(p.created?effectiveEquip():{head:null,face:null,neck:null})}</div>`;
+ return `<span class="ico" style="${st};display:grid;place-items:center;background:var(--pig-soft);color:var(--pig-deep);font-size:${Math.round(px*.38)}px">${esc((p.name||"?").slice(0,1).toUpperCase())}</span>`}
 function viewProfile(){const p=S.profile;
  const hh=p.household;const members=HH&&HH.members?Object.entries(HH.members).filter(([,v])=>v):[];
+ const st=streak();const since=p.created?parseDate(p.created).toLocaleDateString("pt-BR",{month:"short",year:"numeric"}).replace(".",""):"";
+ const pill=(t,c)=>`<span class="pill ${c||"info"}" style="font-size:12px">${t}</span>`;
  return `<div class="stack">
  <div class="row"><button class="iconbtn" data-act="tab" data-v="home" aria-label="Voltar">${I.left}</button><h2>Perfil</h2></div>
- ${letterProfileCard()}
- <div class="card stack"><div class="row"><label for="photoFile" style="position:relative;cursor:pointer;flex:none" aria-label="Trocar foto">${p.photo?`<img src="${p.photo}" alt="" style="width:56px;height:56px;border-radius:50%;object-fit:cover;display:block">`:`<span class="ico" style="width:56px;height:56px;border-radius:50%;background:var(--pig-soft);color:var(--pig-deep);font-size:20px">${esc((p.name||"?").slice(0,1).toUpperCase())}</span>`}<span style="position:absolute;right:-4px;bottom:-4px;width:22px;height:22px;border-radius:50%;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;font-size:12px">✎</span></label><input type="file" id="photoFile" accept="image/*" hidden><div class="grow stack-s" style="gap:1px"><b>${esc(p.name)}${p.supporter?` <span class="pill good" style="vertical-align:2px">${I.heart.replace('<svg','<svg width="11" height="11"')} Apoiador</span>`:""}</b><span class="tiny muted">Conta criada em ${p.created?parseDate(p.created).toLocaleDateString("pt-BR"):"—"} · ${Store.cloud?"salvo na sua conta"+(SESSION&&SESSION.user?" ("+esc(SESSION.user.email)+")":""):"salvo só neste aparelho"}</span></div></div>
- <button class="btn ghost" data-act="editProfile">Editar nome, renda e metas</button></div>
- <div class="section"><div class="label">Finanças compartilhadas</div>
- <div class="card stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`
-  :hh?`<p class="small">Vocês dividem as finanças. A outra pessoa vê e lança todas as rendas, gastos, dívidas e a reserva. Estudos, exercícios, agenda e porquinho continuam individuais.</p>
+ <div class="card stack" style="gap:14px">
+  <div class="row" style="gap:14px;align-items:center">
+   <label for="photoFile" style="position:relative;cursor:pointer;flex:none" aria-label="${p.photo?"Trocar foto":"Colocar uma foto"}">${pfAvatar(p,68)}<span style="position:absolute;right:-2px;bottom:-2px;width:24px;height:24px;border-radius:50%;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;font-size:12px">✎</span></label><input type="file" id="photoFile" accept="image/*" hidden>
+   <div class="grow stack-s" style="gap:2px;min-width:0">
+    <b style="font-size:19px;line-height:1.2">${esc(p.name)}</b>
+    <span class="tiny muted" style="overflow-wrap:anywhere">${Store.cloud?(SESSION&&SESSION.user?esc(SESSION.user.email):"Salvo na sua conta"):"Salvo só neste aparelho"}</span>
+    <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${st?pill(`${I.flame.replace('<svg','<svg width="12" height="12" style="vertical-align:-1px"')} ${st} ${st===1?"dia":"dias"} seguidos`,"warn"):""}${since?pill("No Prumo desde "+since):""}${p.supporter?pill(`${I.heart.replace('<svg','<svg width="11" height="11" style="vertical-align:-1px"')} Apoiador`,"good"):""}</div>
+   </div></div>
+  <div class="grid2"><button class="btn ghost sm" data-act="editProfile">Editar perfil</button><button class="btn ghost sm" data-act="editGoals">Renda e metas</button></div>
+ </div>
+ ${p.letterSeen?"":letterProfileCard()}
+ ${hh?`<div class="section"><div class="label">Finanças compartilhadas</div><div class="card stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p class="small">Vocês dividem as finanças. A outra pessoa vê e lança todas as rendas, gastos, dívidas e a reserva. Estudos, exercícios, agenda e porquinho continuam individuais.</p>
    <div class="list">${members.map(([id,m])=>`<div class="item"><span class="ico" style="background:var(--money-soft);color:var(--money)">${esc((m.nick||"?").slice(0,1).toUpperCase())}</span><div class="grow"><b>${id===ME.uid?"Você":esc(m.nick||"Parceiro(a)")}</b></div><span class="small muted num">${m.income?brl0(m.income)+"/mês":""}</span></div>`).join("")}</div>
    ${members.length<2?`<div class="stack-s"><span class="small muted">Envie este código para a pessoa. Ela abre o app, vai em Perfil e toca em Entrar com código.</span><div class="code">${esc(hh)}</div><button class="btn ghost sm" data-act="copyCode" style="align-self:flex-start">Copiar código</button><span class="tiny muted">A pessoa precisa ter uma conta no Prumo.</span></div>`:""}
-   <button class="btn danger sm" data-act="leaveHH" style="align-self:flex-start">Sair das finanças compartilhadas</button>`
-  :`<p class="small muted">Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><div class="grid2"><button class="btn money" data-act="createHH">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}
+   <button class="btn danger sm" data-act="leaveHH" style="align-self:flex-start">Sair das finanças compartilhadas</button>`}</div></div>`:""}
+ <div class="section"><div class="label">Seu jeito</div>
+ <div class="card plist">
+  ${pRow(I.spark,"Áreas do app e lembrete diário","O que organizar primeiro e quando o Prumo te chama","habitModal")}
+  ${hh?"":pRow(I.people,"Dividir finanças com alguém","Cônjuge, namorado(a) ou quem divide as contas com você","hhInfo")}
  </div></div>
- <div class="section"><div class="label">Preferências</div>
- <div class="card stack">
-  <button class="btn line" data-act="habitModal">Meu jeito de começar: áreas, motivo e lembrete</button>
-  <label class="check"><input type="checkbox" id="prayerToggle" ${p.prayer?"checked":""}><span><b>Mostrar a aba de Oração</b><br><span class="small muted">Checklist diário de orações da sua tradição.</span></span></label>
-  ${p.prayer?`<label class="field"><span>Tradição</span><select id="prayerTradSel">${Object.entries(PRAYER_TRADS).map(([id,t])=>`<option value="${id}" ${S.prayer.trad===id?"selected":""}>${t.n}</option>`).join("")}</select></label>`:""}
-  ${p.pet?`<label class="field"><span>Nome do porquinho</span><input id="petNameInp" maxlength="20" value="${esc(S.pet.name||"")}" placeholder="Ex.: Toicinho"></label>`:""}
-  <label class="check"><input type="checkbox" id="petToggle" ${p.pet?"checked":""} data-act="petToggle"><span><b>Mostrar o porquinho</b><br><span class="small muted">O mascote que cresce com a sua saúde financeira.</span></span></label>
-  ${typeof OINC_SRC!=="undefined"&&OINC_SRC?"":"<!--"}<div class="row" style="gap:8px;align-items:flex-start"><label class="check grow" style="margin:0"><input type="checkbox" id="oincToggle" ${p.oinc!==false?"checked":""}><span><b>Som de oinc</b><br><span class="small muted">Toca nos lembretes e quando chega um aviso, com o app aberto.</span></span></label><button type="button" class="btn ghost sm" data-act="oincTest" style="flex:none">▶ Ouvir</button></div>${typeof OINC_SRC!=="undefined"&&OINC_SRC?"":"-->"}
-  <label class="check desk-only"><input type="checkbox" id="finLockToggle" ${p.finLock!==false?"checked":""}><span><b>Cadeado nas finanças (computador)</b><br><span class="small muted">No computador, a aba Finanças abre trancada para ninguém ver seus valores sem querer.${p.finPin?" Você usa uma senha de números.":""}</span></span></label>
-  ${p.pet?`<label class="check"><input type="checkbox" id="buddyToggle" ${p.buddy!==false?"checked":""}><span><b>Mascote nas abas</b><br><span class="small muted">Um porquinho pequeno no canto de cada aba: comendo, lendo, se exercitando. Toque nele para uma dica.</span></span></label>`:""}
-  <label class="field"><span>Tema</span><select id="themeSel" data-act="themeSel"><option value="system" ${p.theme==="system"?"selected":""}>Igual ao aparelho</option><option value="light" ${p.theme==="light"?"selected":""}>Claro</option><option value="dark" ${p.theme==="dark"?"selected":""}>Escuro</option></select></label>
+ <div class="section"><div class="label">Abas e mascote</div>
+ <div class="card plist">
+  ${pSw("prayerToggle","Aba de Oração","Checklist diário de orações da sua tradição.",p.prayer)}
+  ${p.prayer?`<label class="field" style="padding:10px 0;border-bottom:1px solid var(--line)"><span>Tradição</span><select id="prayerTradSel">${Object.entries(PRAYER_TRADS).map(([id,t])=>`<option value="${id}" ${S.prayer.trad===id?"selected":""}>${t.n}</option>`).join("")}</select></label>`:""}
+  ${pSw("petToggle","Porquinho","O mascote que cresce com a sua vida em ordem.",p.pet)}
+  ${p.pet?`<label class="field" style="padding:10px 0;border-bottom:1px solid var(--line)"><span>Nome do porquinho</span><input id="petNameInp" maxlength="20" value="${esc(S.pet.name||"")}" placeholder="Ex.: Toicinho"></label>`:""}
+  ${p.pet?pSw("buddyToggle","Mascote nas abas","Um porquinho pequeno no canto de cada aba. Toque nele para uma dica.",p.buddy!==false):""}
  </div></div>
- <div class="section"><div class="label">Seus dados</div>
- <div class="card stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
- <div class="grid2"><button class="btn ghost" data-act="exportData">Exportar backup</button><label class="btn ghost" for="importFile" style="cursor:pointer">Importar backup</label></div><input type="file" id="importFile" accept="application/json,.json" hidden>
- <button class="btn danger sm" data-act="resetAll" style="align-self:flex-start">Apagar meus dados</button></div></div>
- ${canDonate()?`<button class="btn money" data-act="donate">${I.heart.replace('<svg','<svg width="18" height="18"')} Apoie o Prumo com uma doação</button>`:""}
- <a class="btn line" href="https://www.instagram.com/prumovidaemordem/" target="_blank" rel="noopener" style="text-decoration:none;text-align:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg> Siga o Prumo no Instagram</a>
- <button class="btn ghost" data-act="about">Sobre o Prumo</button>
- ${SB_ON?(Store.cloud?`<button class="btn line" data-act="signOut">Sair da conta</button><button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:`<button class="btn line" data-act="goLogin">Entrar ou criar conta</button>`):""}
- ${shareToggle()}
+ <div class="section"><div class="label">Sons e avisos</div>
+ <div class="card plist">
+  <!--pfNotif-->
+  ${typeof OINC_SRC!=="undefined"&&OINC_SRC?`<div class="row" style="gap:10px;align-items:center;border-bottom:1px solid var(--line)"><div class="grow">${pSw("oincToggle","Som de oinc","Nos lembretes e avisos, com o app aberto.",p.oinc!==false,"nob")}</div><button type="button" class="btn ghost sm" data-act="oincTest" style="flex:none">▶ Ouvir</button></div>`:""}
+  ${p.pet?pSw("pigVoiceTg","Voz do porquinho","Ele comenta quando você conclui algo. Também dá para silenciar no próprio porquinho.",p.pigVoice!==false):""}
+ </div></div>
+ <div class="section"><div class="label">Aparência e privacidade</div>
+ <div class="card plist">
+  ${pSw("finLockToggle","Cadeado nas finanças","No computador, a aba Finanças abre trancada para ninguém ver seus valores sem querer."+(p.finPin?" Você usa uma senha de números.":""),p.finLock!==false,"desk-only")}
+  <label class="field" style="padding:10px 0;border-bottom:1px solid var(--line)"><span>Tema</span><select id="themeSel" data-act="themeSel"><option value="system" ${p.theme==="system"?"selected":""}>Igual ao aparelho</option><option value="light" ${p.theme==="light"?"selected":""}>Claro</option><option value="dark" ${p.theme==="dark"?"selected":""}>Escuro</option></select></label>
+ </div></div>
+ <div class="section"><div class="label">Mais</div>
+ <div class="card plist">
+  ${p.letterSeen?pRow(letterPig()?`<span style="display:block;width:36px;height:36px;border-radius:10px;overflow:hidden">${letterAvatar(36)}</span>`:I.heart,letterTitle().replace(/<[^>]+>/g,""),"Por que o Prumo existe","letterOpen"):""}
+  ${canDonate()?pRow(I.heart,"Apoie o Prumo","Doação voluntária para manter o app no ar","donate"):""}
+  <a class="prow" href="https://www.instagram.com/prumovidaemordem/" target="_blank" rel="noopener">${pIco('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>')}<span class="grow stack-s" style="gap:1px"><b>Siga no Instagram</b><span class="tiny muted">@prumovidaemordem</span></span>${pChev()}</a>
+  ${pRow(I.book,"Sobre o Prumo","","about")}
+  ${pRow(I.check,"Seus dados","Backup, restaurar e apagar","dataModal")}
+ </div></div>
  ${(checkAdmin(),UI.isAdmin)?`<button class="btn line" data-act="goAdmin">Painel do administrador</button>`:""}
+ ${SB_ON?(Store.cloud?`<button class="btn line" data-act="signOut">Sair da conta</button>`:`<button class="btn line" data-act="goLogin">Entrar ou criar conta</button>`):""}
+ ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
+ ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
  <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão de testes</p>
  </div>`}
+function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
+function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
+ <div class="grid2"><button class="btn ghost" data-act="exportData">Exportar backup</button><label class="btn ghost" for="importFile" style="cursor:pointer">Importar backup</label></div><input type="file" id="importFile" accept="application/json,.json" hidden>
+ <button class="btn danger sm" data-act="resetAll" style="align-self:flex-start;margin-top:8px">Apagar meus dados</button></div>`)}
+document.addEventListener("change",ev=>{if(ev.target&&ev.target.id==="pigVoiceTg"){S.profile.pigVoice=ev.target.checked;commit();toast(ev.target.checked?"Voz do porquinho ligada.":"Porquinho silenciado.");if(ev.target.checked&&typeof PIG_WEB!=="undefined"&&PIG_WEB&&typeof pigSay==="function")pigSay("greet",{force:true})}});
 
 
 /* ---------- Doação voluntária por Pix ---------- */
@@ -3219,8 +3298,47 @@ function expenseForm(e,month){try{syncCats()}catch(x){}e=e||{};const debtsOpen=d
     if(after<0)h+=`<div class="banner bad"><span>Com este gasto, ${mk===mkey()?"o mês":"esse mês"} passa da renda em <b>${brl0(-after)}</b>. Dá para adiar ou pagar de outro jeito?</span></div>`;
     else if(after<tt.income*.1)h+=`<div class="banner warn"><span>Depois deste gasto, sobram só <b>${brl0(after)}</b> ${mk===mkey()?"até o fim do mês":"nesse mês"}.</span></div>`}}
    $("#f_warn").innerHTML=h};vi.addEventListener("input",warn);UI._warn=warn;ccPreview()})}
+/* ---------- Holerite: lê bruto, descontos e líquido (PDF ou texto colado) ---------- */
+const PS_DED=/inss|irrf|\bir\b|imposto|i\.?r\.?r\.?f|vale[ -]?transp|\bv\.?t\.?\b|transporte|plano de sa|assist[eê]ncia m[eé]d|m[eé]dic|odont|unimed|sindic|contrib|falta|atraso|adiant|empr[eé]st|consign|pens[aã]o|previd|desc|co-?participa|seguro de vida|refei[cç][aã]o desc|alimenta[cç][aã]o desc|coopera|farm[aá]cia|mensalidade/i;
+const PS_SKIP=/\bbase\s*(?:de\s*)?c[aá]lc|\bbase\s*(?:fgts|inss|irrf|ir)\b|fgts|faixa|sal[aá]rio contrib|sal\. contrib|dep\. ?ir|dependente|banco|ag[eê]ncia|conta|cnpj|cpf|admiss|cargo|fun[cç][aã]o|matr[ií]cula|p[aá]gina|mensagem|declaro|assinatura/i;
+const psNum=x=>{const n=parseFloat(String(x).replace(/\./g,"").replace(",","."));return isFinite(n)?n:null};
+function parsePayslip(t){const text=t.replace(/ /g," ");const lines=text.split(/\r?\n/).map(l=>l.replace(/\s+/g," ").trim()).filter(Boolean);const M=/\d{1,3}(?:\.\d{3})*,\d{2}/g;
+ const find=re=>{for(const l of lines){const m=re.exec(l);if(m){const vs=(l.slice(m.index+m[0].length).match(M)||[]);if(vs.length)return psNum(vs[0])}}return null};
+ let gross=find(/total\s*(?:de\s*)?(?:vencimentos|proventos)|sal[aá]rio\s*bruto|total\s*bruto|valor\s*bruto/i),ded=find(/total\s*(?:de\s*)?descontos/i),net=find(/l[ií]quido\s*(?:a\s*receber)?|valor\s*l[ií]quido|sal[aá]rio\s*l[ií]quido|total\s*l[ií]quido|l[ií]quido\s*do\s*m[eê]s/i);
+ const items=[];for(const l of lines){if(/total|l[ií]quido|bruto/i.test(l)||PS_SKIP.test(l))continue;const vs=l.match(M);if(!vs)continue;let desc=l.replace(M,"").replace(/^\s*\d{1,5}\s+/,"").replace(/\s{2,}/g," ").replace(/[|:;*]+/g," ").replace(/\b\d+(?:[.,]\d+)?\s*%?\s*$/,"").trim();if(!desc||desc.length<3||!/[a-zà-ú]{3}/i.test(desc))continue;
+  const val=psNum(vs[vs.length-1]);if(!val||val<=0)continue;items.push({n:desc.slice(0,40),v:val,t:PS_DED.test(desc)?"d":"p"})}
+ const sp=items.filter(x=>x.t==="p").reduce((s,x)=>s+x.v,0),sd=items.filter(x=>x.t==="d").reduce((s,x)=>s+x.v,0);
+ if(gross==null&&sp)gross=Math.round(sp*100)/100;if(ded==null&&sd)ded=Math.round(sd*100)/100;
+ if(net==null&&gross!=null&&ded!=null)net=Math.round((gross-ded)*100)/100;if(ded==null&&gross!=null&&net!=null)ded=Math.round((gross-net)*100)/100;if(gross==null&&net!=null&&ded!=null)gross=Math.round((net+ded)*100)/100;
+ let comp=null;const mm=/(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s*(?:\/|de)?\s*(\d{4})/i.exec(text)||/compet[eê]ncia\D{0,12}(\d{2})\/(\d{4})/i.exec(text);
+ if(mm){const MN=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];const mi=isNaN(+mm[1])?MN.indexOf(mm[1].toLowerCase().replace("marco","março"))+1:+mm[1];if(mi>0)comp=mm[2]+"-"+String(mi).padStart(2,"0")}
+ return{gross,ded,net,items,comp,ok:net!=null&&net>0}}
+function paySummary(p,v){const g=+p.gross||0,d=+p.ded||0,n=+v||+p.net||0;const ds=(p.items||[]).filter(x=>x.t==="d");
+ return `<div class="card flat stack-s" style="gap:6px"><div class="row between small"><span>Salário bruto</span><b class="num">${brl(g)}</b></div><div class="row between small"><span>Descontos${g?` (${Math.round(d/g*100)}%)`:""}</span><b class="num" style="color:var(--bad)">− ${brl(d)}</b></div>${ds.length?`<div class="stack-s" style="gap:2px;padding-left:10px">${ds.map(x=>`<div class="row between tiny muted"><span>${esc(x.n)}</span><span class="num">${brl(x.v)}</span></div>`).join("")}</div>`:""}<div class="row between small" style="border-top:1px solid var(--line);padding-top:6px"><b>Líquido</b><b class="num" style="color:var(--good)">${brl(n)}</b></div></div>`}
+function paySlipForm(){UI.ps=null;openModal("Importar holerite",`<div class="stack" id="ps_root">${paySlipBody()}</div>`)}
+function paySlipBody(){const p=UI.ps;
+ if(!p)return `<p class="small muted" style="margin:0">Traga o holerite (contracheque) e o Prumo separa o salário bruto, os descontos e o líquido. O que entra na sua renda é o <b>líquido</b>, que é o que cai na conta.</p>
+ <label class="btn line" style="cursor:pointer;text-align:center">Escolher arquivo do holerite (PDF)<input type="file" id="psFile" accept=".pdf,.txt,application/pdf,text/plain" style="display:none"></label>
+ <div class="card flat stack"><b class="small">Ou copie e cole</b><span class="tiny muted">Abra o holerite, selecione tudo, copie e cole aqui.</span><textarea id="ps_text" rows="5" style="width:100%;font:inherit;padding:10px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)" placeholder="Cole aqui o texto do holerite"></textarea><button class="btn" data-act="psParse">Ler holerite</button></div>
+ <p class="tiny muted" style="margin:0">O arquivo é lido só no seu aparelho. Nada do holerite é enviado para fora, só os valores que você salvar.</p>`;
+ const f=x=>x!=null?String(x.toFixed(2)).replace(".",","):"";const date=today();
+ return `<div class="row between"><b class="small">Confira os valores</b><button class="btn ghost sm" data-act="psBack">Voltar</button></div>
+ ${p.ok?"":`<div class="banner warn">Não encontrei todos os valores. Preencha o que faltar olhando o holerite.</div>`}
+ <div class="grid2"><label class="field"><span>Salário bruto</span><input id="ps_g" inputmode="decimal" value="${f(p.gross)}"></label><label class="field"><span>Total de descontos</span><input id="ps_d" inputmode="decimal" value="${f(p.ded)}"></label></div>
+ <label class="field"><span>Salário líquido (entra na renda)</span><input id="ps_n" inputmode="decimal" value="${f(p.net)}" style="font-size:22px;font-weight:700"></label>
+ ${p.items.some(x=>x.t==="d")?`<div class="card flat stack-s" style="gap:4px"><b class="small">Descontos encontrados</b>${p.items.filter(x=>x.t==="d").map(x=>`<div class="row between small"><span>${esc(x.n)}</span><span class="num">${brl(x.v)}</span></div>`).join("")}</div>`:""}
+ ${p.gross&&p.ded&&p.net&&Math.abs(p.gross-p.ded-p.net)>1?`<p class="tiny" style="color:var(--warn);margin:0">Atenção: bruto menos descontos não bate com o líquido. Confira os valores.</p>`:""}
+ <div class="grid2"><label class="field"><span>Descrição</span><input id="ps_desc" value="Salário"></label><label class="field"><span>Data em que recebeu</span><input id="ps_date" type="date" value="${date}"></label></div>${p.comp?`<p class="tiny muted" style="margin:0">Holerite de ${MONTHS[+p.comp.slice(5)-1]}/${p.comp.slice(0,4)}. A renda entra no mês da data em que você recebeu.</p>`:""}
+ <button class="btn money block" data-act="psSave">Lançar salário líquido</button>`}
+function psRefresh(){const r=$("#ps_root");if(r)r.innerHTML=paySlipBody()}
+async function psLoadFile(file,password){try{let t;if(/\.pdf$/i.test(file.name||"")||file.type==="application/pdf"){toast("Lendo o holerite…");t=await pdfToText(file,password)}else t=await readFileText(file);UI.ps=parsePayslip(t);UI.psFile=null;psRefresh()}
+ catch(e){if(e&&e.name==="PasswordException"){UI.psFile=file;const r=$("#ps_root");if(r)r.innerHTML=`<div class="stack"><div class="banner warn">${password?"Senha incorreta. Tente de novo.":"Este PDF tem senha."} Muitas empresas usam os primeiros dígitos do CPF. A senha é usada só para abrir o arquivo aqui e não fica guardada.</div><label class="field"><span>Senha do PDF</span><input id="ps_pw" type="password" autocomplete="off"></label><button class="btn block" data-act="psPw">Abrir PDF</button><button class="btn ghost block" data-act="psBack">Voltar</button></div>`;return}
+  toast("Não consegui ler este arquivo. Tente copiar e colar o texto do holerite.")}}
+document.addEventListener("change",e=>{if(e.target&&e.target.id==="psFile"&&e.target.files&&e.target.files[0])psLoadFile(e.target.files[0])});
 function incomeForm(e,month){e=e||{};const isEdit=!!e.id;
  openModal(isEdit?"Editar renda":"Nova renda",`<div class="stack">
+ ${isEdit?"":`<button class="btn line block" data-act="paySlip">📄 Importar holerite (PDF ou texto)</button>`}
+ ${e.pay?paySummary(e.pay,e.v):""}
  <label class="field"><span>Valor líquido</span><input id="f_v" inputmode="decimal" placeholder="0,00" value="${e.v?String(e.v).replace(".",","):""}" style="font-size:24px;font-weight:700"></label>
  <label class="field"><span>Descrição</span><input id="f_desc" value="${esc(e.desc||"Salário")}"></label>
  <label class="field"><span>Data</span><input id="f_date" type="date" value="${e.date||(month&&month!==mkey()?month+"-05":today())}"></label>
@@ -3281,12 +3399,13 @@ function eventForm(e,day){e=e||{};const isEdit=!!e.id;
  <label class="field"><span>Anotações</span><textarea id="v_notes">${esc(e.notes||"")}</textarea></label>
  <button class="btn block" data-act="saveEvent" data-v="${e.id||""}">${isEdit?"Salvar":"Criar compromisso"}</button>
  ${isEdit?`<button class="btn ghost" data-act="icsOne" data-v="${e.id}">${I.bell.replace('<svg','<svg width="18" height="18"')} Enviar para o calendário do celular</button><button class="btn danger" data-act="askDel">Apagar compromisso</button>${confirmBox("delEvent","Apagar este compromisso?")}`:""}</div>`)}
-function profileForm(){const p=S.profile;
- openModal("Editar perfil",`<div class="stack">
- <label class="field"><span>Nome</span><input id="p_name" value="${esc(p.name)}"></label>
- <label class="field"><span>Renda líquida mensal</span><input id="p_income" inputmode="decimal" value="${p.income?String(p.income).replace(".",","):""}"></label>
+function profileForm(mode){const p=S.profile;const fin=mode==="fin";
+ openModal(fin?"Renda e metas":"Editar perfil",`<div class="stack">
+ ${fin?`<label class="field"><span>Renda líquida mensal</span><input id="p_income" inputmode="decimal" value="${p.income?String(p.income).replace(".",","):""}"><span class="tiny muted">Também dá para importar o holerite em Finanças, ao lançar uma renda.</span></label>
  <label class="field"><span>Meta diária de estudo (minutos)</span><input id="p_goal" type="number" inputmode="numeric" min="5" value="${p.studyGoal||20}"></label>
- <label class="field"><span>Valor da regra das 48 horas</span><input id="p_lim" inputmode="decimal" value="${p.limit48||""}"><span class="tiny muted">Ao lançar um desejo acima deste valor, o app sugere esperar.</span></label>
+ <label class="field"><span>Valor da regra das 48 horas</span><input id="p_lim" inputmode="decimal" value="${p.limit48||""}"><span class="tiny muted">Ao lançar um desejo acima deste valor, o app sugere esperar.</span></label>`
+ :`<label class="field"><span>Nome</span><input id="p_name" value="${esc(p.name)}" autocomplete="name"></label>
+ <label class="btn ghost" for="photoFile" style="cursor:pointer">${p.photo?"Trocar a foto":"Colocar uma foto"}</label>`}
  <button class="btn block" data-act="saveProfile">Salvar</button></div>`)}
 function startForm(){const m=meta();openModal("O que já tenho guardado",`<div class="stack"><p class="small muted">Informe o valor que você já tinha antes de começar a usar o app. Daqui em diante, os lançamentos somam sozinhos.</p>
  <label class="field"><span>Reserva de emergência</span><input id="st_res" inputmode="decimal" value="${m.reserveStart?String(m.reserveStart).replace(".",","):""}" placeholder="0,00"></label>
@@ -3343,6 +3462,13 @@ const A={
  checkin:()=>{S.checkins[today()]=1;markActive();commit();toast(S.profile.pet?"Dia sem gastos registrado. O porquinho agradece.":"Dia sem gastos registrado.")},
  addExpense:()=>expenseForm(null,UI.tab==="fin"?UI.month:null),
  addIncome:()=>incomeForm(null,UI.tab==="fin"?UI.month:null),
+ paySlip:()=>paySlipForm(),
+ psBack:()=>{UI.ps=null;psRefresh()},
+ psPw:()=>{const pw=($("#ps_pw")||{}).value||"";if(!UI.psFile||!pw){toast("Digite a senha do PDF.");return}psLoadFile(UI.psFile,pw)},
+ psParse:()=>{const t=($("#ps_text")||{}).value||"";if(!t.trim()){toast("Cole o texto do holerite.");return}UI.ps=parsePayslip(t);psRefresh()},
+ psSave:()=>{const net=parseMoney(v("ps_n"));if(!net){toast("Informe o salário líquido.");return}const gross=parseMoney(v("ps_g"))||null,ded=parseMoney(v("ps_d"))||(gross?Math.round((gross-net)*100)/100:null);const date=v("ps_date")||today();const id=rid();
+  const p=UI.ps||{items:[]};const e={v:net,desc:v("ps_desc").trim()||"Salário",date,by:ME.uid,t:Date.now(),pay:{gross,ded,net,items:(p.items||[]).slice(0,30),comp:p.comp||null}};
+  finPatch(mid(mkey(date)),{incomes:{[id]:e}});markActive();saveApp();closeModal();UI.ps=null;toast(`Salário lançado: ${brl(net)} líquido${gross?` de ${brl(gross)} bruto`:""}.`,4500)},
  quickSalary:()=>{const id=rid();const k=UI.month;finPatch(mid(k),{incomes:{[id]:{v:+S.profile.income,desc:"Salário",date:k===mkey()?today():k+"-05",by:ME.uid,t:Date.now()}}});markActive();saveApp();toast("Salário lançado.")},
  copyFixed:()=>{const k=UI.month;const prev=monthData(shiftMonth(k,-1)).expenses.filter(e=>e.fixed);const patch={expenses:{}};prev.forEach(e=>{const id=rid();const day=e.date.slice(8);const [y,m]=k.split("-").map(Number);const dim=new Date(y,m,0).getDate();patch.expenses[id]={v:e.v,desc:e.desc,cat:e.cat,date:k+"-"+pad(Math.min(+day,dim)),fixed:true,by:ME.uid,t:Date.now(),added:today(),debtId:e.debtId||null,st:"apagar"}});finPatch(mid(k),patch);markActive();saveApp();toast(`${prev.length} conta(s) fixa(s) lançada(s).`)},
  catNewToggle:()=>{const b=$("#catNew");b.classList.toggle("hide");if(!b.classList.contains("hide"))$("#cn_name").focus()},
@@ -3376,7 +3502,7 @@ const A={
  editExpense:el=>{const e=findTx("expenses",el.dataset.v,el.dataset.m);if(e)expenseForm(e,el.dataset.m)},
  delExpYes:()=>{const id=document.querySelector('[data-act="saveExpense"]').dataset.v;const e=findTx("expenses",id);if(e&&e.grp){ccRemoveGroup(e.grp);closeModal();toast(+e.n>1?"Compra e todas as parcelas apagadas.":"Compra apagada.");return}if(e){finPatch(mid(mkey(e.date)),{expenses:{[id]:null}});if(e.subId)finPatch("meta",{subSkip:{[id]:1}})}closeModal();toast("Gasto apagado.")},
  saveIncome:el=>{const val=parseMoney(v("f_v"));if(!val){toast("Informe o valor da renda.");return}const date=v("f_date")||today();const id=el.dataset.v||rid();const old=el.dataset.v?findTx("incomes",id):null;
-  const e={v:val,desc:v("f_desc").trim()||"Renda",date,by:old?old.by:ME.uid,t:old?old.t:Date.now()};
+  const e={v:val,desc:v("f_desc").trim()||"Renda",date,by:old?old.by:ME.uid,t:old?old.t:Date.now(),pay:old&&old.pay?old.pay:null};
   if(old&&mkey(old.date)!==mkey(date))finPatch(mid(mkey(old.date)),{incomes:{[id]:null}});
   finPatch(mid(mkey(date)),{incomes:{[id]:e}});markActive();saveApp();closeModal();toast(old?"Renda atualizada.":"Renda lançada.")},
  editIncome:el=>{const e=findTx("incomes",el.dataset.v,el.dataset.m);if(e)incomeForm(e,el.dataset.m)},
@@ -3598,7 +3724,7 @@ const A={
  copyPixCode:()=>{const pl=DON_PLANS.find(x=>x[0]===(UI.donPlan||"livre"));copyText(pixPayload(pl[2]),"Pix copia e cola copiado. Cole no app do seu banco.")},
  donPlan:el=>{UI.donPlan=el.dataset.v;donateView()},
  donDone:el=>{S.profile.supporter={plan:el.dataset.v,since:today()};markActive();commit();closeModal();toast("Obrigado por apoiar o Prumo! Seu selo e os acessórios de apoiador já estão liberados.",5000)},
- saveProfile:()=>{const p=S.profile;p.name=v("p_name").trim()||p.name;p.income=parseMoney(v("p_income"));p.studyGoal=clamp(+v("p_goal")||20,5,600);p.limit48=parseMoney(v("p_lim"));commit();closeModal();if(p.household&&HH&&Store.cloud)Store.db.doc(`households/${p.household}`).update({members:{[ME.uid]:{nick:p.name.split(" ")[0],income:p.income}}}).catch(()=>{});toast("Perfil salvo.")},
+ saveProfile:()=>{const p=S.profile;const has=id=>!!document.getElementById(id);if(has("p_name"))p.name=v("p_name").trim()||p.name;if(has("p_income"))p.income=parseMoney(v("p_income"));if(has("p_goal"))p.studyGoal=clamp(+v("p_goal")||20,5,600);if(has("p_lim"))p.limit48=parseMoney(v("p_lim"));commit();closeModal();if(p.household&&HH&&Store.cloud)Store.db.doc(`households/${p.household}`).update({members:{[ME.uid]:{nick:p.name.split(" ")[0],income:p.income}}}).catch(()=>{});toast("Salvo.")},
  petToggle:el=>{S.profile.pet=el.checked;commit()},
  createHH:async()=>{if(!Store.cloud)return;const code=Array.from({length:6},()=>"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random()*32)]).join("");
   try{await hhJoin(code);await Store.db.doc(`households/${code}`).set({created:today(),members:{[ME.uid]:{nick:S.profile.name.split(" ")[0],income:+S.profile.income||0}}});
@@ -3651,7 +3777,7 @@ function medDays(){return medPtsDays()}
 function medDaysLast7(){const m=S.med&&Array.isArray(S.med.log)?S.med.log:[];const lim=ymd(new Date(Date.now()-6*864e5));return new Set(m.filter(x=>x.d>=lim&&medOk(x)).map(x=>x.d)).size}
 function medWeekMin(){const m=medStore(),lim=ymd(new Date(Date.now()-6*864e5));return Math.round(m.log.filter(x=>x.d>=lim).reduce((s,x)=>s+(+x.min||0),0))}
 function medStreak(){const ds=new Set(medStore().log.map(x=>x.d));let n=0,d=new Date();if(!ds.has(ymd(d)))d=new Date(Date.now()-864e5);while(ds.has(ymd(d))){n++;d=new Date(d.getTime()-864e5)}return n}
-function medView(){const m=medStore(),bd=UI.medBreathDur||3,wk=medWeekMin(),st=medStreak();
+function medView(){if(!S.profile.medSeen){S.profile.medSeen=today();saveApp()}const m=medStore(),bd=UI.medBreathDur||3,wk=medWeekMin(),st=medStreak();
  return `<div class="section"><div class="card" style="display:flex;gap:14px;align-items:center"><div class="grow"><div class="label" style="margin:0">Esta semana</div><div class="big num" style="margin-top:2px">${wk} min</div><div class="small muted">${st>1?`${st} dias seguidos meditando`:m.log.length?"Cada minuto conta. Volte amanhã.":"Comece com 3 minutos. É o suficiente."}</div></div><div style="width:84px;flex:none">${pigSVG({score:90,mood:"feliz",equip:{},env:0,mini:true})}</div></div>
 <div style="margin-top:10px">${pigGains("medit")}</div></div>
  <div class="section"><div class="label">Respire agora</div><div class="card stack">
@@ -3880,7 +4006,9 @@ function cardForm(c){c=c||{};const isEdit=!!c.id;UI.ccColor=c.color||CARD_COLORS
 /* ---------- Importar fatura ---------- */
 const CAT_RULES=[
  [/ifood|i food|rappi|aiqfome|restaur|lanchon|pizz|burger|mc ?donald|mcdonalds|bk |subway|outback|padaria|panific|cafeteria|starbucks|sorvet|acai|açai|açaí|churrasc|sushi|bar e |boteco/i,"delivery"],
- [/uber|99 ?(pop|app|taxi|food)?\b|cabify|posto|shell|ipiranga|petrobras|br mania|combust|auto posto|estacion|sem ?parar|conectcar|veloe|pedagio|pedágio|metro|metrô|onibus|ônibus|bilhete unico|zul\b/i,"transporte"],
+ [/\bposto\b|auto ?posto|shell|ipiranga|petrobras|\bbr mania|combust|gasolina|etanol|alcool comb|diesel|\bgnv\b|raizen|vibra energia|ale combust|graal/i,"combustivel"],
+ [/renner|riachuelo|c&a|\bcea\b|zara|hering|marisa|pernambucanas|youcom|reserva\b|farm rio|\bshein\b|centauro|netshoes|nike|adidas|puma|olympikus|havaianas|arezzo|schutz|sapat|cal[cç]ado|roupa|moda|vestu|boutique|lingerie|hope\b|malwee|lupo|track ?field|dafiti|zattini|lojas torra/i,"roupas"],
+ [/uber|99 ?(pop|app|taxi|food)?\b|cabify|estacion|sem ?parar|conectcar|veloe|pedagio|pedágio|metro|metrô|onibus|ônibus|bilhete unico|zul\b/i,"transporte"],
  [/supermerc|mercado(?! ?livre| ?pago)|carrefour|atacad|assai|assaí|p[aã]o de a[cç]ucar|extra hiper|big bompre|condor|muffato|sams club|hortifruti|a[cç]ougue|sacol[aã]o|quitanda|mercearia|dia brasil/i,"mercado"],
  [/farm[aá]c|drog|raia|pague menos|panvel|nissei|hospital|cl[ií]nic|laborat|odonto|m[eé]dic|unimed|exame|[oó]tica/i,"saude"],
  [/netflix|spotify|disney|hbo|max\.com|\bmax\b|prime video|amazon prime|primevideo|globoplay|youtube|deezer|apple\.com|icloud|google one|google storage|paramount|crunchyroll|chatgpt|openai|claude\.ai|anthropic|canva|microsoft|xbox game pass|playstation plus|smart ?fit|bluefit|academia|gympass|wellhub|totalpass/i,"assinaturas"],
@@ -3891,7 +4019,7 @@ const CAT_RULES=[
  [/vivo|claro|\btim\b|\boi\b|internet|telecom|energia|copel|cemig|enel|light s|celesc|sabesp|sanepar|embasa|compesa|g[aá]s\b|condom[ií]nio/i,"contas"],
  [/petz|cobasi|pet ?shop|veterin|petlove/i,"filhos"],
  [/iof|anuidade|tarifa|juros|multa|encargo/i,"impostos"]];
-const IGNORE_RE=/pagamento (recebido|efetuado|de fatura|fatura)|pgto|pag fatura|pagto|estorno|cr[eé]dito de|credito em|devolu[cç][aã]o|cashback|desconto antecip|saldo anterior|total da fatura|limite dispon/i;
+const IGNORE_RE=/d[oó]lar\s*:|cota[cç][aã]o d|pagamento (recebido|efetuado|de fatura|fatura)|pgto|pag fatura|pagto|estorno|cr[eé]dito de|credito em|devolu[cç][aã]o|cashback|desconto antecip|saldo anterior|total da fatura|limite dispon/i;
 const normDesc=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/parc(ela)?\.?\s*\d{1,2}\s*(\/|de)\s*\d{1,2}/g,"").replace(/\b\d{1,2}\/\d{1,2}\b/g,"").replace(/[^a-z]+/g," ").trim().slice(0,22);
 function guessCat(desc){const nd=normDesc(desc);if(nd){const ms=allMonths();for(let j=ms.length-1;j>=Math.max(0,ms.length-6);j--)for(const e of monthData(ms[j]).expenses)if(e.cat&&normDesc(e.desc)===nd)return e.cat}
  for(const [re,c] of CAT_RULES)if(re.test(desc))return c;return"outros"}
@@ -3939,8 +4067,8 @@ function ccImpBody(){const im=UI.imp;const c=cardById(im.card);const cs=cardsLis
  if(!im.rows)return `<p class="small muted">Em vez de digitar compra por compra, traga a fatura do banco. Leva menos de 2 minutos por mês.</p>
  <div class="grid2"><label class="field"><span>Cartão</span><select id="imp_card">${cs.map(x=>`<option value="${x.id}" ${x.id===c.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select></label>
  <label class="field"><span>Fatura que vence em</span><select id="imp_k">${ccImpMonths(c).map(k=>`<option value="${k}" ${k===im.k?"selected":""}>${ddmm(dayIn(k,c.due))}/${k.slice(0,4)}</option>`).join("")}</select></label></div>
- <div class="card flat stack"><b>Jeito 1: arquivo do banco</b><span class="small muted">No app ou site do banco, abra a fatura e procure <b>Exportar</b>, <b>Baixar</b> ou <b>Enviar por e-mail</b>, no formato <b>OFX</b> ou <b>CSV</b>. A maioria dos bancos oferece (Nubank, Itaú, Inter, Bradesco, Santander, BB, C6 e outros).</span>
-  <label class="btn line" style="cursor:pointer;text-align:center">Escolher arquivo da fatura<input type="file" id="ccFile" accept=".ofx,.qfx,.csv,.txt,text/csv,text/plain" style="display:none"></label></div>
+ <div class="card flat stack"><b>Jeito 1: arquivo do banco</b><span class="small muted">No app ou site do banco, abra a fatura e procure <b>Exportar</b>, <b>Baixar</b> ou <b>Enviar por e-mail</b>, no formato <b>PDF</b>, <b>OFX</b> ou <b>CSV</b>. A maioria dos bancos oferece (Nubank, Itaú, Inter, Bradesco, Santander, BB, C6 e outros).</span>
+  <label class="btn line" style="cursor:pointer;text-align:center">Escolher arquivo da fatura<input type="file" id="ccFile" accept=".pdf,.ofx,.qfx,.csv,.txt,application/pdf,text/csv,text/plain" style="display:none"></label></div>
  <div class="card flat stack"><b>Jeito 2: copiar e colar</b><span class="small muted">Abra a fatura no app do banco ou o PDF, selecione as compras, copie e cole aqui. Cada linha precisa ter data, descrição e valor, por exemplo: <i>12/10 Mercado Bom Preço 154,90</i>.</span>
   <textarea id="imp_text" rows="5" placeholder="Cole aqui as linhas da fatura" style="width:100%;font:inherit;padding:10px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)"></textarea>
   <button class="btn" data-act="impParse">Ler compras</button></div>`;
@@ -3951,11 +4079,27 @@ function ccImpBody(){const im=UI.imp;const c=cardById(im.card);const cs=cardsLis
  ${im.rows.some(r=>r.n>r.i)?`<label class="check"><input type="checkbox" id="imp_future" ${im.future?"checked":""}><span class="small">Lançar também as próximas parcelas nos meses seguintes (${fut} parcela(s)). Assim você já vê as faturas futuras.</span></label>`:""}
  ${dayIn(im.k,c.due)<today()?`<label class="check"><input type="checkbox" id="imp_paid" ${im.paid?"checked":""}><span class="small">Esta fatura já venceu. Marcar como paga</span></label>`:""}
  <button class="btn block" data-act="impSave" ${on.length?"":"disabled"}>Importar ${on.length} compra(s) · ${brl(tot)}</button>`
- :`<div class="banner warn">Não consegui encontrar compras. Confira se o arquivo é a fatura do cartão (OFX ou CSV) ou se cada linha colada tem data, descrição e valor.</div>`}`}
+ :`<div class="banner warn">Não consegui encontrar compras. Confira se o arquivo é a fatura do cartão (PDF, OFX ou CSV) ou se cada linha colada tem data, descrição e valor. Se for um PDF escaneado (foto), ele não tem texto para ler: use o arquivo que o banco gera ou copie e cole as linhas.</div>`}`}
 function impRefresh(){const r=$("#imp_root");if(r)r.innerHTML=ccImpBody()}
 function impLoad(raw,src){const im=UI.imp;const c=cardById(im.card);im.rows=normalizeRows(raw,c,im.k);im.src=src;impRefresh()}
 function readFileText(file){return new Promise(res=>{const fr=new FileReader();fr.onload=()=>{const t=String(fr.result||"");if(t.includes("\uFFFD")){const f2=new FileReader();f2.onload=()=>res(String(f2.result||""));f2.readAsText(file,"ISO-8859-1")}else res(t)};fr.readAsText(file,"UTF-8")})}
-async function impFile(file){const t=await readFileText(file);let raw=/<OFX>|<STMTTRN>/i.test(t)?parseOFX(t):parseCSV(t);if(!raw.length)raw=parseText(t);impLoad(raw,"file")}
+/* PDF da fatura: lê o texto com o pdf.js (guardado no próprio site), remonta as linhas e usa o mesmo leitor do "copiar e colar" */
+let PDFJS=null;
+function pdfLib(){if(PDFJS)return PDFJS;PDFJS=new Promise((ok,ko)=>{const srcs=[["/lib/pdf.min.js","/lib/pdf.worker.min.js"],["https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js","https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"]];let i=0;
+ const tryNext=()=>{if(window.pdfjsLib){ok(window.pdfjsLib);return}if(i>=srcs.length){PDFJS=null;ko(new Error("pdfjs"));return}const [a,w]=srcs[i++];const sc=document.createElement("script");sc.src=a;sc.onload=()=>{if(window.pdfjsLib){window.pdfjsLib.GlobalWorkerOptions.workerSrc=w;ok(window.pdfjsLib)}else tryNext()};sc.onerror=tryNext;document.head.appendChild(sc)};tryNext()});return PDFJS}
+async function pdfToText(file,password){const lib=await pdfLib();const data=new Uint8Array(await file.arrayBuffer());const doc=await lib.getDocument({data,password:password||undefined}).promise;const out=[];
+ const dstart=/^\d{1,2}\s*(?:[\/\-.]\s*\d{1,2}|\s*(?:de\s+)?[a-zç]{3})/i;
+ for(let pn=1;pn<=doc.numPages;pn++){const pg=await doc.getPage(pn);const vp=pg.getViewport({scale:1});const tc=await pg.getTextContent();const rows=[];
+  tc.items.forEach(it=>{const str=(it.str||"");if(!str.trim())return;const x=it.transform[4],y=it.transform[5],w=it.width||str.length*4;let r=rows.find(r=>Math.abs(r.y-y)<2.5);if(!r){r={y,items:[]};rows.push(r)}r.items.push({x,w,s:str})});
+  rows.sort((a,b)=>b.y-a.y).forEach(r=>{r.items.sort((a,b)=>a.x-b.x);let chunks=[[]],last=null;
+   r.items.forEach(it=>{if(last){const gap=it.x-(last.x+last.w);if(gap>vp.width*.08&&dstart.test(it.s.trim())&&chunks[chunks.length-1].length){chunks.push([])}else if(gap>1.5){chunks[chunks.length-1].push({s:" "})}}chunks[chunks.length-1].push(it);last=it});
+   chunks.forEach(c=>{const line=c.map(x=>x.s).join("").replace(/\s+/g," ").trim();if(line)out.push(line)})})}
+ return out.join("\n")}
+async function impPdf(file,password){try{toast("Lendo o PDF da fatura…");const t=await pdfToText(file,password);UI.impPdfFile=null;impLoad(parseText(t),"pdf")}
+ catch(e){if(e&&e.name==="PasswordException"){UI.impPdfFile=file;const r=$("#imp_root");if(r)r.innerHTML=`<div class="stack"><div class="banner warn">${password?"Senha incorreta. Tente de novo.":"Este PDF tem senha."} Muitos bancos usam os primeiros dígitos do CPF. A senha é usada só para abrir o arquivo aqui no seu aparelho e não fica guardada.</div><label class="field"><span>Senha do PDF</span><input id="imp_pw" type="password" autocomplete="off" inputmode="numeric"></label><button class="btn block" data-act="impPdfPw">Abrir PDF</button><button class="btn ghost block" data-act="impBack">Voltar</button></div>`;setTimeout(()=>{const i=$("#imp_pw");if(i)i.focus()},50);return}
+  toast("Não consegui abrir este PDF. Tente exportar a fatura em OFX ou CSV, ou copie e cole as linhas.")}}
+A.impPdfPw=()=>{const f=UI.impPdfFile,pw=($("#imp_pw")||{}).value||"";if(!f||!pw){toast("Digite a senha do PDF.");return}impPdf(f,pw)};
+async function impFile(file){if(/\.pdf$/i.test(file.name||"")||file.type==="application/pdf"){impPdf(file);return}const t=await readFileText(file);let raw=/<OFX>|<STMTTRN>/i.test(t)?parseOFX(t):parseCSV(t);if(!raw.length)raw=parseText(t);impLoad(raw,"file")}
 document.addEventListener("change",ev=>{const el=ev.target;if(!UI.imp)return;
  if(el.id==="ccFile"&&el.files&&el.files[0])impFile(el.files[0]);
  if(el.id==="imp_card"){UI.imp.card=el.value;const c=cardById(el.value);UI.imp.k=ccDefK(c);impRefresh()}
@@ -3966,7 +4110,8 @@ document.addEventListener("change",ev=>{const el=ev.target;if(!UI.imp)return;
 document.addEventListener("input",ev=>{const id=ev.target&&ev.target.id;if(id==="f_v"||id==="f_date")ccPreview()});
 document.addEventListener("change",ev=>{const id=ev.target&&ev.target.id;if(id==="f_n"||id==="f_date")ccPreview()});
 
-A.newsMedGo=()=>{closeModal();UI.tab="ex";UI.ex="medit";window.scrollTo(0,0);render()};
+A.medCardOff=()=>{S.profile.medCardOff=today();commit()};
+A.newsMedGo=()=>{S.profile.medSeen=today();closeModal();UI.tab="ex";UI.ex="medit";window.scrollTo(0,0);render()};
 A.tourGo=el=>{closeModal();if(typeof TEAM!=="undefined"&&TEAM&&typeof teamExit==="function")teamExit();UI.tab=el.dataset.v;if(UI.tab==="fin")UI.fin="mes";window.scrollTo(0,0);render()};
 Object.assign(A,{
  ccBuy:el=>expenseForm({card:el.dataset.v||(cardsList()[0]||{}).id,date:today()},null),
@@ -4272,6 +4417,7 @@ function letterHomeCard(){const p=S.profile;if(!p.created)return"";const td=toda
   <div class="row" style="gap:8px;justify-content:flex-end"><button class="btn ghost sm" data-act="letterOpen">Ler o recado inteiro</button><button class="btn sm" data-act="letterOk">Entendi</button></div></div>`;
  return ""}
 function letterProfileCard(){return `<button class="card row" style="text-align:left;gap:12px;width:100%;border:2px solid var(--pig)" data-act="letterOpen">${letterAvatar(56)}<span class="grow stack-s" style="gap:2px"><b style="color:var(--pig-deep)">${letterTitle()}</b><span class="small muted">Por que o Prumo existe e por que vale a pena, mesmo quando parece chato.</span></span>${I.right.replace('<svg','<svg width="18" height="18" style="flex:none;color:var(--muted)"')}</button>`}
+Object.assign(A,{hhInfo:()=>hhInfo(),hhCreate2:()=>{closeModal();A.createHH()},dataModal:()=>dataModal(),editGoals:()=>profileForm("fin")});
 Object.assign(A,{
  letterOpen:()=>letterModal(),
  letterOk:()=>{S.profile.letterSeen=today();closeModal();commit()},
@@ -5013,7 +5159,7 @@ A.localToAccount=()=>{AUTH.mode="criar";AUTH.ok=true;AUTH.msg="Crie sua conta co
 /* vídeo "Como funciona" para quem começou agora (7 primeiros dias) e fixo no Perfil */
 A.videoHide=()=>{S.profile.videoSeen=today();commit()};
 {const _rv=render;render=function(){_rv();try{if(UI.needAuth||!S.profile.created)return;
- if(UI.tab==="profile"&&!document.getElementById("howBtn")){const ab=document.querySelector('#app [data-act="about"]');if(ab)ab.insertAdjacentHTML("beforebegin",`<button id="howBtn" class="btn ghost" data-act="howVideo">${I.play.replace('<svg','<svg width="16" height="16"')} Como o Prumo funciona (vídeo de 1 min)</button>`)}
+ if(UI.tab==="profile"&&!document.getElementById("howBtn")){const ab=document.querySelector('#app [data-act="about"]');if(ab)ab.insertAdjacentHTML("beforebegin",typeof pRow==="function"?pRow(I.play,"Como o Prumo funciona","Vídeo de 1 minuto","howVideo").replace('<button class="prow"','<button id="howBtn" class="prow"'):`<button id="howBtn" class="btn ghost" data-act="howVideo">Como o Prumo funciona (vídeo de 1 min)</button>`)}
  if(UI.tab!=="home"||TEAM||Store.demo||S.profile.videoSeen||document.getElementById("howCard"))return;
  const d0=S.profile.created;if(!d0||(parseDate(today())-parseDate(d0))/864e5>7)return;
  const anchor=document.querySelector("#app .envbar")||document.querySelector("#localNag")||document.querySelector("#app .top");if(!anchor)return;
@@ -5187,6 +5333,10 @@ const teamsOn=()=>!!((typeof SB_ON!=="undefined"&&SB_ON&&Store.cloud)||Store.dem
 const lsTeam=v=>{try{if(v===undefined)return localStorage.getItem("prumo.team");if(v)localStorage.setItem("prumo.team",v);else localStorage.removeItem("prumo.team")}catch(e){return null}};
 const teamFeatList=t=>TFEATS.filter(([k])=>t.features&&t.features[k]).map(x=>x[1]);
 const iOwn=()=>TEAM&&TEAM.owner===ME.uid;
+/* vaquinha: só quem criou edita/apaga; cada um marca o próprio pagamento; dono da equipe e administrador podem tudo */
+const vqAdm=()=>{if(UI.isAdmin===undefined&&typeof checkAdmin==="function")checkAdmin();return iOwn()||!!UI.isAdmin};
+const vqCanEdit=r=>vqAdm()||(r.by?r.by===ME.uid:r.payer===ME.uid);
+const vqCanPay=(r,u)=>vqCanEdit(r)||u===ME.uid;
 
 function mergeDiff(a,b){const out={};let any=false;a=a||{};
  for(const k in b){const x=a[k],y=b[k];if(y===undefined)continue;
@@ -5200,7 +5350,7 @@ function fullNick(){const w=String(S.profile.name||"").trim().split(/\s+/).filte
 let nickSyncing=false;
 async function teamNickSync(){if(Store.demo||!sb||!Store.cloud||!TEAMS||nickSyncing)return;const want=fullNick().slice(0,40);if(!want)return;nickSyncing=true;let ch=false;
  try{for(const t of TEAMS){const m=(t.members||[]).find(x=>x.uid===ME.uid);if(m&&m.nick!==want&&!(want.split(" ").length<2&&String(m.nick||"").trim().split(/\s+/).length>=2)){const {error}=await sb.rpc("set_team_nick",{p_team:t.id,p_nick:want});if(!error){m.nick=want;ch=true}}}}catch(e){}nickSyncing=false;if(ch)render()}
-function surnameAsk(){if(Store.demo||!TEAMS||!TEAMS.length||UI.popShown||$("#modal").innerHTML||S.profile.surAsk===today())return;const w=String(S.profile.name||"").trim().split(/\s+/).filter(Boolean);if(w.length!==1)return;
+function surnameAsk(){if((typeof newsPending==="function"&&newsPending())||Store.demo||!TEAMS||!TEAMS.length||UI.popShown||$("#modal").innerHTML||S.profile.surAsk===today())return;const w=String(S.profile.name||"").trim().split(/\s+/).filter(Boolean);if(w.length!==1)return;
  UI.popShown=1;S.profile.surAsk=today();saveApp();
  openModal("Qual é o seu sobrenome?",`<div class="stack"><p class="small">Nas equipes, tarefas e projetos aparecem com nome e sobrenome, para ficar claro quem é quem.</p>
  <label class="field"><span>Nome</span><input value="${esc(w[0])}" disabled></label>
@@ -5327,18 +5477,18 @@ Object.assign(A,{
  /* vaquinha */
  addVaq:()=>vaqForm(),
  vaqOpen:el=>vaqDetail(el.dataset.v),
- vaqEdit:el=>vaqForm(VQ().items[el.dataset.v]),
+ vaqEdit:el=>{const r=VQ().items[el.dataset.v];if(r&&!vqCanEdit(r)){toast("Só quem criou a vaquinha pode editar.");return}vaqForm(r)},
  vaqFilter:el=>{UI.vqF=el.dataset.v;render()},
- vaqSave:el=>{const title=v("vq_title").trim();const total=parseMoney(v("vq_total"));if(!title||!total){toast("Informe o que foi e o valor total.");return}
+ vaqSave:el=>{{const r0=VQ().items[el.dataset.v];if(r0&&!vqCanEdit(r0)){toast("Só quem criou a vaquinha pode editar.");return}}const title=v("vq_title").trim();const total=parseMoney(v("vq_total"));if(!title||!total){toast("Informe o que foi e o valor total.");return}
   const on=[...document.querySelectorAll(".vq_on")].filter(c=>c.checked);if(!on.length){toast("Marque quem participa.");return}
   const id=el.dataset.v||rid();const old=VQ().items[id]||{};const shares={};for(const u in(old.shares||{}))shares[u]=null;
   on.forEach(c=>{const u=c.dataset.u;shares[u]=parseMoney((document.querySelector(`.vq_v[data-u="${u}"]`)||{}).value||"")||0});
   const sum=on.reduce((s,c)=>s+(shares[c.dataset.u]||0),0);if(Math.abs(sum-total)>0.05&&!confirm2(el))return;
   const payer=v("vq_payer")||"";
   vaqPatch({items:{[id]:{id,title,total,date:v("vq_date")||today(),payer,shares,paid:old.paid||{},by:old.by||ME.uid,created:old.created||Date.now(),note:v("vq_note").trim(),pix:v("vq_pix").trim()}}});{const px=v("vq_pix").trim();if(px&&px!==S.profile.vqPix){S.profile.vqPix=px;saveApp()}}closeModal();toast(old.id?"Vaquinha atualizada.":"Vaquinha criada. Muuu!")},
- vaqPaid:el=>{const r=VQ().items[el.dataset.v];if(!r)return;const u=el.dataset.u;const was=!!(r.paid||{})[u];vaqPatch({items:{[r.id]:{paid:{[u]:was?null:today()}}}});
+ vaqPaid:el=>{const r=VQ().items[el.dataset.v];if(!r)return;const u=el.dataset.u;if(u===ME.uid&&TEAM){const was=(r.paid||{})[u];if(was)vqExpDel(TEAM,r,was);else vqExpAdd(TEAM,r,today())}if(!vqCanPay(r,u)){toast("Só quem criou a vaquinha marca o pagamento dos outros.");return}const was=!!(r.paid||{})[u];vaqPatch({items:{[r.id]:{paid:{[u]:was?null:today()}}}});
   if(!was){const r2=VQ().items[r.id];if(!vqOpen(r2))toast("Todo mundo pagou! Vaquinha fechada. 🐮");else toast(`${nm(u)} pagou a parte.`)}vaqDetail(r.id)},
- vaqDelYes:()=>{const id=UI.vqDel;closeModal();vaqPatch({items:{[id]:null}});toast("Vaquinha apagada.")},
+ vaqDelYes:()=>{const id=UI.vqDel;{const r=VQ().items[id];if(r&&!vqCanEdit(r)){toast("Só quem criou a vaquinha pode apagar.");return}}closeModal();vaqPatch({items:{[id]:null}});toast("Vaquinha apagada.")},
 });
 
 /* ---------- Início da equipe ---------- */
@@ -5388,7 +5538,11 @@ function viewVaq(){if(!TEAM||!teamHas("vaq")){if(lsTeam()&&TEAMS===null)return `
  const f=UI.vqF||"abertas";const all=vqItems();const list=all.filter(r=>f==="abertas"?vqOpen(r):!vqOpen(r));const ds=vqDebts();
  return `<div class="stack"><h1 style="margin-top:4px">Vaquinha</h1>
  <div class="card row" style="gap:12px">${cowPig(72)}<div class="stack-s" style="gap:2px"><b>Dividir a conta sem confusão</b><span class="small muted">Lance a despesa, marque quem participa e quanto cada um paga. Depois é só ir marcando quem já acertou.</span></div></div>
- ${ds.length?`<div class="card stack"><div class="label">Quem deve para quem</div>${ds.map(x=>`<div class="row between small"><span class="row" style="gap:6px"><span class="avatar">${teamInitials(x.from)}</span>${esc(nm(x.from))} → <span class="avatar">${teamInitials(x.to)}</span>${esc(nm(x.to))}</span><b class="num">${brl(x.v)}</b></div>`).join("")}<span class="tiny muted">Já descontado o que um deve para o outro.</span></div>`:""}
+ ${ds.length?(()=>{const ppl=[...new Set(ds.flatMap(x=>[x.from,x.to]))].sort((a,b)=>(a===ME.uid?-1:b===ME.uid?1:nm(a).localeCompare(nm(b),"pt")));const who=ppl.includes(UI.vqWho)?UI.vqWho:"";const dv=who?ds.filter(x=>x.from===who||x.to===who):ds;
+ const owes=who?ds.filter(x=>x.from===who).reduce((s,x)=>s+x.v,0):0,gets=who?ds.filter(x=>x.to===who).reduce((s,x)=>s+x.v,0):0;
+ return `<div class="card stack"><div class="row between" style="gap:10px;flex-wrap:wrap"><div class="label" style="margin:0">Quem deve para quem</div><label class="row small" style="gap:8px"><span class="muted">Ver</span><select class="vq_who" aria-label="Filtrar por pessoa" style="min-width:180px"><option value="">Todo mundo</option>${ppl.map(u=>`<option value="${u}" ${u===who?"selected":""}>${esc(nm(u))}</option>`).join("")}</select></label></div>
+ ${who?`<div class="row small" style="gap:14px;flex-wrap:wrap;background:var(--surface2);border-radius:12px;padding:10px 12px"><span>${who===ME.uid?"Você deve":esc(nm(who))+" deve"}: <b class="num">${brl(owes)}</b></span><span>Tem a receber: <b class="num">${brl(gets)}</b></span></div>`:""}
+ ${dv.map(x=>`<div class="row between small"><span class="row" style="gap:6px"><span class="avatar">${teamInitials(x.from)}</span>${esc(nm(x.from))} → <span class="avatar">${teamInitials(x.to)}</span>${esc(nm(x.to))}</span><b class="num">${brl(x.v)}</b></div>`).join("")}<span class="tiny muted">Já descontado o que um deve para o outro.</span></div>`})():""}
  <div class="chips">${[["abertas","Em aberto"],["fechadas","Quitadas"]].map(([id,n])=>`<button class="chip ${f===id?"on":""}" data-act="vaqFilter" data-v="${id}">${n}</button>`).join("")}</div>
  ${list.length?list.map(r=>{const sh=Object.entries(r.shares||{}).filter(([,v])=>v!=null);const pd=sh.filter(([u])=>(r.paid||{})[u]||u===r.payer).length;return `<button class="card stack" style="text-align:left;gap:6px" data-act="vaqOpen" data-v="${r.id}"><div class="row between"><b>${esc(r.title)}</b><b class="num">${brl(r.total)}</b></div>
   <div class="row" style="gap:4px;flex-wrap:wrap">${sh.map(([u])=>`<span class="avatar" style="${(r.paid||{})[u]||u===r.payer?"background:var(--good)":"background:var(--surface2);color:var(--muted)"}" title="${esc(nm(u))}">${teamInitials(u)}</span>`).join("")}</div>
@@ -5411,9 +5565,9 @@ function vaqForm(r){r=r||{};const isEdit=!!r.id;const sh=r.shares||{};
 function vaqDetail(id){const r=VQ().items[id];if(!r)return;const sh=Object.entries(r.shares||{}).filter(([,v])=>v!=null);UI.vqDel=id;
  openModal(r.title,`<div class="stack"><div class="row" style="gap:12px">${cowPig(64)}<div class="stack-s" style="gap:2px"><b class="num" style="font-size:22px">${brl(r.total)}</b><span class="tiny muted">${dayLabel(r.date)}${r.payer?` · ${esc(nm(r.payer))} pagou a conta`:""}</span>${r.note?`<span class="small">${esc(r.note)}</span>`:""}</div></div>
  ${r.pix?`<div class="row between" style="gap:8px;background:var(--surface2);border-radius:12px;padding:10px 12px"><span class="stack-s" style="gap:0;min-width:0"><span class="tiny muted">Pix para pagar${r.payer?" · "+esc(nm(r.payer)):""}</span><b style="word-break:break-all">${esc(r.pix)}</b></span><button class="btn ghost sm" data-act="vqCopyPix" data-v="${esc(r.pix)}" style="flex:none">Copiar</button></div>`:""}
- <div class="card list">${sh.map(([u,val])=>{const ok=!!(r.paid||{})[u]||u===r.payer;return `<div class="item"><span class="avatar" style="${ok?"background:var(--good)":""}">${teamInitials(u)}</span><div class="grow stack-s" style="gap:0"><b>${esc(nm(u))}</b><span class="tiny ${ok?"":"muted"}" style="${ok?"color:#2f6fdb;font-weight:600":""}">${u===r.payer?"Pagou a conta":ok?"Pagou em "+ddmm((r.paid||{})[u]):"Falta pagar"}</span></div><b class="num">${brl(+val||0)}</b>${u===r.payer?"":`<button class="btn ${ok?"ghost":"line"} sm" data-act="vaqPaid" data-v="${r.id}" data-u="${u}">${ok?"Desfazer":"Pagou"}</button>`}</div>`}).join("")}</div>
- <button class="btn ghost" data-act="vaqEdit" data-v="${r.id}">Editar</button>
- <button class="btn danger sm" data-act="askDel" style="align-self:center">Apagar vaquinha</button>${confirmBox("vaqDel","Apagar esta vaquinha para toda a equipe?")}</div>`)}
+ <div class="card list">${[...sh].map((x,i)=>[x,i]).sort(([a,ia],[b,ib])=>{const pd=(r.paid||{}),ra=a[0]===r.payer?2:pd[a[0]]?1:0,rb=b[0]===r.payer?2:pd[b[0]]?1:0;if(ra!==rb)return ra-rb;if(ra===1)return String(pd[a[0]]).localeCompare(String(pd[b[0]]))||ia-ib;return ia-ib}).map(([x])=>x).map(([u,val])=>{const ok=!!(r.paid||{})[u]||u===r.payer;return `<div class="item"><span class="avatar" style="${ok?"background:var(--good)":""}">${teamInitials(u)}</span><div class="grow stack-s" style="gap:0"><b>${esc(nm(u))}</b><span class="tiny ${ok?"":"muted"}" style="${ok?"color:#2f6fdb;font-weight:600":""}">${u===r.payer?"Pagou a conta":ok?"Pagou em "+ddmm((r.paid||{})[u]):"Falta pagar"}</span></div><b class="num">${brl(+val||0)}</b>${u===r.payer||!vqCanPay(r,u)?"":`<button class="btn ${ok?"ghost":"line"} sm" data-act="vaqPaid" data-v="${r.id}" data-u="${u}">${ok?"Desfazer":u===ME.uid?"Paguei":"Pagou"}</button>`}</div>`}).join("")}</div>
+ ${vqCanEdit(r)?`<button class="btn ghost" data-act="vaqEdit" data-v="${r.id}">Editar</button>
+ <button class="btn danger sm" data-act="askDel" style="align-self:center">Apagar vaquinha</button>${confirmBox("vaqDel","Apagar esta vaquinha para toda a equipe?")}`:`<p class="tiny muted" style="text-align:center;margin:0">${r.by&&r.by!==ME.uid?"Criada por "+esc(nm(r.by))+". ":""}Só quem criou pode editar, apagar e marcar o pagamento dos outros. Você marca o seu.</p>`}</div>`)}
 
 /* ---------- Demonstração: equipe CriaMente3d ---------- */
 function demoTeams(){TEAMS=[{id:"demo-team",name:"CriaMente3d",owner:"demo",features:{agenda:true,tasks:true,fin:true,quotes:true,vaq:true,proj:true},
@@ -5472,21 +5626,38 @@ const VQX={};let vqxT=0,vqxBusy=false;
 async function vqxLoad(force){if(Store.demo||!Store.cloud||!TEAMS||vqxBusy)return;if(!force&&Date.now()-vqxT<60000)return;vqxT=Date.now();vqxBusy=true;let ch=false;
  try{for(const t of TEAMS){if(!(t.features&&t.features.vaq)){if(VQX[t.id]){delete VQX[t.id];ch=true}continue}
   try{const s=await Store.db.doc(`teams/${t.id}/fin/vaq`).get();const d=s.exists?(s.data()||{}):{};const js=JSON.stringify(d.items||{});if(!VQX[t.id]||VQX[t.id].js!==js){VQX[t.id]={js,items:d.items||{}};ch=true}}catch(e){}}}finally{vqxBusy=false}
- if(ch&&!TEAM)render()}
+ if(ch&&!TEAM)render();setTimeout(vqBackfillAsk,1500)}
 const tNick=(t,u)=>{if(u===ME.uid)return"você";const m=((t&&t.members)||[]).find(x=>x.uid===u);return m?(m.nick||(m.email||"").split("@")[0]||"alguém"):"alguém"};
 function vqxMine(){const out=[];for(const t of TEAMS||[]){const x=TEAM&&TEAM.id===t.id?{items:VQ().items}:VQX[t.id];if(!x)continue;
  for(const r of Object.values(x.items||{})){if(!r)continue;const my=(r.shares||{})[ME.uid];if(my==null||!(+my>0)||r.payer===ME.uid||(r.paid||{})[ME.uid])continue;out.push({t,r,v:+my})}}
  return out.sort((a,b)=>(a.r.date||"").localeCompare(b.r.date||""))}
 function vqxDueRows(k){if(TEAM||Store.demo||k!==mkey())return"";setTimeout(()=>vqxLoad(),0);
  return vqxMine().map(({t,r,v})=>`<div class="row between small" style="gap:8px"><span class="grow stack-s" style="min-width:0;gap:0"><span>🐮 ${esc(r.title)} <span class="pill info">vaquinha</span></span><span class="tiny muted">${esc(t.name)}${r.payer?` · pagar para ${esc(tNick(t,r.payer))}`:""}${r.pix?` · Pix ${esc(r.pix)}`:""}${r.note?` · ${esc(r.note.slice(0,60))}`:""}</span></span><span class="row" style="gap:6px;flex:none"><b class="num">${brl(v)}</b><button class="btn money sm" data-act="vqxPaid" data-t="${t.id}" data-v="${r.id}">Paguei</button></span></div>`).join("")}
+/* minha parte paga na vaquinha entra como gasto nas MINHAS finanças (mesmo estando dentro da equipe) */
+function myFinPatch(id,patch){const hh=((typeof personalS==="function"?personalS():S).profile||{}).household;const sc=hh&&Store.cloud?"h":"p";const docs=sc==="h"?HFIN:PFIN;docs[id]=deepMerge(docs[id]||{},clone(patch));
+ if(Store.cloud){const p=sc==="h"?`households/${hh}/fin/${id}`:`data/users/${ME.uid}/fin-${id}`;enqueue(p,async()=>{const ref=Store.db.doc(p);try{await ref.update(patch)}catch(e){if(e&&e.code==="invalid_argument"){await ref.set(stripNulls(clone(patch)))}else throw e}})}lsPut()}
+function myFinDocs(){const hh=((typeof personalS==="function"?personalS():S).profile||{}).household;return hh&&Store.cloud?HFIN:PFIN}
+const vqExpId=(tid,rid)=>"vq"+String(tid).slice(0,6)+"_"+rid;
+function vqExpHas(tid,r,d){const m=myFinDocs()[mid(mkey(d))];return !!(m&&m.expenses&&m.expenses[vqExpId(tid,r.id)])}
+function vqExpAdd(t,r,d){const my=+((r.shares||{})[ME.uid])||0;if(!(my>0)||r.payer===ME.uid)return;myFinPatch(mid(mkey(d)),{expenses:{[vqExpId(t.id,r.id)]:{v:my,desc:"Vaquinha: "+(r.title||"")+" ("+t.name+")",cat:"outros",date:d,fixed:false,by:ME.uid,t:Date.now(),added:today(),debtId:null,vq:{t:t.id,r:r.id}}}})}
+function vqExpDel(t,r,d){if(!d)return;myFinPatch(mid(mkey(d)),{expenses:{[vqExpId(t.id,r.id)]:null}})}
+/* pagamentos antigos que ainda não estão nos gastos: pergunta uma vez */
+function vqBackfillList(){const out=[];const skip=(S.profile.vqBfSkip||{});for(const t of TEAMS||[]){const x=TEAM&&TEAM.id===t.id?{items:VQ().items}:VQX[t.id];if(!x)continue;
+ for(const r of Object.values(x.items||{})){if(!r)continue;const d=(r.paid||{})[ME.uid];const my=+((r.shares||{})[ME.uid])||0;if(!d||!(my>0)||r.payer===ME.uid||skip[vqExpId(t.id,r.id)]||vqExpHas(t.id,r,d))continue;out.push({t,r,d,v:my})}}return out}
+function vqBackfillAsk(){if(TEAM||Store.demo||UI.vqBfAsked||$("#modal").innerHTML||(typeof newsPending==="function"&&newsPending()))return;const L=vqBackfillList();if(!L.length)return;UI.vqBfAsked=1;UI.vqBfL=L;
+ openModal("Vaquinhas pagas",`<div class="stack"><p class="small" style="margin:0">Você pagou ${L.length===1?"esta vaquinha":"estas vaquinhas"}, mas ${L.length===1?"ela ainda não está":"elas ainda não estão"} nos seus gastos:</p><div class="card list">${L.map(o=>`<div class="item"><div class="grow stack-s" style="gap:0"><b>🐮 ${esc(o.r.title)}</b><span class="tiny muted">${esc(o.t.name)} · pago em ${ddmm(o.d)}</span></div><b class="num">${brl(o.v)}</b></div>`).join("")}</div>
+ <button class="btn block" data-act="vqBfYes">Lançar nos meus gastos</button><button class="btn ghost block" data-act="vqBfNo">Já lancei por conta própria</button></div>`)}
+A.vqBfYes=()=>{(UI.vqBfL||[]).forEach(o=>vqExpAdd(o.t,o.r,o.d));const n=(UI.vqBfL||[]).length;closeModal();render();toast(`${n} ${n===1?"gasto lançado":"gastos lançados"} em Outros, com o nome da vaquinha.`)};
+A.vqBfNo=()=>{const sk=S.profile.vqBfSkip=S.profile.vqBfSkip||{};(UI.vqBfL||[]).forEach(o=>sk[vqExpId(o.t.id,o.r.id)]=1);saveApp();closeModal();toast("Certo, não vou lançar de novo.")};
 A.vqxPaid=async el=>{const t=(TEAMS||[]).find(x=>x.id===el.dataset.t);const x=VQX[el.dataset.t];const id=el.dataset.v;if(!t||!x||!x.items[id])return;
  el.disabled=true;const d=today();
  try{await Store.db.doc(`teams/${t.id}/fin/vaq`).update({items:{[id]:{paid:{[ME.uid]:d}}}});
   x.items[id]=deepMerge(x.items[id],{paid:{[ME.uid]:d}});x.js=JSON.stringify(x.items);markActive();render();
-  const r=x.items[id];toast(`Pago! Marquei na vaquinha "${r.title}" de ${t.name}. 🐷`,4000);
+  const r=x.items[id];vqExpAdd(t,r,d);render();toast(`Pago! Marquei na vaquinha "${r.title}" de ${t.name} e lancei ${brl(+r.shares[ME.uid]||0)} nos seus gastos. 🐷`,4500);
   if(typeof vqNotifyPaid==="function")vqNotifyPaid(t.id,r,ME.uid,true)}
  catch(e){console.warn(e);el.disabled=false;toast("Não consegui marcar agora. Confira a internet e tente de novo.")}};
 
+document.addEventListener("change",e=>{if(e.target&&e.target.classList&&e.target.classList.contains("vq_who")){UI.vqWho=e.target.value;render()}});
 A.vqCopyPix=el=>copyText(el.dataset.v,"Chave Pix copiada. Cole no app do seu banco.");
 
 /* ============================================================
@@ -6142,8 +6313,8 @@ A.notifTurnOn=async()=>{if(isIOS()&&!isStandalone()){notifGuide();return}const o
 A.notifTest=async()=>{try{const reg=await navigator.serviceWorker.ready;await reg.showNotification("Prumo 🐷",{body:"Oinc! As notificações estão funcionando.",icon:"icons/icon-192.png",badge:"icons/icon-192.png",tag:"teste"});toast("Enviei. Deu para ver?")}catch(e){toast("Não consegui mostrar a notificação de teste.")}};
 {const _vp=viewProfile;viewProfile=function(){const h=_vp.apply(this,arguments);if(Store.demo)return h;if(PUSHST===null)pushStRefresh();
  const lab={on:["Ligadas","good"],off:["Desligadas","warn"],denied:["Bloqueadas","bad"],"ios-install":["Instale para ativar","warn"],nosupport:["Indisponível aqui","info"]}[PUSHST||"off"]||["…","info"];
- const btn=`<button class="card row" style="text-align:left;gap:12px;align-items:center;width:100%" data-act="notifGuide"><span style="color:var(--pig-deep);flex:none">${I.bell.replace('<svg','<svg width="22" height="22"')}</span><span class="grow stack-s" style="gap:2px"><b>Notificações</b><span class="tiny muted">Avisos de tarefas, vaquinhas e desafios</span></span><span class="pill ${lab[1]}">${lab[0]}</span></button>`;
- const k='<a class="btn line" href="https://www.instagram.com/prumovidaemordem/"';return h.includes(k)?h.replace(k,btn+k):h+btn}}
+ const btn=pRow(I.bell,"Notificações","Avisos de tarefas, vaquinhas e desafios","notifGuide",`<span class="pill ${lab[1]}" style="font-size:12px">${lab[0]}</span>`);
+ return h.replace("<!--pfNotif-->",btn)}}
 
 /* ---------- Convite: instalar o app + ligar notificações ----------
    Pop-up no próximo acesso (no máximo 3 vezes, uma a cada 5 dias) e um cartão
@@ -6156,7 +6327,7 @@ function insNeeded(st){if(Store.demo||!Store.cloud||!S.profile.created)return fa
 function insBody(st,compact){const plat=isIOS()?"ios":isAndroid()?"android":"pc";const inst=isStandalone();
  const step=inst||plat==="pc"?`<p class="small">Falta só um toque: ative as notificações e pronto.</p>`:`<p class="small">${plat==="ios"?"No iPhone, as notificações só funcionam com o Prumo instalado na tela de início.":"Instalado, ele abre como app, em tela cheia, e os avisos chegam mesmo com ele fechado."} Leva 1 minuto:</p><img src="${GUIDE_IMG[plat]}" alt="Passo a passo para instalar o Prumo" style="width:100%;border-radius:16px;display:block" loading="lazy">`;
  return step}
-function insPopup(){if(UI.popShown||$("#modal").innerHTML||UI.needAuth||(UI.onb>=0&&UI.onb<3))return;const g=insGet();
+function insPopup(){if((typeof newsPending==="function"&&newsPending())||UI.popShown||$("#modal").innerHTML||UI.needAuth||(UI.onb>=0&&UI.onb<3))return;const g=insGet();
  if((g.n||0)>=3||g.no||(g.t&&Date.now()-g.t<5*864e5))return;
  pushState().then(st=>{PUSHST=st;if(!insNeeded(st)||$("#modal").innerHTML||UI.popShown)return;UI.popShown=1;insSet({n:(g.n||0)+1,t:Date.now()});
   const inst=isStandalone()||!isMobile();

@@ -307,6 +307,15 @@ body.team-env .envbtn.cur{border-color:var(--money);background:color-mix(in srgb
 .envbtn .badge{background:var(--pig-deep);color:#fff;border-radius:99px;font-size:10px;padding:1px 6px}
 #fl_pin::placeholder{letter-spacing:0;font-size:15px}
 .desk-only{display:none}@media (min-width:1000px) and (hover:hover){.desk-only{display:flex}}
+.iconbtn.on{box-shadow:0 0 0 2px var(--pig-deep);color:var(--pig-deep);background:var(--pig-soft)}
+.plist{padding:2px 16px}.plist>:last-child{border-bottom:0!important}
+.prow{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;border-bottom:1px solid var(--line);padding:12px 0;text-align:left;color:inherit;font:inherit;cursor:pointer;text-decoration:none;min-height:0}
+.prow-ic{width:36px;height:36px;border-radius:10px;background:var(--pig-soft);color:var(--pig-deep);display:grid;place-items:center;flex:none}
+.check.sw{align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer}.check.sw.nob{border-bottom:0}
+.check.sw input{-webkit-appearance:none;appearance:none;width:46px;height:28px;min-height:0;border-radius:14px;margin:0;background:color-mix(in srgb,var(--muted) 40%,transparent);position:relative;cursor:pointer;transition:background .2s;flex:none;border:0}
+.check.sw input::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
+.check.sw input:checked{background:var(--pig-deep)}.check.sw input:checked::after{transform:translateX(18px)}
+.check.sw input:focus-visible{outline:2px solid var(--pig-deep);outline-offset:2px}
 .pjsteps{padding:6px 14px}.pjstep{display:flex;gap:12px;align-items:center;padding:10px 0;position:relative}
 .pjstep+.pjstep::before{content:"";position:absolute;left:16px;top:-12px;height:24px;border-left:2px dashed var(--line)}
 .pjdot{width:34px;height:34px;border-radius:50%;border:2.5px solid var(--line);background:var(--surface);display:grid;place-items:center;font-weight:800;font-size:13px;flex:none;z-index:1;color:var(--muted)}
@@ -2585,7 +2594,7 @@ function logoHTML(px){return `<span role="img" aria-label="Prumo" style="display
 function header(){const st=streak();const first=(S.profile.name||"").split(" ")[0];
  return `<div class="top"><div class="grow"><div class="brand" style="flex-direction:column;align-items:flex-start;gap:2px">${logoHTML(24)}<span style="font-family:var(--f-body);font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em">Vida em ordem</span></div></div>
  <span class="streak" title="Dias seguidos usando o app, com 1 dia de folga por semana">${I.flame}<span class="num">${st}</span><span class="small muted">${st===1?"dia":"dias"}</span></span>
- <span style="position:relative;display:inline-flex"><button class="iconbtn" data-act="tab" data-v="profile" aria-label="Perfil" style="${S.profile.photo?"padding:0;overflow:hidden;border-radius:50%":""}">${S.profile.photo?`<img src="${S.profile.photo}" alt="" style="width:40px;height:40px;object-fit:cover;display:block">`:I.user}</button>${S.profile.supporter?`<span class="supdot" title="Apoiador do Prumo" aria-label="Apoiador">${I.heart.replace('<svg','<svg width="10" height="10"')}</span>`:""}</span></div>`}
+ <span style="position:relative;display:inline-flex"><button class="iconbtn${UI.tab==="profile"?" on":""}" data-act="tab" data-v="profile" aria-label="Perfil" ${UI.tab==="profile"?'aria-current="page"':""} style="${S.profile.photo?"padding:0;overflow:hidden;border-radius:50%":""}">${S.profile.photo?`<img src="${S.profile.photo}" alt="" style="width:40px;height:40px;object-fit:cover;display:block">`:I.user}</button>${S.profile.supporter?`<span class="supdot" title="Apoiador do Prumo" aria-label="Apoiador">${I.heart.replace('<svg','<svg width="10" height="10"')}</span>`:""}</span></div>`}
 
 /* ---------- Início ---------- */
 
@@ -3049,46 +3058,79 @@ function evItem(e){return `<button class="item" style="width:100%;background:non
  <div class="grow stack-s" style="gap:1px"><p><b>${esc(e.title)}</b>${e.task?' <span class="pill info" style="padding:1px 7px;font-size:11px">tarefa</span>':""}</p><p class="tiny muted">${e.day&&e.day!==today()&&UI.tab!=="agenda"?dayLabel(e.day)+" · ":""}${e.place?esc(e.place)+" · ":""}${e.remind>0?"lembrete "+e.remind+" min antes":"lembrete na hora"}${e.repeat&&e.repeat!=="none"?" · "+{daily:"diário",weekly:"semanal",monthly:"mensal",yearly:"anual"}[e.repeat]:""}</p></div></button>`}
 
 /* ---------- Perfil ---------- */
+const pChev=()=>I.right.replace('<svg','<svg width="16" height="16" style="flex:none;color:var(--muted)"');
+const pIco=ic=>`<span class="prow-ic" aria-hidden="true">${ic.startsWith("<")?ic.replace('<svg','<svg width="18" height="18"'):ic}</span>`;
+const pRow=(ic,t,sub,act,right)=>`<button class="prow" data-act="${act}">${pIco(ic)}<span class="grow stack-s" style="gap:1px;min-width:0"><b>${t}</b>${sub?`<span class="tiny muted">${sub}</span>`:""}</span>${right||""}${pChev()}</button>`;
+const pSw=(id,t,sub,on,cls)=>`<label class="check sw${cls?" "+cls:""}"><span class="grow"><b>${t}</b>${sub?`<br><span class="small muted">${sub}</span>`:""}</span><input type="checkbox" id="${id}" role="switch" ${on?"checked":""}></label>`;
+function pfAvatar(p,px){const st=`width:${px}px;height:${px}px;border-radius:50%;display:block;flex:none`;
+ if(p.photo)return `<img src="${p.photo}" alt="" style="${st};object-fit:cover">`;
+ if(p.pet!==false&&typeof pigFace==="function")return `<div class="pigstage" style="${st};overflow:hidden;aspect-ratio:1" aria-hidden="true">${pigFace(p.created?effectiveEquip():{head:null,face:null,neck:null})}</div>`;
+ return `<span class="ico" style="${st};display:grid;place-items:center;background:var(--pig-soft);color:var(--pig-deep);font-size:${Math.round(px*.38)}px">${esc((p.name||"?").slice(0,1).toUpperCase())}</span>`}
 function viewProfile(){const p=S.profile;
  const hh=p.household;const members=HH&&HH.members?Object.entries(HH.members).filter(([,v])=>v):[];
+ const st=streak();const since=p.created?parseDate(p.created).toLocaleDateString("pt-BR",{month:"short",year:"numeric"}).replace(".",""):"";
+ const pill=(t,c)=>`<span class="pill ${c||"info"}" style="font-size:12px">${t}</span>`;
  return `<div class="stack">
  <div class="row"><button class="iconbtn" data-act="tab" data-v="home" aria-label="Voltar">${I.left}</button><h2>Perfil</h2></div>
- ${letterProfileCard()}
- <div class="card stack"><div class="row"><label for="photoFile" style="position:relative;cursor:pointer;flex:none" aria-label="Trocar foto">${p.photo?`<img src="${p.photo}" alt="" style="width:56px;height:56px;border-radius:50%;object-fit:cover;display:block">`:`<span class="ico" style="width:56px;height:56px;border-radius:50%;background:var(--pig-soft);color:var(--pig-deep);font-size:20px">${esc((p.name||"?").slice(0,1).toUpperCase())}</span>`}<span style="position:absolute;right:-4px;bottom:-4px;width:22px;height:22px;border-radius:50%;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;font-size:12px">✎</span></label><input type="file" id="photoFile" accept="image/*" hidden><div class="grow stack-s" style="gap:1px"><b>${esc(p.name)}${p.supporter?` <span class="pill good" style="vertical-align:2px">${I.heart.replace('<svg','<svg width="11" height="11"')} Apoiador</span>`:""}</b><span class="tiny muted">Conta criada em ${p.created?parseDate(p.created).toLocaleDateString("pt-BR"):"—"} · ${Store.cloud?"salvo na sua conta"+(SESSION&&SESSION.user?" ("+esc(SESSION.user.email)+")":""):"salvo só neste aparelho"}</span></div></div>
- <button class="btn ghost" data-act="editProfile">Editar nome, renda e metas</button></div>
- <div class="section"><div class="label">Finanças compartilhadas</div>
- <div class="card stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`
-  :hh?`<p class="small">Vocês dividem as finanças. A outra pessoa vê e lança todas as rendas, gastos, dívidas e a reserva. Estudos, exercícios, agenda e porquinho continuam individuais.</p>
+ <div class="card stack" style="gap:14px">
+  <div class="row" style="gap:14px;align-items:center">
+   <label for="photoFile" style="position:relative;cursor:pointer;flex:none" aria-label="${p.photo?"Trocar foto":"Colocar uma foto"}">${pfAvatar(p,68)}<span style="position:absolute;right:-2px;bottom:-2px;width:24px;height:24px;border-radius:50%;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;font-size:12px">✎</span></label><input type="file" id="photoFile" accept="image/*" hidden>
+   <div class="grow stack-s" style="gap:2px;min-width:0">
+    <b style="font-size:19px;line-height:1.2">${esc(p.name)}</b>
+    <span class="tiny muted" style="overflow-wrap:anywhere">${Store.cloud?(SESSION&&SESSION.user?esc(SESSION.user.email):"Salvo na sua conta"):"Salvo só neste aparelho"}</span>
+    <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">${st?pill(`${I.flame.replace('<svg','<svg width="12" height="12" style="vertical-align:-1px"')} ${st} ${st===1?"dia":"dias"} seguidos`,"warn"):""}${since?pill("No Prumo desde "+since):""}${p.supporter?pill(`${I.heart.replace('<svg','<svg width="11" height="11" style="vertical-align:-1px"')} Apoiador`,"good"):""}</div>
+   </div></div>
+  <div class="grid2"><button class="btn ghost sm" data-act="editProfile">Editar perfil</button><button class="btn ghost sm" data-act="editGoals">Renda e metas</button></div>
+ </div>
+ ${p.letterSeen?"":letterProfileCard()}
+ ${hh?`<div class="section"><div class="label">Finanças compartilhadas</div><div class="card stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p class="small">Vocês dividem as finanças. A outra pessoa vê e lança todas as rendas, gastos, dívidas e a reserva. Estudos, exercícios, agenda e porquinho continuam individuais.</p>
    <div class="list">${members.map(([id,m])=>`<div class="item"><span class="ico" style="background:var(--money-soft);color:var(--money)">${esc((m.nick||"?").slice(0,1).toUpperCase())}</span><div class="grow"><b>${id===ME.uid?"Você":esc(m.nick||"Parceiro(a)")}</b></div><span class="small muted num">${m.income?brl0(m.income)+"/mês":""}</span></div>`).join("")}</div>
    ${members.length<2?`<div class="stack-s"><span class="small muted">Envie este código para a pessoa. Ela abre o app, vai em Perfil e toca em Entrar com código.</span><div class="code">${esc(hh)}</div><button class="btn ghost sm" data-act="copyCode" style="align-self:flex-start">Copiar código</button><span class="tiny muted">A pessoa precisa ter uma conta no Prumo.</span></div>`:""}
-   <button class="btn danger sm" data-act="leaveHH" style="align-self:flex-start">Sair das finanças compartilhadas</button>`
-  :`<p class="small muted">Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><div class="grid2"><button class="btn money" data-act="createHH">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}
+   <button class="btn danger sm" data-act="leaveHH" style="align-self:flex-start">Sair das finanças compartilhadas</button>`}</div></div>`:""}
+ <div class="section"><div class="label">Seu jeito</div>
+ <div class="card plist">
+  ${pRow(I.spark,"Áreas do app e lembrete diário","O que organizar primeiro e quando o Prumo te chama","habitModal")}
+  ${hh?"":pRow(I.people,"Dividir finanças com alguém","Cônjuge, namorado(a) ou quem divide as contas com você","hhInfo")}
  </div></div>
- <div class="section"><div class="label">Preferências</div>
- <div class="card stack">
-  <button class="btn line" data-act="habitModal">Meu jeito de começar: áreas, motivo e lembrete</button>
-  <label class="check"><input type="checkbox" id="prayerToggle" ${p.prayer?"checked":""}><span><b>Mostrar a aba de Oração</b><br><span class="small muted">Checklist diário de orações da sua tradição.</span></span></label>
-  ${p.prayer?`<label class="field"><span>Tradição</span><select id="prayerTradSel">${Object.entries(PRAYER_TRADS).map(([id,t])=>`<option value="${id}" ${S.prayer.trad===id?"selected":""}>${t.n}</option>`).join("")}</select></label>`:""}
-  ${p.pet?`<label class="field"><span>Nome do porquinho</span><input id="petNameInp" maxlength="20" value="${esc(S.pet.name||"")}" placeholder="Ex.: Toicinho"></label>`:""}
-  <label class="check"><input type="checkbox" id="petToggle" ${p.pet?"checked":""} data-act="petToggle"><span><b>Mostrar o porquinho</b><br><span class="small muted">O mascote que cresce com a sua saúde financeira.</span></span></label>
-  ${typeof OINC_SRC!=="undefined"&&OINC_SRC?"":"<!--"}<div class="row" style="gap:8px;align-items:flex-start"><label class="check grow" style="margin:0"><input type="checkbox" id="oincToggle" ${p.oinc!==false?"checked":""}><span><b>Som de oinc</b><br><span class="small muted">Toca nos lembretes e quando chega um aviso, com o app aberto.</span></span></label><button type="button" class="btn ghost sm" data-act="oincTest" style="flex:none">▶ Ouvir</button></div>${typeof OINC_SRC!=="undefined"&&OINC_SRC?"":"-->"}
-  <label class="check desk-only"><input type="checkbox" id="finLockToggle" ${p.finLock!==false?"checked":""}><span><b>Cadeado nas finanças (computador)</b><br><span class="small muted">No computador, a aba Finanças abre trancada para ninguém ver seus valores sem querer.${p.finPin?" Você usa uma senha de números.":""}</span></span></label>
-  ${p.pet?`<label class="check"><input type="checkbox" id="buddyToggle" ${p.buddy!==false?"checked":""}><span><b>Mascote nas abas</b><br><span class="small muted">Um porquinho pequeno no canto de cada aba: comendo, lendo, se exercitando. Toque nele para uma dica.</span></span></label>`:""}
-  <label class="field"><span>Tema</span><select id="themeSel" data-act="themeSel"><option value="system" ${p.theme==="system"?"selected":""}>Igual ao aparelho</option><option value="light" ${p.theme==="light"?"selected":""}>Claro</option><option value="dark" ${p.theme==="dark"?"selected":""}>Escuro</option></select></label>
+ <div class="section"><div class="label">Abas e mascote</div>
+ <div class="card plist">
+  ${pSw("prayerToggle","Aba de Oração","Checklist diário de orações da sua tradição.",p.prayer)}
+  ${p.prayer?`<label class="field" style="padding:10px 0;border-bottom:1px solid var(--line)"><span>Tradição</span><select id="prayerTradSel">${Object.entries(PRAYER_TRADS).map(([id,t])=>`<option value="${id}" ${S.prayer.trad===id?"selected":""}>${t.n}</option>`).join("")}</select></label>`:""}
+  ${pSw("petToggle","Porquinho","O mascote que cresce com a sua vida em ordem.",p.pet)}
+  ${p.pet?`<label class="field" style="padding:10px 0;border-bottom:1px solid var(--line)"><span>Nome do porquinho</span><input id="petNameInp" maxlength="20" value="${esc(S.pet.name||"")}" placeholder="Ex.: Toicinho"></label>`:""}
+  ${p.pet?pSw("buddyToggle","Mascote nas abas","Um porquinho pequeno no canto de cada aba. Toque nele para uma dica.",p.buddy!==false):""}
  </div></div>
- <div class="section"><div class="label">Seus dados</div>
- <div class="card stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
- <div class="grid2"><button class="btn ghost" data-act="exportData">Exportar backup</button><label class="btn ghost" for="importFile" style="cursor:pointer">Importar backup</label></div><input type="file" id="importFile" accept="application/json,.json" hidden>
- <button class="btn danger sm" data-act="resetAll" style="align-self:flex-start">Apagar meus dados</button></div></div>
- ${canDonate()?`<button class="btn money" data-act="donate">${I.heart.replace('<svg','<svg width="18" height="18"')} Apoie o Prumo com uma doação</button>`:""}
- <a class="btn line" href="https://www.instagram.com/prumovidaemordem/" target="_blank" rel="noopener" style="text-decoration:none;text-align:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg> Siga o Prumo no Instagram</a>
- <button class="btn ghost" data-act="about">Sobre o Prumo</button>
- ${SB_ON?(Store.cloud?`<button class="btn line" data-act="signOut">Sair da conta</button><button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:`<button class="btn line" data-act="goLogin">Entrar ou criar conta</button>`):""}
- ${shareToggle()}
+ <div class="section"><div class="label">Sons e avisos</div>
+ <div class="card plist">
+  <!--pfNotif-->
+  ${typeof OINC_SRC!=="undefined"&&OINC_SRC?`<div class="row" style="gap:10px;align-items:center;border-bottom:1px solid var(--line)"><div class="grow">${pSw("oincToggle","Som de oinc","Nos lembretes e avisos, com o app aberto.",p.oinc!==false,"nob")}</div><button type="button" class="btn ghost sm" data-act="oincTest" style="flex:none">▶ Ouvir</button></div>`:""}
+  ${p.pet?pSw("pigVoiceTg","Voz do porquinho","Ele comenta quando você conclui algo. Também dá para silenciar no próprio porquinho.",p.pigVoice!==false):""}
+ </div></div>
+ <div class="section"><div class="label">Aparência e privacidade</div>
+ <div class="card plist">
+  ${pSw("finLockToggle","Cadeado nas finanças","No computador, a aba Finanças abre trancada para ninguém ver seus valores sem querer."+(p.finPin?" Você usa uma senha de números.":""),p.finLock!==false,"desk-only")}
+  <label class="field" style="padding:10px 0;border-bottom:1px solid var(--line)"><span>Tema</span><select id="themeSel" data-act="themeSel"><option value="system" ${p.theme==="system"?"selected":""}>Igual ao aparelho</option><option value="light" ${p.theme==="light"?"selected":""}>Claro</option><option value="dark" ${p.theme==="dark"?"selected":""}>Escuro</option></select></label>
+ </div></div>
+ <div class="section"><div class="label">Mais</div>
+ <div class="card plist">
+  ${p.letterSeen?pRow(letterPig()?`<span style="display:block;width:36px;height:36px;border-radius:10px;overflow:hidden">${letterAvatar(36)}</span>`:I.heart,letterTitle().replace(/<[^>]+>/g,""),"Por que o Prumo existe","letterOpen"):""}
+  ${canDonate()?pRow(I.heart,"Apoie o Prumo","Doação voluntária para manter o app no ar","donate"):""}
+  <a class="prow" href="https://www.instagram.com/prumovidaemordem/" target="_blank" rel="noopener">${pIco('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>')}<span class="grow stack-s" style="gap:1px"><b>Siga no Instagram</b><span class="tiny muted">@prumovidaemordem</span></span>${pChev()}</a>
+  ${pRow(I.book,"Sobre o Prumo","","about")}
+  ${pRow(I.check,"Seus dados","Backup, restaurar e apagar","dataModal")}
+ </div></div>
  ${(checkAdmin(),UI.isAdmin)?`<button class="btn line" data-act="goAdmin">Painel do administrador</button>`:""}
+ ${SB_ON?(Store.cloud?`<button class="btn line" data-act="signOut">Sair da conta</button>`:`<button class="btn line" data-act="goLogin">Entrar ou criar conta</button>`):""}
+ ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
+ ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
  <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão de testes</p>
  </div>`}
+function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
+function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
+ <div class="grid2"><button class="btn ghost" data-act="exportData">Exportar backup</button><label class="btn ghost" for="importFile" style="cursor:pointer">Importar backup</label></div><input type="file" id="importFile" accept="application/json,.json" hidden>
+ <button class="btn danger sm" data-act="resetAll" style="align-self:flex-start;margin-top:8px">Apagar meus dados</button></div>`)}
+document.addEventListener("change",ev=>{if(ev.target&&ev.target.id==="pigVoiceTg"){S.profile.pigVoice=ev.target.checked;commit();toast(ev.target.checked?"Voz do porquinho ligada.":"Porquinho silenciado.");if(ev.target.checked&&typeof PIG_WEB!=="undefined"&&PIG_WEB&&typeof pigSay==="function")pigSay("greet",{force:true})}});
 
 
 /* ---------- Doação voluntária por Pix ---------- */
@@ -3356,12 +3398,13 @@ function eventForm(e,day){e=e||{};const isEdit=!!e.id;
  <label class="field"><span>Anotações</span><textarea id="v_notes">${esc(e.notes||"")}</textarea></label>
  <button class="btn block" data-act="saveEvent" data-v="${e.id||""}">${isEdit?"Salvar":"Criar compromisso"}</button>
  ${isEdit?`<button class="btn ghost" data-act="icsOne" data-v="${e.id}">${I.bell.replace('<svg','<svg width="18" height="18"')} Enviar para o calendário do celular</button><button class="btn danger" data-act="askDel">Apagar compromisso</button>${confirmBox("delEvent","Apagar este compromisso?")}`:""}</div>`)}
-function profileForm(){const p=S.profile;
- openModal("Editar perfil",`<div class="stack">
- <label class="field"><span>Nome</span><input id="p_name" value="${esc(p.name)}"></label>
- <label class="field"><span>Renda líquida mensal</span><input id="p_income" inputmode="decimal" value="${p.income?String(p.income).replace(".",","):""}"></label>
+function profileForm(mode){const p=S.profile;const fin=mode==="fin";
+ openModal(fin?"Renda e metas":"Editar perfil",`<div class="stack">
+ ${fin?`<label class="field"><span>Renda líquida mensal</span><input id="p_income" inputmode="decimal" value="${p.income?String(p.income).replace(".",","):""}"><span class="tiny muted">Também dá para importar o holerite em Finanças, ao lançar uma renda.</span></label>
  <label class="field"><span>Meta diária de estudo (minutos)</span><input id="p_goal" type="number" inputmode="numeric" min="5" value="${p.studyGoal||20}"></label>
- <label class="field"><span>Valor da regra das 48 horas</span><input id="p_lim" inputmode="decimal" value="${p.limit48||""}"><span class="tiny muted">Ao lançar um desejo acima deste valor, o app sugere esperar.</span></label>
+ <label class="field"><span>Valor da regra das 48 horas</span><input id="p_lim" inputmode="decimal" value="${p.limit48||""}"><span class="tiny muted">Ao lançar um desejo acima deste valor, o app sugere esperar.</span></label>`
+ :`<label class="field"><span>Nome</span><input id="p_name" value="${esc(p.name)}" autocomplete="name"></label>
+ <label class="btn ghost" for="photoFile" style="cursor:pointer">${p.photo?"Trocar a foto":"Colocar uma foto"}</label>`}
  <button class="btn block" data-act="saveProfile">Salvar</button></div>`)}
 function startForm(){const m=meta();openModal("O que já tenho guardado",`<div class="stack"><p class="small muted">Informe o valor que você já tinha antes de começar a usar o app. Daqui em diante, os lançamentos somam sozinhos.</p>
  <label class="field"><span>Reserva de emergência</span><input id="st_res" inputmode="decimal" value="${m.reserveStart?String(m.reserveStart).replace(".",","):""}" placeholder="0,00"></label>
@@ -3680,7 +3723,7 @@ const A={
  copyPixCode:()=>{const pl=DON_PLANS.find(x=>x[0]===(UI.donPlan||"livre"));copyText(pixPayload(pl[2]),"Pix copia e cola copiado. Cole no app do seu banco.")},
  donPlan:el=>{UI.donPlan=el.dataset.v;donateView()},
  donDone:el=>{S.profile.supporter={plan:el.dataset.v,since:today()};markActive();commit();closeModal();toast("Obrigado por apoiar o Prumo! Seu selo e os acessórios de apoiador já estão liberados.",5000)},
- saveProfile:()=>{const p=S.profile;p.name=v("p_name").trim()||p.name;p.income=parseMoney(v("p_income"));p.studyGoal=clamp(+v("p_goal")||20,5,600);p.limit48=parseMoney(v("p_lim"));commit();closeModal();if(p.household&&HH&&Store.cloud)Store.db.doc(`households/${p.household}`).update({members:{[ME.uid]:{nick:p.name.split(" ")[0],income:p.income}}}).catch(()=>{});toast("Perfil salvo.")},
+ saveProfile:()=>{const p=S.profile;const has=id=>!!document.getElementById(id);if(has("p_name"))p.name=v("p_name").trim()||p.name;if(has("p_income"))p.income=parseMoney(v("p_income"));if(has("p_goal"))p.studyGoal=clamp(+v("p_goal")||20,5,600);if(has("p_lim"))p.limit48=parseMoney(v("p_lim"));commit();closeModal();if(p.household&&HH&&Store.cloud)Store.db.doc(`households/${p.household}`).update({members:{[ME.uid]:{nick:p.name.split(" ")[0],income:p.income}}}).catch(()=>{});toast("Salvo.")},
  petToggle:el=>{S.profile.pet=el.checked;commit()},
  createHH:async()=>{if(!Store.cloud)return;const code=Array.from({length:6},()=>"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random()*32)]).join("");
   try{await hhJoin(code);await Store.db.doc(`households/${code}`).set({created:today(),members:{[ME.uid]:{nick:S.profile.name.split(" ")[0],income:+S.profile.income||0}}});
@@ -4373,6 +4416,7 @@ function letterHomeCard(){const p=S.profile;if(!p.created)return"";const td=toda
   <div class="row" style="gap:8px;justify-content:flex-end"><button class="btn ghost sm" data-act="letterOpen">Ler o recado inteiro</button><button class="btn sm" data-act="letterOk">Entendi</button></div></div>`;
  return ""}
 function letterProfileCard(){return `<button class="card row" style="text-align:left;gap:12px;width:100%;border:2px solid var(--pig)" data-act="letterOpen">${letterAvatar(56)}<span class="grow stack-s" style="gap:2px"><b style="color:var(--pig-deep)">${letterTitle()}</b><span class="small muted">Por que o Prumo existe e por que vale a pena, mesmo quando parece chato.</span></span>${I.right.replace('<svg','<svg width="18" height="18" style="flex:none;color:var(--muted)"')}</button>`}
+Object.assign(A,{hhInfo:()=>hhInfo(),hhCreate2:()=>{closeModal();A.createHH()},dataModal:()=>dataModal(),editGoals:()=>profileForm("fin")});
 Object.assign(A,{
  letterOpen:()=>letterModal(),
  letterOk:()=>{S.profile.letterSeen=today();closeModal();commit()},
@@ -5114,7 +5158,7 @@ A.localToAccount=()=>{AUTH.mode="criar";AUTH.ok=true;AUTH.msg="Crie sua conta co
 /* vídeo "Como funciona" para quem começou agora (7 primeiros dias) e fixo no Perfil */
 A.videoHide=()=>{S.profile.videoSeen=today();commit()};
 {const _rv=render;render=function(){_rv();try{if(UI.needAuth||!S.profile.created)return;
- if(UI.tab==="profile"&&!document.getElementById("howBtn")){const ab=document.querySelector('#app [data-act="about"]');if(ab)ab.insertAdjacentHTML("beforebegin",`<button id="howBtn" class="btn ghost" data-act="howVideo">${I.play.replace('<svg','<svg width="16" height="16"')} Como o Prumo funciona (vídeo de 1 min)</button>`)}
+ if(UI.tab==="profile"&&!document.getElementById("howBtn")){const ab=document.querySelector('#app [data-act="about"]');if(ab)ab.insertAdjacentHTML("beforebegin",typeof pRow==="function"?pRow(I.play,"Como o Prumo funciona","Vídeo de 1 minuto","howVideo").replace('<button class="prow"','<button id="howBtn" class="prow"'):`<button id="howBtn" class="btn ghost" data-act="howVideo">Como o Prumo funciona (vídeo de 1 min)</button>`)}
  if(UI.tab!=="home"||TEAM||Store.demo||S.profile.videoSeen||document.getElementById("howCard"))return;
  const d0=S.profile.created;if(!d0||(parseDate(today())-parseDate(d0))/864e5>7)return;
  const anchor=document.querySelector("#app .envbar")||document.querySelector("#localNag")||document.querySelector("#app .top");if(!anchor)return;
@@ -6268,8 +6312,8 @@ A.notifTurnOn=async()=>{if(isIOS()&&!isStandalone()){notifGuide();return}const o
 A.notifTest=async()=>{try{const reg=await navigator.serviceWorker.ready;await reg.showNotification("Prumo 🐷",{body:"Oinc! As notificações estão funcionando.",icon:"icons/icon-192.png",badge:"icons/icon-192.png",tag:"teste"});toast("Enviei. Deu para ver?")}catch(e){toast("Não consegui mostrar a notificação de teste.")}};
 {const _vp=viewProfile;viewProfile=function(){const h=_vp.apply(this,arguments);if(Store.demo)return h;if(PUSHST===null)pushStRefresh();
  const lab={on:["Ligadas","good"],off:["Desligadas","warn"],denied:["Bloqueadas","bad"],"ios-install":["Instale para ativar","warn"],nosupport:["Indisponível aqui","info"]}[PUSHST||"off"]||["…","info"];
- const btn=`<button class="card row" style="text-align:left;gap:12px;align-items:center;width:100%" data-act="notifGuide"><span style="color:var(--pig-deep);flex:none">${I.bell.replace('<svg','<svg width="22" height="22"')}</span><span class="grow stack-s" style="gap:2px"><b>Notificações</b><span class="tiny muted">Avisos de tarefas, vaquinhas e desafios</span></span><span class="pill ${lab[1]}">${lab[0]}</span></button>`;
- const k='<a class="btn line" href="https://www.instagram.com/prumovidaemordem/"';return h.includes(k)?h.replace(k,btn+k):h+btn}}
+ const btn=pRow(I.bell,"Notificações","Avisos de tarefas, vaquinhas e desafios","notifGuide",`<span class="pill ${lab[1]}" style="font-size:12px">${lab[0]}</span>`);
+ return h.replace("<!--pfNotif-->",btn)}}
 
 /* ---------- Convite: instalar o app + ligar notificações ----------
    Pop-up no próximo acesso (no máximo 3 vezes, uma a cada 5 dias) e um cartão

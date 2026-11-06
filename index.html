@@ -2622,7 +2622,7 @@ async function stkArt(k){const a=STK_AREAS.find(x=>x.k===k);const n=stkCount(k);
 async function storyOpen(k){const a=STK_AREAS.find(x=>x.k===k);const n=stkCount(k);if(n<2){toast("Com 2 dias seguidos você já pode compartilhar.");return}
  openModal("Compartilhar nos stories",`<div class="tiny muted" style="padding:40px 0;text-align:center">Montando a arte…</div>`);
  const b=await stkArt(k);UI.stkArea=k;stkShareModal("Compartilhar nos stories",b,`Arte da sequência de ${n} dias ${a.t}`)}
-function storyAskPopup(){if(S.profile.storyAsk===false||!S.profile.created||UI.needAuth||UI.onb>=0&&UI.onb<3)return;const asked=S.profile.storyAsked||{};
+function storyAskPopup(){if(newsPending()||S.profile.storyAsk===false||!S.profile.created||UI.needAuth||UI.onb>=0&&UI.onb<3)return;const asked=S.profile.storyAsked||{};
  const hit=stkList().find(a=>a.today&&a.n>=10&&a.n%10===0&&asked[a.k]!==a.n);if(!hit)return;
  if($("#modal").innerHTML){setTimeout(storyAskPopup,4000);return}
  S.profile.storyAsked={...asked,[hit.k]:hit.n};saveApp();
@@ -2637,7 +2637,7 @@ function storyAskPopup(){if(S.profile.storyAsk===false||!S.profile.created||UI.n
 function tourAreas(){return withPersonal(()=>{const n=o=>Object.keys(o||{}).length>0;
  const fin=allMonths().some(k=>{const m=monthData(k);return(m.expenses||[]).length||(m.incomes||[]).length});
  return{fin,ex:n(S.ex&&S.ex.logs)||n(S.food&&S.food.logs),study:n(S.study&&S.study.logs)||n(S.study&&S.study.books)||n(VOC().words),agenda:n(S.tasks&&S.tasks.items)}})}
-function tourPopup(){const p=S.profile;if(p.tour1||!p.created||UI.needAuth||(UI.onb>=0&&UI.onb<3))return;
+function tourPopup(){const p=S.profile;if(newsPending()||p.tour1||!p.created||UI.needAuth||(UI.onb>=0&&UI.onb<3))return;
  if(p.created>=today())return;
  if($("#modal").innerHTML){setTimeout(tourPopup,5000);return}
  const used=tourAreas();if(Object.values(used).filter(Boolean).length>=3){p.tour1=today();saveApp();return}
@@ -2658,6 +2658,10 @@ function tourPopup(){const p=S.profile;if(p.tour1||!p.created||UI.needAuth||(UI.
  <button class="btn ghost block" data-act="closeModal">Agora não</button></div>`);
  const sc=document.querySelector("#modal .scrim");if(sc)sc.classList.add("center")}
 /* Novidade: aba de Meditação (aparece uma vez para cada pessoa) */
+/* a novidade da Meditação tem prioridade sobre os outros avisos (convite para instalar, sobrenome, apresentação) */
+function newsPending(){const p=S.profile||{};return !p.newsMed&&!!p.created&&p.created<today()&&!/\/demo\//.test(location.pathname)&&!(typeof TEAM!=="undefined"&&TEAM)}
+function newsMedCard(){const p=S.profile;if(p.medSeen||p.medCardOff||today()>"2026-11-20"||/\/demo\//.test(location.pathname))return"";
+ return `<div class="card" style="display:flex;gap:14px;align-items:center;background:linear-gradient(135deg,#2b2140,#4a3a5e);color:#fff;border:0"><div style="width:62px;flex:none">${pigSVG({score:96,mood:"feliz",equip:{head:"zen"},env:0,mini:true})}</div><div class="grow stack-s" style="gap:4px"><span class="tiny" style="font-weight:800;letter-spacing:.1em;color:#F7C3D3">NOVIDADE</span><b>Agora o Prumo tem Meditação</b><span class="small" style="opacity:.85">Meditações guiadas e respiração de 3 minutos.</span></div><div class="stack-s" style="gap:6px;flex:none"><button class="btn sm" data-act="newsMedGo">Experimentar</button><button class="btn ghost sm" style="color:#fff" data-act="medCardOff" aria-label="Dispensar aviso de meditação">Agora não</button></div></div>`}
 function newsMedPopup(){const p=S.profile;if(/\/demo\//.test(location.pathname)||p.newsMed||!p.created||UI.needAuth||UI.popShown||(UI.onb>=0&&UI.onb<3)||p.created>=today())return;
  if(typeof TEAM!=="undefined"&&TEAM)return;if($("#modal").innerHTML||document.getElementById("medP"))return;
  p.newsMed=today();saveApp();UI.popShown=1;const first=(p.name||"").split(" ")[0];
@@ -2694,7 +2698,7 @@ function viewHome(){
  return `<div class="stack">
  <div class="stack-s" style="margin-top:4px"><h1>${hi}${first?", "+esc(first):""}</h1><p class="muted">${dayLabel(today())==="Hoje"?new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"}):""}</p></div>
  ${whyCard()}
- ${letterHomeCard()}${prumoCard()}${msgCard()}${missionsCard()}${shareCard()}
+ ${newsMedCard()}${letterHomeCard()}${prumoCard()}${msgCard()}${missionsCard()}${shareCard()}
  ${pigCard}
  ${envWarning()}${studyWarning()}${taskWarning()}${vocabCard(true)}${stkHomeCard()}
  <div class="card"><div class="label" style="margin-bottom:12px">Metas de hoje</div>
@@ -3650,7 +3654,7 @@ function medDays(){return medPtsDays()}
 function medDaysLast7(){const m=S.med&&Array.isArray(S.med.log)?S.med.log:[];const lim=ymd(new Date(Date.now()-6*864e5));return new Set(m.filter(x=>x.d>=lim&&medOk(x)).map(x=>x.d)).size}
 function medWeekMin(){const m=medStore(),lim=ymd(new Date(Date.now()-6*864e5));return Math.round(m.log.filter(x=>x.d>=lim).reduce((s,x)=>s+(+x.min||0),0))}
 function medStreak(){const ds=new Set(medStore().log.map(x=>x.d));let n=0,d=new Date();if(!ds.has(ymd(d)))d=new Date(Date.now()-864e5);while(ds.has(ymd(d))){n++;d=new Date(d.getTime()-864e5)}return n}
-function medView(){const m=medStore(),bd=UI.medBreathDur||3,wk=medWeekMin(),st=medStreak();
+function medView(){if(!S.profile.medSeen){S.profile.medSeen=today();saveApp()}const m=medStore(),bd=UI.medBreathDur||3,wk=medWeekMin(),st=medStreak();
  return `<div class="section"><div class="card" style="display:flex;gap:14px;align-items:center"><div class="grow"><div class="label" style="margin:0">Esta semana</div><div class="big num" style="margin-top:2px">${wk} min</div><div class="small muted">${st>1?`${st} dias seguidos meditando`:m.log.length?"Cada minuto conta. Volte amanhã.":"Comece com 3 minutos. É o suficiente."}</div></div><div style="width:84px;flex:none">${pigSVG({score:90,mood:"feliz",equip:{},env:0,mini:true})}</div></div>
 <div style="margin-top:10px">${pigGains("medit")}</div></div>
  <div class="section"><div class="label">Respire agora</div><div class="card stack">
@@ -3965,7 +3969,8 @@ document.addEventListener("change",ev=>{const el=ev.target;if(!UI.imp)return;
 document.addEventListener("input",ev=>{const id=ev.target&&ev.target.id;if(id==="f_v"||id==="f_date")ccPreview()});
 document.addEventListener("change",ev=>{const id=ev.target&&ev.target.id;if(id==="f_n"||id==="f_date")ccPreview()});
 
-A.newsMedGo=()=>{closeModal();UI.tab="ex";UI.ex="medit";window.scrollTo(0,0);render()};
+A.medCardOff=()=>{S.profile.medCardOff=today();commit()};
+A.newsMedGo=()=>{S.profile.medSeen=today();closeModal();UI.tab="ex";UI.ex="medit";window.scrollTo(0,0);render()};
 A.tourGo=el=>{closeModal();if(typeof TEAM!=="undefined"&&TEAM&&typeof teamExit==="function")teamExit();UI.tab=el.dataset.v;if(UI.tab==="fin")UI.fin="mes";window.scrollTo(0,0);render()};
 Object.assign(A,{
  ccBuy:el=>expenseForm({card:el.dataset.v||(cardsList()[0]||{}).id,date:today()},null),
@@ -5199,7 +5204,7 @@ function fullNick(){const w=String(S.profile.name||"").trim().split(/\s+/).filte
 let nickSyncing=false;
 async function teamNickSync(){if(Store.demo||!sb||!Store.cloud||!TEAMS||nickSyncing)return;const want=fullNick().slice(0,40);if(!want)return;nickSyncing=true;let ch=false;
  try{for(const t of TEAMS){const m=(t.members||[]).find(x=>x.uid===ME.uid);if(m&&m.nick!==want&&!(want.split(" ").length<2&&String(m.nick||"").trim().split(/\s+/).length>=2)){const {error}=await sb.rpc("set_team_nick",{p_team:t.id,p_nick:want});if(!error){m.nick=want;ch=true}}}}catch(e){}nickSyncing=false;if(ch)render()}
-function surnameAsk(){if(Store.demo||!TEAMS||!TEAMS.length||UI.popShown||$("#modal").innerHTML||S.profile.surAsk===today())return;const w=String(S.profile.name||"").trim().split(/\s+/).filter(Boolean);if(w.length!==1)return;
+function surnameAsk(){if((typeof newsPending==="function"&&newsPending())||Store.demo||!TEAMS||!TEAMS.length||UI.popShown||$("#modal").innerHTML||S.profile.surAsk===today())return;const w=String(S.profile.name||"").trim().split(/\s+/).filter(Boolean);if(w.length!==1)return;
  UI.popShown=1;S.profile.surAsk=today();saveApp();
  openModal("Qual é o seu sobrenome?",`<div class="stack"><p class="small">Nas equipes, tarefas e projetos aparecem com nome e sobrenome, para ficar claro quem é quem.</p>
  <label class="field"><span>Nome</span><input value="${esc(w[0])}" disabled></label>
@@ -6155,7 +6160,7 @@ function insNeeded(st){if(Store.demo||!Store.cloud||!S.profile.created)return fa
 function insBody(st,compact){const plat=isIOS()?"ios":isAndroid()?"android":"pc";const inst=isStandalone();
  const step=inst||plat==="pc"?`<p class="small">Falta só um toque: ative as notificações e pronto.</p>`:`<p class="small">${plat==="ios"?"No iPhone, as notificações só funcionam com o Prumo instalado na tela de início.":"Instalado, ele abre como app, em tela cheia, e os avisos chegam mesmo com ele fechado."} Leva 1 minuto:</p><img src="${GUIDE_IMG[plat]}" alt="Passo a passo para instalar o Prumo" style="width:100%;border-radius:16px;display:block" loading="lazy">`;
  return step}
-function insPopup(){if(UI.popShown||$("#modal").innerHTML||UI.needAuth||(UI.onb>=0&&UI.onb<3))return;const g=insGet();
+function insPopup(){if((typeof newsPending==="function"&&newsPending())||UI.popShown||$("#modal").innerHTML||UI.needAuth||(UI.onb>=0&&UI.onb<3))return;const g=insGet();
  if((g.n||0)>=3||g.no||(g.t&&Date.now()-g.t<5*864e5))return;
  pushState().then(st=>{PUSHST=st;if(!insNeeded(st)||$("#modal").innerHTML||UI.popShown)return;UI.popShown=1;insSet({n:(g.n||0)+1,t:Date.now()});
   const inst=isStandalone()||!isMobile();

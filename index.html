@@ -5344,7 +5344,7 @@ Object.assign(A,{
   const sum=on.reduce((s,c)=>s+(shares[c.dataset.u]||0),0);if(Math.abs(sum-total)>0.05&&!confirm2(el))return;
   const payer=v("vq_payer")||"";
   vaqPatch({items:{[id]:{id,title,total,date:v("vq_date")||today(),payer,shares,paid:old.paid||{},by:old.by||ME.uid,created:old.created||Date.now(),note:v("vq_note").trim(),pix:v("vq_pix").trim()}}});{const px=v("vq_pix").trim();if(px&&px!==S.profile.vqPix){S.profile.vqPix=px;saveApp()}}closeModal();toast(old.id?"Vaquinha atualizada.":"Vaquinha criada. Muuu!")},
- vaqPaid:el=>{const r=VQ().items[el.dataset.v];if(!r)return;const u=el.dataset.u;if(!vqCanPay(r,u)){toast("Só quem criou a vaquinha marca o pagamento dos outros.");return}const was=!!(r.paid||{})[u];vaqPatch({items:{[r.id]:{paid:{[u]:was?null:today()}}}});
+ vaqPaid:el=>{const r=VQ().items[el.dataset.v];if(!r)return;const u=el.dataset.u;if(u===ME.uid&&TEAM){const was=(r.paid||{})[u];if(was)vqExpDel(TEAM,r,was);else vqExpAdd(TEAM,r,today())}if(!vqCanPay(r,u)){toast("Só quem criou a vaquinha marca o pagamento dos outros.");return}const was=!!(r.paid||{})[u];vaqPatch({items:{[r.id]:{paid:{[u]:was?null:today()}}}});
   if(!was){const r2=VQ().items[r.id];if(!vqOpen(r2))toast("Todo mundo pagou! Vaquinha fechada. 🐮");else toast(`${nm(u)} pagou a parte.`)}vaqDetail(r.id)},
  vaqDelYes:()=>{const id=UI.vqDel;{const r=VQ().items[id];if(r&&!vqCanEdit(r)){toast("Só quem criou a vaquinha pode apagar.");return}}closeModal();vaqPatch({items:{[id]:null}});toast("Vaquinha apagada.")},
 });
@@ -5484,18 +5484,34 @@ const VQX={};let vqxT=0,vqxBusy=false;
 async function vqxLoad(force){if(Store.demo||!Store.cloud||!TEAMS||vqxBusy)return;if(!force&&Date.now()-vqxT<60000)return;vqxT=Date.now();vqxBusy=true;let ch=false;
  try{for(const t of TEAMS){if(!(t.features&&t.features.vaq)){if(VQX[t.id]){delete VQX[t.id];ch=true}continue}
   try{const s=await Store.db.doc(`teams/${t.id}/fin/vaq`).get();const d=s.exists?(s.data()||{}):{};const js=JSON.stringify(d.items||{});if(!VQX[t.id]||VQX[t.id].js!==js){VQX[t.id]={js,items:d.items||{}};ch=true}}catch(e){}}}finally{vqxBusy=false}
- if(ch&&!TEAM)render()}
+ if(ch&&!TEAM)render();setTimeout(vqBackfillAsk,1500)}
 const tNick=(t,u)=>{if(u===ME.uid)return"você";const m=((t&&t.members)||[]).find(x=>x.uid===u);return m?(m.nick||(m.email||"").split("@")[0]||"alguém"):"alguém"};
 function vqxMine(){const out=[];for(const t of TEAMS||[]){const x=TEAM&&TEAM.id===t.id?{items:VQ().items}:VQX[t.id];if(!x)continue;
  for(const r of Object.values(x.items||{})){if(!r)continue;const my=(r.shares||{})[ME.uid];if(my==null||!(+my>0)||r.payer===ME.uid||(r.paid||{})[ME.uid])continue;out.push({t,r,v:+my})}}
  return out.sort((a,b)=>(a.r.date||"").localeCompare(b.r.date||""))}
 function vqxDueRows(k){if(TEAM||Store.demo||k!==mkey())return"";setTimeout(()=>vqxLoad(),0);
  return vqxMine().map(({t,r,v})=>`<div class="row between small" style="gap:8px"><span class="grow stack-s" style="min-width:0;gap:0"><span>🐮 ${esc(r.title)} <span class="pill info">vaquinha</span></span><span class="tiny muted">${esc(t.name)}${r.payer?` · pagar para ${esc(tNick(t,r.payer))}`:""}${r.pix?` · Pix ${esc(r.pix)}`:""}${r.note?` · ${esc(r.note.slice(0,60))}`:""}</span></span><span class="row" style="gap:6px;flex:none"><b class="num">${brl(v)}</b><button class="btn money sm" data-act="vqxPaid" data-t="${t.id}" data-v="${r.id}">Paguei</button></span></div>`).join("")}
+/* minha parte paga na vaquinha entra como gasto nas MINHAS finanças (mesmo estando dentro da equipe) */
+function myFinPatch(id,patch){const hh=((typeof personalS==="function"?personalS():S).profile||{}).household;const sc=hh&&Store.cloud?"h":"p";const docs=sc==="h"?HFIN:PFIN;docs[id]=deepMerge(docs[id]||{},clone(patch));
+ if(Store.cloud){const p=sc==="h"?`households/${hh}/fin/${id}`:`data/users/${ME.uid}/fin-${id}`;enqueue(p,async()=>{const ref=Store.db.doc(p);try{await ref.update(patch)}catch(e){if(e&&e.code==="invalid_argument"){await ref.set(stripNulls(clone(patch)))}else throw e}})}lsPut()}
+function myFinDocs(){const hh=((typeof personalS==="function"?personalS():S).profile||{}).household;return hh&&Store.cloud?HFIN:PFIN}
+const vqExpId=(tid,rid)=>"vq"+String(tid).slice(0,6)+"_"+rid;
+function vqExpHas(tid,r,d){const m=myFinDocs()[mid(mkey(d))];return !!(m&&m.expenses&&m.expenses[vqExpId(tid,r.id)])}
+function vqExpAdd(t,r,d){const my=+((r.shares||{})[ME.uid])||0;if(!(my>0)||r.payer===ME.uid)return;myFinPatch(mid(mkey(d)),{expenses:{[vqExpId(t.id,r.id)]:{v:my,desc:"Vaquinha: "+(r.title||"")+" ("+t.name+")",cat:"outros",date:d,fixed:false,by:ME.uid,t:Date.now(),added:today(),debtId:null,vq:{t:t.id,r:r.id}}}})}
+function vqExpDel(t,r,d){if(!d)return;myFinPatch(mid(mkey(d)),{expenses:{[vqExpId(t.id,r.id)]:null}})}
+/* pagamentos antigos que ainda não estão nos gastos: pergunta uma vez */
+function vqBackfillList(){const out=[];const skip=(S.profile.vqBfSkip||{});for(const t of TEAMS||[]){const x=TEAM&&TEAM.id===t.id?{items:VQ().items}:VQX[t.id];if(!x)continue;
+ for(const r of Object.values(x.items||{})){if(!r)continue;const d=(r.paid||{})[ME.uid];const my=+((r.shares||{})[ME.uid])||0;if(!d||!(my>0)||r.payer===ME.uid||skip[vqExpId(t.id,r.id)]||vqExpHas(t.id,r,d))continue;out.push({t,r,d,v:my})}}return out}
+function vqBackfillAsk(){if(TEAM||Store.demo||UI.vqBfAsked||$("#modal").innerHTML||(typeof newsPending==="function"&&newsPending()))return;const L=vqBackfillList();if(!L.length)return;UI.vqBfAsked=1;UI.vqBfL=L;
+ openModal("Vaquinhas pagas",`<div class="stack"><p class="small" style="margin:0">Você pagou ${L.length===1?"esta vaquinha":"estas vaquinhas"}, mas ${L.length===1?"ela ainda não está":"elas ainda não estão"} nos seus gastos:</p><div class="card list">${L.map(o=>`<div class="item"><div class="grow stack-s" style="gap:0"><b>🐮 ${esc(o.r.title)}</b><span class="tiny muted">${esc(o.t.name)} · pago em ${ddmm(o.d)}</span></div><b class="num">${brl(o.v)}</b></div>`).join("")}</div>
+ <button class="btn block" data-act="vqBfYes">Lançar nos meus gastos</button><button class="btn ghost block" data-act="vqBfNo">Já lancei por conta própria</button></div>`)}
+A.vqBfYes=()=>{(UI.vqBfL||[]).forEach(o=>vqExpAdd(o.t,o.r,o.d));const n=(UI.vqBfL||[]).length;closeModal();render();toast(`${n} ${n===1?"gasto lançado":"gastos lançados"} em Outros, com o nome da vaquinha.`)};
+A.vqBfNo=()=>{const sk=S.profile.vqBfSkip=S.profile.vqBfSkip||{};(UI.vqBfL||[]).forEach(o=>sk[vqExpId(o.t.id,o.r.id)]=1);saveApp();closeModal();toast("Certo, não vou lançar de novo.")};
 A.vqxPaid=async el=>{const t=(TEAMS||[]).find(x=>x.id===el.dataset.t);const x=VQX[el.dataset.t];const id=el.dataset.v;if(!t||!x||!x.items[id])return;
  el.disabled=true;const d=today();
  try{await Store.db.doc(`teams/${t.id}/fin/vaq`).update({items:{[id]:{paid:{[ME.uid]:d}}}});
   x.items[id]=deepMerge(x.items[id],{paid:{[ME.uid]:d}});x.js=JSON.stringify(x.items);markActive();render();
-  const r=x.items[id];toast(`Pago! Marquei na vaquinha "${r.title}" de ${t.name}. 🐷`,4000);
+  const r=x.items[id];vqExpAdd(t,r,d);render();toast(`Pago! Marquei na vaquinha "${r.title}" de ${t.name} e lancei ${brl(+r.shares[ME.uid]||0)} nos seus gastos. 🐷`,4500);
   if(typeof vqNotifyPaid==="function")vqNotifyPaid(t.id,r,ME.uid,true)}
  catch(e){console.warn(e);el.disabled=false;toast("Não consegui marcar agora. Confira a internet e tente de novo.")}};
 

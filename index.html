@@ -2875,7 +2875,7 @@ function txItem(x){const c=x.kind==="in"?null:(CAT[x.cat]||CAT.outros);const who
  const color=x.kind==="in"?"var(--good)":BUCKETS[c.b].color;
  return `<button class="item" style="width:100%;border-left:0;border-right:0;border-top:0;background:none;text-align:left;padding-inline:0" data-act="${x.kind==="in"?"editIncome":"editExpense"}" data-v="${x.id}" data-m="${mkey(x.date)}">
  <span class="ico" style="background:color-mix(in srgb,${color} 16%,transparent);color:${color}">${x.kind==="in"?"R$":c.i}</span>
- <div class="grow stack-s" style="gap:1px"><p><b>${esc(x.desc||(c?c.n:"Renda"))}</b></p><p class="tiny muted">${x.kind==="in"?"Renda":c.n}${x.fixed?" · fixa":""}${x.sub?" · assinatura":""}${x.kind!=="in"&&expSt(x)==="apagar"?` · <span style="color:var(--bad);font-weight:700">a pagar</span>`:x.kind!=="in"&&expSt(x)==="parcial"?` · <span style="color:var(--warn);font-weight:700">falta ${brl0(expLeft(x))}</span>`:""}${x.card?" · "+esc((cardById(x.card)||{name:"cartão"}).name)+(+x.n>1?" "+x.i+"/"+x.n:""):""}${who?" · "+esc(who):""}</p></div>
+ <div class="grow stack-s" style="gap:1px"><p><b>${esc(x.desc||(c?c.n:"Renda"))}</b></p><p class="tiny muted">${x.kind==="in"?(x.pay&&x.pay.gross?`Renda · bruto ${brl0(x.pay.gross)} − descontos ${brl0(x.pay.ded||0)}`:"Renda"):c.n}${x.fixed?" · fixa":""}${x.sub?" · assinatura":""}${x.kind!=="in"&&expSt(x)==="apagar"?` · <span style="color:var(--bad);font-weight:700">a pagar</span>`:x.kind!=="in"&&expSt(x)==="parcial"?` · <span style="color:var(--warn);font-weight:700">falta ${brl0(expLeft(x))}</span>`:""}${x.card?" · "+esc((cardById(x.card)||{name:"cartão"}).name)+(+x.n>1?" "+x.i+"/"+x.n:""):""}${who?" · "+esc(who):""}</p></div>
  <span class="amount ${x.kind==="in"?"pos":"neg"}">${x.kind==="in"?"+":"−"} ${brl(x.v)}</span></button>`}
 function trendChart(){const ms=[];for(let i=5;i>=0;i--)ms.push(shiftMonth(UI.month,-i));const data=ms.map(k=>{const t=totals(k,true);return{k,inc:t.income,sp:t.spent}});
  const max=Math.max(1,...data.map(d=>Math.max(d.inc,d.sp)));if(!data.some(d=>d.inc||d.sp))return"";
@@ -3255,8 +3255,47 @@ function expenseForm(e,month){try{syncCats()}catch(x){}e=e||{};const debtsOpen=d
     if(after<0)h+=`<div class="banner bad"><span>Com este gasto, ${mk===mkey()?"o mês":"esse mês"} passa da renda em <b>${brl0(-after)}</b>. Dá para adiar ou pagar de outro jeito?</span></div>`;
     else if(after<tt.income*.1)h+=`<div class="banner warn"><span>Depois deste gasto, sobram só <b>${brl0(after)}</b> ${mk===mkey()?"até o fim do mês":"nesse mês"}.</span></div>`}}
    $("#f_warn").innerHTML=h};vi.addEventListener("input",warn);UI._warn=warn;ccPreview()})}
+/* ---------- Holerite: lê bruto, descontos e líquido (PDF ou texto colado) ---------- */
+const PS_DED=/inss|irrf|\bir\b|imposto|i\.?r\.?r\.?f|vale[ -]?transp|\bv\.?t\.?\b|transporte|plano de sa|assist[eê]ncia m[eé]d|m[eé]dic|odont|unimed|sindic|contrib|falta|atraso|adiant|empr[eé]st|consign|pens[aã]o|previd|desc|co-?participa|seguro de vida|refei[cç][aã]o desc|alimenta[cç][aã]o desc|coopera|farm[aá]cia|mensalidade/i;
+const PS_SKIP=/\bbase\s*(?:de\s*)?c[aá]lc|\bbase\s*(?:fgts|inss|irrf|ir)\b|fgts|faixa|sal[aá]rio contrib|sal\. contrib|dep\. ?ir|dependente|banco|ag[eê]ncia|conta|cnpj|cpf|admiss|cargo|fun[cç][aã]o|matr[ií]cula|p[aá]gina|mensagem|declaro|assinatura/i;
+const psNum=x=>{const n=parseFloat(String(x).replace(/\./g,"").replace(",","."));return isFinite(n)?n:null};
+function parsePayslip(t){const text=t.replace(/ /g," ");const lines=text.split(/\r?\n/).map(l=>l.replace(/\s+/g," ").trim()).filter(Boolean);const M=/\d{1,3}(?:\.\d{3})*,\d{2}/g;
+ const find=re=>{for(const l of lines){const m=re.exec(l);if(m){const vs=(l.slice(m.index+m[0].length).match(M)||[]);if(vs.length)return psNum(vs[0])}}return null};
+ let gross=find(/total\s*(?:de\s*)?(?:vencimentos|proventos)|sal[aá]rio\s*bruto|total\s*bruto|valor\s*bruto/i),ded=find(/total\s*(?:de\s*)?descontos/i),net=find(/l[ií]quido\s*(?:a\s*receber)?|valor\s*l[ií]quido|sal[aá]rio\s*l[ií]quido|total\s*l[ií]quido|l[ií]quido\s*do\s*m[eê]s/i);
+ const items=[];for(const l of lines){if(/total|l[ií]quido|bruto/i.test(l)||PS_SKIP.test(l))continue;const vs=l.match(M);if(!vs)continue;let desc=l.replace(M,"").replace(/^\s*\d{1,5}\s+/,"").replace(/\s{2,}/g," ").replace(/[|:;*]+/g," ").replace(/\b\d+(?:[.,]\d+)?\s*%?\s*$/,"").trim();if(!desc||desc.length<3||!/[a-zà-ú]{3}/i.test(desc))continue;
+  const val=psNum(vs[vs.length-1]);if(!val||val<=0)continue;items.push({n:desc.slice(0,40),v:val,t:PS_DED.test(desc)?"d":"p"})}
+ const sp=items.filter(x=>x.t==="p").reduce((s,x)=>s+x.v,0),sd=items.filter(x=>x.t==="d").reduce((s,x)=>s+x.v,0);
+ if(gross==null&&sp)gross=Math.round(sp*100)/100;if(ded==null&&sd)ded=Math.round(sd*100)/100;
+ if(net==null&&gross!=null&&ded!=null)net=Math.round((gross-ded)*100)/100;if(ded==null&&gross!=null&&net!=null)ded=Math.round((gross-net)*100)/100;if(gross==null&&net!=null&&ded!=null)gross=Math.round((net+ded)*100)/100;
+ let comp=null;const mm=/(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s*(?:\/|de)?\s*(\d{4})/i.exec(text)||/compet[eê]ncia\D{0,12}(\d{2})\/(\d{4})/i.exec(text);
+ if(mm){const MN=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];const mi=isNaN(+mm[1])?MN.indexOf(mm[1].toLowerCase().replace("marco","março"))+1:+mm[1];if(mi>0)comp=mm[2]+"-"+String(mi).padStart(2,"0")}
+ return{gross,ded,net,items,comp,ok:net!=null&&net>0}}
+function paySummary(p,v){const g=+p.gross||0,d=+p.ded||0,n=+v||+p.net||0;const ds=(p.items||[]).filter(x=>x.t==="d");
+ return `<div class="card flat stack-s" style="gap:6px"><div class="row between small"><span>Salário bruto</span><b class="num">${brl(g)}</b></div><div class="row between small"><span>Descontos${g?` (${Math.round(d/g*100)}%)`:""}</span><b class="num" style="color:var(--bad)">− ${brl(d)}</b></div>${ds.length?`<div class="stack-s" style="gap:2px;padding-left:10px">${ds.map(x=>`<div class="row between tiny muted"><span>${esc(x.n)}</span><span class="num">${brl(x.v)}</span></div>`).join("")}</div>`:""}<div class="row between small" style="border-top:1px solid var(--line);padding-top:6px"><b>Líquido</b><b class="num" style="color:var(--good)">${brl(n)}</b></div></div>`}
+function paySlipForm(){UI.ps=null;openModal("Importar holerite",`<div class="stack" id="ps_root">${paySlipBody()}</div>`)}
+function paySlipBody(){const p=UI.ps;
+ if(!p)return `<p class="small muted" style="margin:0">Traga o holerite (contracheque) e o Prumo separa o salário bruto, os descontos e o líquido. O que entra na sua renda é o <b>líquido</b>, que é o que cai na conta.</p>
+ <label class="btn line" style="cursor:pointer;text-align:center">Escolher arquivo do holerite (PDF)<input type="file" id="psFile" accept=".pdf,.txt,application/pdf,text/plain" style="display:none"></label>
+ <div class="card flat stack"><b class="small">Ou copie e cole</b><span class="tiny muted">Abra o holerite, selecione tudo, copie e cole aqui.</span><textarea id="ps_text" rows="5" style="width:100%;font:inherit;padding:10px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)" placeholder="Cole aqui o texto do holerite"></textarea><button class="btn" data-act="psParse">Ler holerite</button></div>
+ <p class="tiny muted" style="margin:0">O arquivo é lido só no seu aparelho. Nada do holerite é enviado para fora, só os valores que você salvar.</p>`;
+ const f=x=>x!=null?String(x.toFixed(2)).replace(".",","):"";const date=today();
+ return `<div class="row between"><b class="small">Confira os valores</b><button class="btn ghost sm" data-act="psBack">Voltar</button></div>
+ ${p.ok?"":`<div class="banner warn">Não encontrei todos os valores. Preencha o que faltar olhando o holerite.</div>`}
+ <div class="grid2"><label class="field"><span>Salário bruto</span><input id="ps_g" inputmode="decimal" value="${f(p.gross)}"></label><label class="field"><span>Total de descontos</span><input id="ps_d" inputmode="decimal" value="${f(p.ded)}"></label></div>
+ <label class="field"><span>Salário líquido (entra na renda)</span><input id="ps_n" inputmode="decimal" value="${f(p.net)}" style="font-size:22px;font-weight:700"></label>
+ ${p.items.some(x=>x.t==="d")?`<div class="card flat stack-s" style="gap:4px"><b class="small">Descontos encontrados</b>${p.items.filter(x=>x.t==="d").map(x=>`<div class="row between small"><span>${esc(x.n)}</span><span class="num">${brl(x.v)}</span></div>`).join("")}</div>`:""}
+ ${p.gross&&p.ded&&p.net&&Math.abs(p.gross-p.ded-p.net)>1?`<p class="tiny" style="color:var(--warn);margin:0">Atenção: bruto menos descontos não bate com o líquido. Confira os valores.</p>`:""}
+ <div class="grid2"><label class="field"><span>Descrição</span><input id="ps_desc" value="Salário"></label><label class="field"><span>Data em que recebeu</span><input id="ps_date" type="date" value="${date}"></label></div>${p.comp?`<p class="tiny muted" style="margin:0">Holerite de ${MONTHS[+p.comp.slice(5)-1]}/${p.comp.slice(0,4)}. A renda entra no mês da data em que você recebeu.</p>`:""}
+ <button class="btn money block" data-act="psSave">Lançar salário líquido</button>`}
+function psRefresh(){const r=$("#ps_root");if(r)r.innerHTML=paySlipBody()}
+async function psLoadFile(file,password){try{let t;if(/\.pdf$/i.test(file.name||"")||file.type==="application/pdf"){toast("Lendo o holerite…");t=await pdfToText(file,password)}else t=await readFileText(file);UI.ps=parsePayslip(t);UI.psFile=null;psRefresh()}
+ catch(e){if(e&&e.name==="PasswordException"){UI.psFile=file;const r=$("#ps_root");if(r)r.innerHTML=`<div class="stack"><div class="banner warn">${password?"Senha incorreta. Tente de novo.":"Este PDF tem senha."} Muitas empresas usam os primeiros dígitos do CPF. A senha é usada só para abrir o arquivo aqui e não fica guardada.</div><label class="field"><span>Senha do PDF</span><input id="ps_pw" type="password" autocomplete="off"></label><button class="btn block" data-act="psPw">Abrir PDF</button><button class="btn ghost block" data-act="psBack">Voltar</button></div>`;return}
+  toast("Não consegui ler este arquivo. Tente copiar e colar o texto do holerite.")}}
+document.addEventListener("change",e=>{if(e.target&&e.target.id==="psFile"&&e.target.files&&e.target.files[0])psLoadFile(e.target.files[0])});
 function incomeForm(e,month){e=e||{};const isEdit=!!e.id;
  openModal(isEdit?"Editar renda":"Nova renda",`<div class="stack">
+ ${isEdit?"":`<button class="btn line block" data-act="paySlip">📄 Importar holerite (PDF ou texto)</button>`}
+ ${e.pay?paySummary(e.pay,e.v):""}
  <label class="field"><span>Valor líquido</span><input id="f_v" inputmode="decimal" placeholder="0,00" value="${e.v?String(e.v).replace(".",","):""}" style="font-size:24px;font-weight:700"></label>
  <label class="field"><span>Descrição</span><input id="f_desc" value="${esc(e.desc||"Salário")}"></label>
  <label class="field"><span>Data</span><input id="f_date" type="date" value="${e.date||(month&&month!==mkey()?month+"-05":today())}"></label>
@@ -3379,6 +3418,13 @@ const A={
  checkin:()=>{S.checkins[today()]=1;markActive();commit();toast(S.profile.pet?"Dia sem gastos registrado. O porquinho agradece.":"Dia sem gastos registrado.")},
  addExpense:()=>expenseForm(null,UI.tab==="fin"?UI.month:null),
  addIncome:()=>incomeForm(null,UI.tab==="fin"?UI.month:null),
+ paySlip:()=>paySlipForm(),
+ psBack:()=>{UI.ps=null;psRefresh()},
+ psPw:()=>{const pw=($("#ps_pw")||{}).value||"";if(!UI.psFile||!pw){toast("Digite a senha do PDF.");return}psLoadFile(UI.psFile,pw)},
+ psParse:()=>{const t=($("#ps_text")||{}).value||"";if(!t.trim()){toast("Cole o texto do holerite.");return}UI.ps=parsePayslip(t);psRefresh()},
+ psSave:()=>{const net=parseMoney(v("ps_n"));if(!net){toast("Informe o salário líquido.");return}const gross=parseMoney(v("ps_g"))||null,ded=parseMoney(v("ps_d"))||(gross?Math.round((gross-net)*100)/100:null);const date=v("ps_date")||today();const id=rid();
+  const p=UI.ps||{items:[]};const e={v:net,desc:v("ps_desc").trim()||"Salário",date,by:ME.uid,t:Date.now(),pay:{gross,ded,net,items:(p.items||[]).slice(0,30),comp:p.comp||null}};
+  finPatch(mid(mkey(date)),{incomes:{[id]:e}});markActive();saveApp();closeModal();UI.ps=null;toast(`Salário lançado: ${brl(net)} líquido${gross?` de ${brl(gross)} bruto`:""}.`,4500)},
  quickSalary:()=>{const id=rid();const k=UI.month;finPatch(mid(k),{incomes:{[id]:{v:+S.profile.income,desc:"Salário",date:k===mkey()?today():k+"-05",by:ME.uid,t:Date.now()}}});markActive();saveApp();toast("Salário lançado.")},
  copyFixed:()=>{const k=UI.month;const prev=monthData(shiftMonth(k,-1)).expenses.filter(e=>e.fixed);const patch={expenses:{}};prev.forEach(e=>{const id=rid();const day=e.date.slice(8);const [y,m]=k.split("-").map(Number);const dim=new Date(y,m,0).getDate();patch.expenses[id]={v:e.v,desc:e.desc,cat:e.cat,date:k+"-"+pad(Math.min(+day,dim)),fixed:true,by:ME.uid,t:Date.now(),added:today(),debtId:e.debtId||null,st:"apagar"}});finPatch(mid(k),patch);markActive();saveApp();toast(`${prev.length} conta(s) fixa(s) lançada(s).`)},
  catNewToggle:()=>{const b=$("#catNew");b.classList.toggle("hide");if(!b.classList.contains("hide"))$("#cn_name").focus()},
@@ -3412,7 +3458,7 @@ const A={
  editExpense:el=>{const e=findTx("expenses",el.dataset.v,el.dataset.m);if(e)expenseForm(e,el.dataset.m)},
  delExpYes:()=>{const id=document.querySelector('[data-act="saveExpense"]').dataset.v;const e=findTx("expenses",id);if(e&&e.grp){ccRemoveGroup(e.grp);closeModal();toast(+e.n>1?"Compra e todas as parcelas apagadas.":"Compra apagada.");return}if(e){finPatch(mid(mkey(e.date)),{expenses:{[id]:null}});if(e.subId)finPatch("meta",{subSkip:{[id]:1}})}closeModal();toast("Gasto apagado.")},
  saveIncome:el=>{const val=parseMoney(v("f_v"));if(!val){toast("Informe o valor da renda.");return}const date=v("f_date")||today();const id=el.dataset.v||rid();const old=el.dataset.v?findTx("incomes",id):null;
-  const e={v:val,desc:v("f_desc").trim()||"Renda",date,by:old?old.by:ME.uid,t:old?old.t:Date.now()};
+  const e={v:val,desc:v("f_desc").trim()||"Renda",date,by:old?old.by:ME.uid,t:old?old.t:Date.now(),pay:old&&old.pay?old.pay:null};
   if(old&&mkey(old.date)!==mkey(date))finPatch(mid(mkey(old.date)),{incomes:{[id]:null}});
   finPatch(mid(mkey(date)),{incomes:{[id]:e}});markActive();saveApp();closeModal();toast(old?"Renda atualizada.":"Renda lançada.")},
  editIncome:el=>{const e=findTx("incomes",el.dataset.v,el.dataset.m);if(e)incomeForm(e,el.dataset.m)},

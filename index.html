@@ -3126,7 +3126,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.66</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.67</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -3300,15 +3300,19 @@ function expenseForm(e,month){try{syncCats()}catch(x){}e=e||{};const debtsOpen=d
     else if(after<tt.income*.1)h+=`<div class="banner warn"><span>Depois deste gasto, sobram só <b>${brl0(after)}</b> ${mk===mkey()?"até o fim do mês":"nesse mês"}.</span></div>`}}
    $("#f_warn").innerHTML=h};vi.addEventListener("input",warn);UI._warn=warn;ccPreview()})}
 /* ---------- Holerite: lê bruto, descontos e líquido (PDF ou texto colado) ---------- */
-const PS_DED=/inss|irrf|\bir\b|imposto|i\.?r\.?r\.?f|vale[ -]?transp|\bv\.?t\.?\b|transporte|plano de sa|assist[eê]ncia m[eé]d|m[eé]dic|odont|unimed|sindic|contrib|falta|atraso|adiant|empr[eé]st|consign|pens[aã]o|previd|desc|co-?participa|seguro de vida|refei[cç][aã]o desc|alimenta[cç][aã]o desc|coopera|farm[aá]cia|mensalidade/i;
+const PS_DED=/inss|irrf|\birf\b|seguro|consigna|vale\s|\bir\b|imposto|i\.?r\.?r\.?f|vale[ -]?transp|\bv\.?t\.?\b|transporte|plano de sa|assist[eê]ncia m[eé]d|m[eé]dic|odont|unimed|sindic|contrib|falta|atraso|adiant|empr[eé]st|consign|pens[aã]o|previd|desc|co-?participa|seguro de vida|refei[cç][aã]o desc|alimenta[cç][aã]o desc|coopera|farm[aá]cia|mensalidade/i;
 const PS_SKIP=/\bbase\s*(?:de\s*)?c[aá]lc|\bbase\s*(?:fgts|inss|irrf|ir)\b|fgts|faixa|sal[aá]rio contrib|sal\. contrib|dep\. ?ir|dependente|banco|ag[eê]ncia|conta|cnpj|cpf|admiss|cargo|fun[cç][aã]o|matr[ií]cula|p[aá]gina|mensagem|declaro|assinatura/i;
 const psNum=x=>{const n=parseFloat(String(x).replace(/\./g,"").replace(",","."));return isFinite(n)?n:null};
 const psR=x=>Math.round(x*100)/100;const r2=psR;
 const PS_M=/\d{1,3}(?:\.\d{3})+,\d{2}|\d+,\d{2}/g;
-const PS_LAB={g:/total\s*(?:de\s*)?(?:vencimentos|proventos|cr[eé]ditos|vencto)|sal[aá]rio\s*bruto|total\s*bruto|valor\s*bruto|bruto\s*total/i,d:/total\s*(?:de\s*)?(?:descontos|d[eé]bitos)|descontos\s*totais/i,n:/l[ií]quido\s*(?:a\s*receber)?|valor\s*l[ií]quido|sal[aá]rio\s*l[ií]quido|total\s*l[ií]quido|l[ií]quido\s*do\s*m[eê]s|valor\s*a\s*receber|a\s*receber/i};
+const PS_LAB={g:/total\s*(?:d[eoa]s?\s*)?(?:vencimentos|proventos|cr[eé]+ditos|vencto)|sal[aá]rio\s*bruto|total\s*bruto|valor\s*bruto|bruto\s*total/i,d:/total\s*(?:d[eoa]s?\s*)?(?:descontos|d[eé]+b[il]tos)|descontos\s*totais/i,n:/l[ií]quido\s*(?:a\s*receber)?|valor\s*l[ií]quido|sal[aá]rio\s*l[ií]quido|total\s*l[ií]quido|l[ií]quido\s*do\s*m[eê]s|valor\s*a\s*receber|a\s*receber/i};
 
 /* L (opcional): linhas vindas do PDF com a coluna de cada valor (p = vencimento, d = desconto) */
-function parsePayslip(t,L){const text=String(t).replace(/\u00a0/g," ");const lines=L?L.map(x=>x.s):text.split(/\r?\n/).map(l=>l.replace(/\s+/g," ").trim()).filter(Boolean);const M=PS_M;
+/* corrige números que o reconhecimento de imagem separa: "988 07", "5 .233,59", "8.47555" */
+const psFix=l=>l.replace(/(\d)\s+\.\s*(\d{3})/g,"$1.$2").replace(/(\d)\.\s+(\d{3})/g,"$1.$2").replace(/(\d),\s+(\d{2})\b/g,"$1,$2").replace(/\b(\d{1,3})\.(\d{3})(\d{2})\b/g,"$1.$2,$3").replace(/(^|\s)(\d{1,3}(?:\.\d{3})*)\s(\d{2})$/,"$1$2,$3");
+function parsePayslip(t,L){const text=String(t).replace(/\u00a0/g," ");const lines=L?L.map(x=>x.s):text.split(/\r?\n/).map(l=>psFix(l.replace(/\s+/g," ").trim())).filter(Boolean);const M=PS_M;
+ // seções "Proventos" / "Débitos": o que vem embaixo de cada título é daquele tipo
+ let sec=null,secSeen=false;const secOf=lines.map(l=>{if(/^(?:\W*)(?:d[eé]+b[il]tos?(?:\(s\))?|descontos)\b/i.test(l)&&!PS_M.test(l)){sec="d";secSeen=true}else if(/^(?:\W*)(?:proventos?(?:\(s\))?|vencimentos|cr[eé]+ditos?(?:\(s\))?)\b/i.test(l)&&!PS_M.test(l)){sec="p";secSeen=true}PS_M.lastIndex=0;const r=sec;if(/^\W*total/i.test(l))sec=secSeen?"x":null;return r});
  const nums=l=>(l.match(M)||[]).map(psNum);
  const find=k=>{const re=PS_LAB[k];for(let i=0;i<lines.length;i++){const l=lines[i];const m=re.exec(l);if(!m)continue;
    const after=l.slice(m.index+m[0].length);const vs=nums(after.split(/total|l[ií]quido|bruto/i)[0]);if(vs.length)return vs[0];
@@ -3316,10 +3320,13 @@ function parsePayslip(t,L){const text=String(t).replace(/\u00a0/g," ");const lin
    const labs=Object.values(PS_LAB).map(r=>{const x=r.exec(l);return x?x.index:-1}).filter(x=>x>=0).sort((a,b)=>a-b);const ord=labs.indexOf(m.index);
    for(let j=i+1;j<Math.min(lines.length,i+3);j++){const nv=nums(lines[j]);if(!nv.length)continue;if(nv.length>=labs.length&&ord>=0)return nv[nv.length-labs.length+ord];if(labs.length===1)return nv[nv.length-1];break}}return null};
  let gross=find("g"),ded=find("d"),net=find("n");
- const items=[];lines.forEach((l,i)=>{if(/total|l[ií]quido|bruto|a receber/i.test(l)||PS_SKIP.test(l))return;const vs=l.match(M);if(!vs)return;let desc=l.replace(M,"").replace(/^\s*\d{1,5}\s+/,"").replace(/\s{2,}/g," ").replace(/[|:;*]+/g," ").replace(/\b\d+(?:[.,]\d+)?\s*%?\s*$/,"").trim();if(!desc||desc.length<3||!/[a-zà-ú]{3}/i.test(desc.replace(/[.\s]/g,"")))return;
+ const items=[];let pend="";lines.forEach((l,i)=>{if(/total|l[ií]quido|bruto|a receber/i.test(l)||PS_SKIP.test(l)){pend="";return}const vs=l.match(M);
+  // nome do desconto quebrado em duas linhas ("SEGURO DE VIDA EM" / "GRUPO 14,79")
+  if(!vs){pend=!L&&secOf[i]&&secOf[i]!=="x"&&/^[A-ZÀ-Ú0-9][A-ZÀ-Ú0-9 .\-\/]{3,}$/.test(l)&&!/ref\.|valor/i.test(l)?l.replace(/^\d{1,5}\.?\s+/,""):"";return}
+  let desc=l.replace(M,"").replace(/^\s*\d{1,5}\.?\s+/,"").replace(/^(?:[a-z]{1,2}\s+)+/,"").replace(/\s{2,}/g," ").replace(/[|:;*]+/g," ").replace(/\b\d+(?:[.,]\d+)?\s*%?\s*$/,"").trim();if(pend&&!/^\d/.test(l)){desc=(pend+" "+desc).trim()}else if(pend&&desc.split(" ").length<=2&&/^[A-ZÀ-Ú]/.test(desc)){desc=(pend+" "+desc).trim()}pend="";if(!desc||desc.length<3||!/[a-zà-ú]{3}/i.test(desc.replace(/[.\s]/g,"")))return;
   const tk=L&&L[i]&&L[i].toks?L[i].toks.filter(x=>x.c):[];
   if(tk.length){tk.forEach(x=>{if(x.v>0)items.push({n:desc.slice(0,40),v:x.v,t:x.c})});return}
-  const val=psNum(vs[vs.length-1]);if(!val||val<=0)return;items.push({n:desc.slice(0,40),v:val,t:PS_DED.test(desc)?"d":"p"})});
+  const sc=L?null:secOf[i];if(sc==="x")return;const val=psNum(vs[vs.length-1]);if(!val||val<=0)return;items.push({n:desc.slice(0,40),v:val,t:sc||(PS_DED.test(desc)?"d":"p")})});
  const sp=psR(items.filter(x=>x.t==="p").reduce((s,x)=>s+x.v,0)),sd=psR(items.filter(x=>x.t==="d").reduce((s,x)=>s+x.v,0));
  if(gross==null&&sp)gross=sp;if(ded==null&&sd)ded=sd;
  const fit=(g,d,n)=>g!=null&&d!=null&&n!=null&&Math.abs(g-d-n)<=.05;
@@ -3328,7 +3335,9 @@ function parsePayslip(t,L){const text=String(t).replace(/\u00a0/g," ");const lin
   for(const A of all)for(const C of all){if(C>=A)continue;const B=psR(A-C);if(B<=0||!has(B))continue;
    let sc=0;if(gross!=null&&Math.abs(A-gross)<.01)sc+=3;if(net!=null&&Math.abs(C-net)<.01)sc+=3;if(ded!=null&&Math.abs(B-ded)<.01)sc+=3;if(sd&&Math.abs(B-sd)<.02)sc+=3;if(sp&&Math.abs(A-sp)<.02)sc+=3;if(C>B)sc+=1;
    if(!best||sc>best.sc||(sc===best.sc&&A>best.A))best={A,B,C,sc}}
-  if(best&&(best.sc>=3||(gross==null&&ded==null&&net==null))){gross=best.A;ded=best.B;net=best.C}}
+  if(best&&(best.sc>=3||(gross==null&&ded==null&&net==null))){gross=best.A;ded=best.B;net=best.C}
+  else if(gross!=null&&ded!=null&&net!=null){ // os três foram lidos mas não fecham: fica com a combinação mais perto da soma dos itens
+   const cs=[[gross,ded,psR(gross-ded)],[gross,psR(gross-net),net],[psR(net+ded),ded,net]].filter(c=>c.every(x=>x>0));const sc=c=>(sp?Math.abs(c[0]-sp):0)+(sd?Math.abs(c[1]-sd):0);cs.sort((a,b)=>sc(a)-sc(b));if(cs[0])[gross,ded,net]=cs[0]}}
  if(net==null&&gross!=null&&ded!=null)net=psR(gross-ded);if(ded==null&&gross!=null&&net!=null)ded=psR(gross-net);if(gross==null&&net!=null&&ded!=null)gross=psR(net+ded);
  let comp=null;const mm=/(janeiro|fevereiro|mar[cç]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s*(?:\/|de)?\s*(\d{4})/i.exec(lines.join("\n"))||/(?:compet[eê]ncia|refer[eê]ncia|per[ií]odo|m[eê]s)\D{0,15}(\d{2})\s*\/\s*(\d{4})/i.exec(lines.join("\n"));
  if(mm){const MN=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];const mi=isNaN(+mm[1])?MN.indexOf(mm[1].toLowerCase().replace("marco","março"))+1:+mm[1];if(mi>0&&mi<13)comp=mm[2]+"-"+String(mi).padStart(2,"0")}
@@ -3351,7 +3360,7 @@ async function psPdf(file,password){const lib=await pdfLib();const data=new Uint
 let TESS=null;
 function tessLib(){if(TESS)return TESS;TESS=new Promise((ok,ko)=>{if(window.Tesseract)return ok(window.Tesseract);const sc=document.createElement("script");sc.src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";sc.onload=()=>ok(window.Tesseract);sc.onerror=()=>{TESS=null;ko(new Error("ocr"))};document.head.appendChild(sc)});return TESS}
 async function psOcr(doc){const T=await tessLib();const w=await T.createWorker("por");let out="";
- try{for(let pn=1;pn<=Math.min(doc.numPages,3);pn++){const pg=await doc.getPage(pn);const vp=pg.getViewport({scale:2.5});const cv=document.createElement("canvas");cv.width=vp.width;cv.height=vp.height;await pg.render({canvasContext:cv.getContext("2d"),viewport:vp}).promise;const r=await w.recognize(cv);out+=r.data.text+"\n"}}finally{try{await w.terminate()}catch(e){}}
+ try{for(let pn=1;pn<=Math.min(doc.numPages,3);pn++){const pg=await doc.getPage(pn);const v1=pg.getViewport({scale:1});const vp=pg.getViewport({scale:Math.min(2.5,Math.sqrt(12e6/(v1.width*v1.height)))});const cv=document.createElement("canvas");cv.width=vp.width;cv.height=vp.height;await pg.render({canvasContext:cv.getContext("2d"),viewport:vp}).promise;const r=await w.recognize(cv);out+=r.data.text+"\n"}}finally{try{await w.terminate()}catch(e){}}
  return out}
 function paySummary(p,v){const g=+p.gross||0,d=+p.ded||0,n=+v||+p.net||0;const ds=(p.items||[]).filter(x=>x.t==="d");
  return `<div class="card flat stack-s" style="gap:6px"><div class="row between small"><span>Salário bruto</span><b class="num">${brl(g)}</b></div><div class="row between small"><span>Descontos${g?` (${Math.round(d/g*100)}%)`:""}</span><b class="num" style="color:var(--bad)">− ${brl(d)}</b></div>${ds.length?`<div class="stack-s" style="gap:2px;padding-left:10px">${ds.map(x=>`<div class="row between tiny muted"><span>${esc(x.n)}</span><span class="num">${brl(x.v)}</span></div>`).join("")}</div>`:""}<div class="row between small" style="border-top:1px solid var(--line);padding-top:6px"><b>Líquido</b><b class="num" style="color:var(--good)">${brl(n)}</b></div></div>`}

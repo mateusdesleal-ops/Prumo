@@ -2834,7 +2834,7 @@ function viewPig(){
 
 /* ---------- Finanças ---------- */
 function viewFin(){
- let sub=[["mes","Mês"],["contas","Contas"],["cartoes","Cartões"],["plano","Plano"],["fixos","Fixos"],["dividas","Dívidas"],["comprar","Posso comprar?"],["orc","Orçamentos"],["aprender","Aprender"]];
+ let sub=[["mes","Mês"],["contas","Meu dinheiro"],["cartoes","Cartões"],["plano","Plano"],["fixos","Fixos"],["dividas","Dívidas"],["comprar","Posso comprar?"],["orc","Orçamentos"],["aprender","Aprender"]];
  if(TEAM)sub=sub.filter(([id])=>id==="orc"?teamHas("quotes"):teamHas("fin")&&id!=="comprar"&&id!=="plano"&&id!=="contas");if(!sub.some(x=>x[0]===UI.fin))UI.fin=sub[0][0];
  return `<div class="stack"><div class="row between" style="margin-top:4px"><h1>${TEAM&&!teamHas("fin")?"Orçamentos":"Finanças"}</h1>${finLockOn()?`<button class="btn ghost sm" data-act="finLockNow" title="Trancar as finanças">${LOCK_ICO} Trancar</button>`:""}</div>${sub.length>1?"":"<!--"}
  <div class="subtabs" role="tablist">${sub.map(([id,n])=>`<button class="${UI.fin===id?"on":""}" data-act="fin" data-v="${id}">${n}</button>`).join("")}</div>${sub.length>1?"":"-->"}
@@ -3141,7 +3141,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.80</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.81</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -4677,26 +4677,26 @@ function accAgo(d){if(!d)return"";const n=Math.round((parseDate(today())-parseDa
 function finAccounts(){const L=accList();const tot=accTotal();const bills=accOpenBills();const by={livre:0,guardado:0,investido:0};L.forEach(a=>by[(ACC_T[a.type]||ACC_T.outro).g]+=(+a.balance||0));
  const old=L.filter(a=>a.updated&&(parseDate(today())-parseDate(a.updated))/864e5>30).length;const res=L.filter(a=>a.reserve).reduce((s,a)=>s+(+a.balance||0),0);
  return `<div class="stack">${scopeBanner()}
- <div class="card stack"><span class="tiny muted">Seu dinheiro hoje, somando todas as contas</span><b class="num" style="font-size:32px;letter-spacing:-1px;color:${tot<0?"var(--bad)":"inherit"}">${brl(tot)}</b>
+ <div class="card stack"><span class="tiny muted">Seu dinheiro hoje, somando tudo</span><b class="num" style="font-size:32px;letter-spacing:-1px;color:${tot<0?"var(--bad)":"inherit"}">${brl(tot)}</b>
   ${tot>0?`<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--surface2)">${Object.entries(by).filter(([,v])=>v>0).map(([g,v])=>`<span style="width:${v/tot*100}%;background:${ACC_GROUPS[g][1]}"></span>`).join("")}</div>
   <div class="row wrap small" style="gap:6px 14px">${Object.entries(by).filter(([,v])=>v).map(([g,v])=>`<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${ACC_GROUPS[g][1]};margin-right:5px"></span>${ACC_GROUPS[g][0]} <b class="num">${brl0(v)}</b></span>`).join("")}</div>`:""}
   ${bills>0?`<div class="row between small" style="background:var(--surface2);border-radius:12px;padding:8px 12px"><span>Depois de pagar as faturas abertas (${brl0(bills)})</span><b class="num" style="color:${tot-bills<0?"var(--bad)":"var(--good)"}">${brl0(tot-bills)}</b></div>`:""}
-  ${res>0?`<span class="tiny muted">Reserva de emergência: ${brl0(res)} (contas marcadas como reserva).</span>`:""}
-  ${old?`<span class="tiny" style="color:var(--warn)">${old} conta${old>1?"s":""} sem atualizar há mais de 30 dias.</span>`:""}</div>
- <div class="section"><div class="label">Minhas contas</div>
+  ${res>0?`<span class="tiny muted">Reserva de emergência: ${brl0(res)} (marcados como reserva).</span>`:""}
+  ${old?`<span class="tiny" style="color:var(--warn)">${old} ${old>1?"saldos":"saldo"} sem atualizar há mais de 30 dias.</span>`:""}</div>
+ <div class="section"><div class="label">Onde está guardado</div>
  ${L.length?`<div class="card plist">${L.map(a=>{const t=ACC_T[a.type]||ACC_T.outro;return `<button class="prow" data-act="accEdit" data-v="${a.id}"><span class="prow-ic" aria-hidden="true" style="font-size:18px">${t.i}</span><span class="grow stack-s" style="gap:1px;min-width:0"><b>${esc(a.name)}</b><span class="tiny muted">${t.n}${a.reserve?" · reserva":""}${a.updated?" · "+accAgo(a.updated):""}</span></span><b class="num small" style="flex:none;color:${(+a.balance||0)<0?"var(--bad)":"inherit"}">${brl(+a.balance||0)}</b>${pChev()}</button>`}).join("")}</div>`
-  :`<div class="card stack"><p style="margin:0"><b>Onde está o seu dinheiro?</b></p><p class="small muted" style="margin:0">Cadastre as contas, caixinhas, poupança e investimentos com o saldo de cada um. O Prumo soma tudo e mostra quanto você tem de verdade, separando o que está disponível, guardado e investido.</p></div>`}
- <button class="btn block" data-act="accNew">+ Adicionar conta ou investimento</button></div>
+  :`<div class="card stack"><p style="margin:0"><b>Onde está o seu dinheiro?</b></p><p class="small muted" style="margin:0">Cadastre os bancos, caixinhas, poupança e investimentos com o saldo de cada um. O Prumo soma tudo e mostra quanto você tem de verdade, separando o que está disponível, guardado e investido.</p></div>`}
+ <button class="btn block" data-act="accNew">+ Adicionar onde guardo dinheiro</button></div>
  <p class="tiny muted" style="margin:0;text-align:center">Os saldos são os que você informa. Atualize de vez em quando olhando o app do banco.</p></div>`}
 function accForm(a){a=a||{};const ed=!!a.id;UI.accType=a.type||"corrente";
- openModal(ed?"Editar conta":"Nova conta",`<div class="stack">
+ openModal(ed?"Editar":"Onde guardo dinheiro",`<div class="stack">
  ${ed?"":`<div class="chips" style="flex-wrap:wrap">${ACC_BANKS.map(b=>`<button type="button" class="chip" data-act="accBank" data-v="${esc(b)}">${esc(b)}</button>`).join("")}</div>`}
  <label class="field"><span>Nome</span><input id="ac_name" value="${esc(a.name||"")}" placeholder="Ex.: Nubank, Caixinha viagem, Tesouro Selic"></label>
  <label class="field"><span>Tipo</span><select id="ac_type">${ACC_TYPES.map(([id,n,i])=>`<option value="${id}" ${UI.accType===id?"selected":""}>${i} ${n}</option>`).join("")}</select></label>
  <label class="field"><span>Saldo atual</span><input id="ac_bal" inputmode="decimal" value="${a.balance!=null?String(a.balance).replace(".",","):""}" placeholder="0,00" style="font-size:20px;font-weight:700"><span class="tiny muted">Se estiver no negativo (cheque especial), coloque um "-" na frente.</span></label>
  <label class="check"><input type="checkbox" id="ac_res" ${a.reserve?"checked":""}><span><b>Faz parte da minha reserva de emergência</b><br><span class="small muted">O diagnóstico financeiro passa a usar esse saldo como reserva.</span></span></label>
  <button class="btn block" data-act="accSave" data-v="${a.id||""}">${ed?"Salvar":"Adicionar"}</button>
- ${ed?`<button class="btn danger sm" data-act="askDel" style="align-self:flex-start">Apagar conta</button>${confirmBox("accDel","Apagar esta conta do Prumo? (No banco nada muda.)")}`:""}</div>`)}
+ ${ed?`<button class="btn danger sm" data-act="askDel" style="align-self:flex-start">Apagar</button>${confirmBox("accDel","Tirar este item do Prumo? (No banco nada muda.)")}`:""}</div>`)}
 Object.assign(A,{
  accNew:()=>accForm(),
  accEdit:el=>accForm((meta().accounts||{})[el.dataset.v]),
@@ -4704,11 +4704,11 @@ Object.assign(A,{
  accSave:el=>{const name=v("ac_name").trim();if(!name){toast("Dê um nome para a conta.");return}const raw=v("ac_bal").trim();const neg=/^-/.test(raw);const bal=(parseMoney(raw.replace(/^-/,""))||0)*(neg?-1:1);
   const id=el.dataset.v||rid();const old=(meta().accounts||{})[id]||{};
   finPatch("meta",{accounts:{[id]:{id,name,type:v("ac_type"),balance:Math.round(bal*100)/100,reserve:$("#ac_res").checked,updated:(old.balance!==Math.round(bal*100)/100||!old.updated)?today():old.updated,by:old.by||ME.uid,created:old.created||today()}}});
-  markActive();saveApp();closeModal();toast(old.id?"Conta atualizada.":`${name} adicionada.`)},
- accDelYes:()=>{const id=document.querySelector('[data-act="accSave"]').dataset.v;finPatch("meta",{accounts:{[id]:null}});saveApp();closeModal();toast("Conta apagada.")}
+  markActive();saveApp();closeModal();toast(old.id?"Saldo atualizado.":`${name} adicionado.`)},
+ accDelYes:()=>{const id=document.querySelector('[data-act="accSave"]').dataset.v;finPatch("meta",{accounts:{[id]:null}});saveApp();closeModal();toast("Removido do Meu dinheiro.")}
 });
-function accMini(){const L=accList();if(!L.length)return`<button class="row between small" data-act="fin" data-v="contas" style="width:100%;border:1px dashed var(--line);background:none;border-radius:12px;padding:8px 12px;color:inherit;font:inherit;cursor:pointer"><span>Onde está seu dinheiro? Cadastre suas contas e investimentos</span>${pChev()}</button>`;
- return `<button class="row between small" data-act="fin" data-v="contas" style="width:100%;border:0;background:var(--surface2);border-radius:12px;padding:8px 12px;color:inherit;font:inherit;cursor:pointer;text-align:left"><span>Dinheiro nas contas</span><span class="row" style="gap:6px"><b class="num">${brl0(accTotal())}</b>${pChev()}</span></button>`}
+function accMini(){const L=accList();if(!L.length)return`<button class="row between small" data-act="fin" data-v="contas" style="width:100%;border:1px dashed var(--line);background:none;border-radius:12px;padding:8px 12px;color:inherit;font:inherit;cursor:pointer"><span>Onde está seu dinheiro? Cadastre bancos e investimentos</span>${pChev()}</button>`;
+ return `<button class="row between small" data-act="fin" data-v="contas" style="width:100%;border:0;background:var(--surface2);border-radius:12px;padding:8px 12px;color:inherit;font:inherit;cursor:pointer;text-align:left"><span>Meu dinheiro hoje</span><span class="row" style="gap:6px"><b class="num">${brl0(accTotal())}</b>${pChev()}</span></button>`}
 Object.assign(A,{
  letterOpen:()=>letterModal(),
  letterOk:()=>{S.profile.letterSeen=today();closeModal();commit()},

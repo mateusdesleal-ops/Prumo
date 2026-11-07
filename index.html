@@ -3144,7 +3144,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.89</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.90</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -6594,7 +6594,7 @@ function vqNotifyPaid(tid,r,u,actorIsU){const who=u===ME.uid?myNick():(typeof tN
 
 /* ---------- Perfil: Notificações (estado + passo a passo) ---------- */
 const isAndroid=()=>/Android/i.test(navigator.userAgent);
-const NATIVE_PN=()=>window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()&&window.Capacitor.Plugins&&window.Capacitor.Plugins.PushNotifications;
+const NATIVE_PN=()=>{const C=window.Capacitor;if(!C||!C.Plugins||!C.Plugins.PushNotifications)return null;const pl=C.getPlatform?C.getPlatform():"";return pl&&pl!=="web"?C.Plugins.PushNotifications:null};
 async function pushState(){const npn=NATIVE_PN();if(npn){try{const p=await npn.checkPermissions();return p.receive==="granted"?"on":p.receive==="denied"?"denied":"off"}catch(e){return"off"}}if(!pushOK())return"nosupport";if(isIOS()&&!isStandalone())return"ios-install";
  const p=Notification.permission;if(p==="denied")return"denied";if(p!=="granted")return"off";
  try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();return sub?"on":"off"}catch(e){return"off"}}

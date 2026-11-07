@@ -3145,7 +3145,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.83</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.84</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -5235,8 +5235,11 @@ function scheduleNative(){const ln=LN();if(!ln)return;clearTimeout(lnTimer);lnTi
  const list=[];let nid=1;const now=Date.now();
  for(let i=0;i<45&&list.length<60;i++){const d=addDays(today(),i);for(const e of eventsOn(d)){if(!e.time)continue;const [h,m]=e.time.split(":").map(Number);const at=parseDate(d);at.setHours(h,m,0,0);const when=new Date(at.getTime()-(+e.remind||0)*60000);if(when.getTime()>now)list.push({id:nid++,title:e.title,body:(e.remind>0?"Em "+e.remind+" min · ":"Agora · ")+e.time+(e.place?" · "+e.place:""),schedule:{at:when}})}}
  const water=waterSlots().slice(0,20).map((t,i)=>({id:5000+i,title:"Hora de beber água",body:"Um copo agora ajuda a bater sua meta do dia.",schedule:{on:{hour:Math.floor(t/60),minute:t%60},repeats:true}}));
- const all=[...water,...list.slice(0,Math.max(0,62-water.length))];
+ const meds=[];if(typeof medDoses==="function")for(let i=0;i<10&&meds.length<30;i++){const d=addDays(today(),i);for(const x of medDoses(d)){if(x.m.notify===false||(i===0&&x.done))continue;const [h,m]=x.t.split(":").map(Number);const at=parseDate(d);at.setHours(h,m,0,0);if(at.getTime()<=now)continue;meds.push({id:3000+meds.length,title:`💊 Hora do remédio: ${x.m.name}${medDoseTxt(x.m)?" "+medDoseTxt(x.m):""}`,body:`${medQtyTxt(x.m)}${x.m.notes?" · "+x.m.notes:""}`,schedule:{at},extra:{go:"meds"}});if(meds.length>=30)break}}
+ const all=[...meds,...water.slice(0,Math.max(0,62-meds.length)),...list].slice(0,62);
  if(all.length)await ln.schedule({notifications:all})}catch(e){console.warn(e)}},800)}
+if(LN()){try{const _sa=saveApp;saveApp=function(){_sa.apply(this,arguments);scheduleNative()};setTimeout(scheduleNative,3000);
+ LN().addListener("localNotificationActionPerformed",ev=>{try{const ex=ev&&ev.notification&&ev.notification.extra;if(ex&&ex.go==="meds"){closeModal();UI.tab="ex";UI.ex="remed";render()}}catch(e){}})}catch(e){}}
 A.deleteAccount=()=>openModal("Excluir minha conta",`<div class="stack"><p>Isto apaga sua conta e todos os seus dados do Prumo: perfil, finanças pessoais, estudos, exercícios, alimentação, agenda e porquinho. Finanças compartilhadas continuam com a outra pessoa. Não dá para desfazer.</p><button class="btn danger block" data-act="deleteAccountGo">Excluir minha conta</button><button class="btn ghost" data-act="closeModal">Cancelar</button></div>`);
 A.deleteAccountGo=async()=>{try{if(S.profile.household){await Store.db.doc(`households/${S.profile.household}`).update({members:{[ME.uid]:null}}).catch(()=>{});await hhLeave(S.profile.household)}
  const {error}=await sb.rpc("delete_my_account");if(error)throw error;try{localStorage.clear()}catch(e){}await sb.auth.signOut().catch(()=>{});location.reload()}catch(e){toast("Não foi possível excluir agora. Tente de novo com internet.")}};

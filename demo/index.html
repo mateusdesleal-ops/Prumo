@@ -3145,7 +3145,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.86</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.87</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -6594,12 +6594,16 @@ function vqNotifyPaid(tid,r,u,actorIsU){const who=u===ME.uid?myNick():(typeof tN
 
 /* ---------- Perfil: Notificações (estado + passo a passo) ---------- */
 const isAndroid=()=>/Android/i.test(navigator.userAgent);
-async function pushState(){if(!pushOK())return"nosupport";if(isIOS()&&!isStandalone())return"ios-install";
+const NATIVE_PN=()=>window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()&&window.Capacitor.Plugins&&window.Capacitor.Plugins.PushNotifications;
+async function pushState(){const npn=NATIVE_PN();if(npn){try{const p=await npn.checkPermissions();return p.receive==="granted"?"on":p.receive==="denied"?"denied":"off"}catch(e){return"off"}}if(!pushOK())return"nosupport";if(isIOS()&&!isStandalone())return"ios-install";
  const p=Notification.permission;if(p==="denied")return"denied";if(p!=="granted")return"off";
  try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();return sub?"on":"off"}catch(e){return"off"}}
 let PUSHST=null;function pushStRefresh(){pushState().then(st=>{if(st!==PUSHST){PUSHST=st;if(UI.tab==="profile")render()}})}
 const GUIDE_IMG={ios:"img/notificacoes-iphone.jpg",android:"img/notificacoes-android.jpg"};
-async function notifGuide(){const st=await pushState();PUSHST=st;const plat=isIOS()?"ios":isAndroid()?"android":"pc";
+async function notifGuide(){if(NATIVE_PN()){const st=await pushState();PUSHST=st;
+ openModal("Notificações",`<div class="stack">${st==="on"?`<div class="banner info"><span><b>Notificações ligadas neste iPhone.</b> Você recebe lembretes de remédios, agenda e água, e os avisos de equipe, vaquinha e desafios, mesmo com o app fechado.</span></div>`:st==="denied"?`<div class="banner warn"><span><b>As notificações estão desligadas.</b> Para ligar, abra os <b>Ajustes</b> do iPhone → <b>Notificações</b> → <b>Prumo</b> e ative <b>Permitir Notificações</b>.</span></div>`:`<p>Ative as notificações para receber lembretes e avisos mesmo com o app fechado.</p><button class="btn block" data-act="nativePushOn">Ativar notificações</button>`}
+ <div class="card flat stack-s"><b class="small">Não está tocando som?</b><p class="small" style="margin:0">· Confira se o iPhone não está no <b>modo silencioso</b> (chave ou botão na lateral).</p><p class="small" style="margin:0">· Desligue o <b>Foco</b> (Não perturbe, Pessoal, Trabalho…) ou adicione o Prumo aos apps permitidos em Ajustes → Foco.</p><p class="small" style="margin:0">· Em Ajustes → <b>Sons e Tátil</b>, aumente o volume de <b>Toque e Alertas</b>.</p><p class="small" style="margin:0">· Em Ajustes → Notificações → Prumo, deixe <b>Sons</b> ligado.</p></div>
+ <button class="btn ghost block" data-act="closeModal">Fechar</button></div>`);return}const st=await pushState();PUSHST=st;const plat=isIOS()?"ios":isAndroid()?"android":"pc";
  const img=k=>`<img src="${GUIDE_IMG[k]}" alt="Passo a passo" style="width:100%;border-radius:16px;display:block" loading="lazy">`;
  const head={on:["good","Ligadas neste aparelho ✓","Você vai receber os avisos das equipes, vaquinhas e desafios, mesmo com o app fechado."],
   off:["warn","Desligadas neste aparelho","Toque no botão abaixo e depois em Permitir."],
@@ -6627,6 +6631,7 @@ async function notifGuide(){const st=await pushState();PUSHST=st;const plat=isIO
  ${plat!=="ios"&&st!=="ios-install"?`<button class="linkbtn tiny" data-act="notifOther" data-v="${plat==="android"?"ios":"android"}" style="border:0;background:none;color:var(--pig-deep)">Ver o passo a passo para ${plat==="android"?"iPhone":"Android"}</button>`:`<button class="linkbtn tiny" data-act="notifOther" data-v="android" style="border:0;background:none;color:var(--pig-deep)">Ver o passo a passo para Android</button>`}
  </div>`)}
 A.notifGuide=()=>notifGuide();
+A.nativePushOn=async()=>{const n=NATIVE_PN();if(!n)return;try{let p=await n.requestPermissions();if(p.receive==="granted"){await n.register();toast("Notificações ativadas! 🐷")}else toast("Para ligar, abra Ajustes → Notificações → Prumo.",5000)}catch(e){}PUSHST=null;closeModal();render()};
 A.notifOther=el=>{const k=el.dataset.v;openModal(k==="ios"?"Instalar no iPhone":"Instalar no Android",`<div class="stack"><img src="${GUIDE_IMG[k]}" alt="Passo a passo" style="width:100%;border-radius:16px;display:block"><button class="btn ghost block" data-act="notifGuide">Voltar</button></div>`)};
 A.notifTurnOn=async()=>{if(isIOS()&&!isStandalone()){notifGuide();return}const ok=await pushSubscribe(true);PUSHST=null;
  toast(ok?"Notificações ativadas! 🐷":Notification.permission==="denied"?"Ficou bloqueado. Veja como liberar logo abaixo.":"Não consegui ativar agora. Tente de novo.",4500);notifGuide();pushStRefresh()};
@@ -6643,7 +6648,7 @@ const INSK="prumo.instAsk";
 function insGet(){try{return JSON.parse(localStorage.getItem(INSK)||"{}")}catch(e){return{}}}
 function insSet(o){try{localStorage.setItem(INSK,JSON.stringify(Object.assign(insGet(),o)))}catch(e){}}
 const isMobile=()=>isIOS()||isAndroid();
-function insNeeded(st){if(Store.demo||!Store.cloud||!S.profile.created)return false;if(st==="on"||st==="nosupport")return false;if(!isMobile()&&st==="denied")return false;return true}
+function insNeeded(st){if(typeof NATIVE_PN==="function"&&NATIVE_PN())return false;if(Store.demo||!Store.cloud||!S.profile.created)return false;if(st==="on"||st==="nosupport")return false;if(!isMobile()&&st==="denied")return false;return true}
 function insBody(st,compact){const plat=isIOS()?"ios":isAndroid()?"android":"pc";const inst=isStandalone();
  const step=inst||plat==="pc"?`<p class="small">Falta só um toque: ative as notificações e pronto.</p>`:`<p class="small">${plat==="ios"?"No iPhone, as notificações só funcionam com o Prumo instalado na tela de início.":"Instalado, ele abre como app, em tela cheia, e os avisos chegam mesmo com ele fechado."} Leva 1 minuto:</p><img src="${GUIDE_IMG[plat]}" alt="Passo a passo para instalar o Prumo" style="width:100%;border-radius:16px;display:block" loading="lazy">`;
  return step}

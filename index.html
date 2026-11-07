@@ -421,7 +421,7 @@ const DOW=["dom","seg","ter","qua","qui","sex","sáb"];
 const monthLabel=k=>{const [y,m]=k.split("-").map(Number);return MONTHS[m-1]+" "+y};
 const shiftMonth=(k,n)=>{const [y,m]=k.split("-").map(Number);const d=new Date(y,m-1+n,1);return d.getFullYear()+"-"+pad(d.getMonth()+1)};
 const dayLabel=s=>{if(s===today())return "Hoje";if(s===addDays(today(),-1))return "Ontem";const d=parseDate(s);return DOW[d.getDay()]+", "+d.getDate()+" de "+MONTHS[d.getMonth()]};
-const parseMoney=v=>{if(typeof v==="number")return v;v=String(v||"").trim().replace(/[R$\s]/g,"");if(!v)return 0;if(v.includes(",")){v=v.replace(/\./g,"").replace(",",".")}return Math.max(0,parseFloat(v)||0)};
+const parseMoney=v=>{if(typeof v==="number")return v;v=String(v||"").trim().replace(/[R$\s]/g,"");if(!v)return 0;if(v.includes(",")){v=v.replace(/\./g,"").replace(",",".")}else if(/^\d{1,3}(\.\d{3})+$/.test(v))v=v.replace(/\./g,"");return Math.max(0,parseFloat(v)||0)};
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const vals=o=>Object.values(o||{}).filter(Boolean);
 const isObj=v=>v&&typeof v==="object"&&!Array.isArray(v);
@@ -734,7 +734,7 @@ function debts(){const m=meta();const ds=Object.entries(m.debts||{}).filter(([,v
  const paid={};for(const k of allMonths())for(const e of monthData(k).expenses)if(e.cat==="divida"&&e.debtId)paid[e.debtId]=(paid[e.debtId]||0)+(+e.v||0);
  return ds.map(d=>({...d,paid:paid[d.id]||0,left:Math.max(0,(+d.balance||0)-(paid[d.id]||0))}))}
 function catTotal(cat){let t=0;for(const k of allMonths())for(const e of monthData(k).expenses)if(e.cat===cat)t+=+e.v||0;return t}
-function reserveNow(){return (+meta().reserveStart||0)+catTotal("reserva")}
+function reserveNow(){const ac=vals(meta().accounts||{}).filter(a=>a&&a.reserve);if(ac.length)return ac.reduce((s,a)=>s+(+a.balance||0),0);return (+meta().reserveStart||0)+catTotal("reserva")}
 function investNow(){return (+meta().investStart||0)+catTotal("investimento")}
 function hasExpensiveDebt(){return debts().some(d=>d.left>0&&(+d.rate||0)>2)}
 function refIncome(k){const t=totals(k,false);if(t.income>0)return t.income;
@@ -2833,11 +2833,11 @@ function viewPig(){
 
 /* ---------- Finanças ---------- */
 function viewFin(){
- let sub=[["mes","Mês"],["cartoes","Cartões"],["plano","Plano"],["fixos","Fixos"],["dividas","Dívidas"],["comprar","Posso comprar?"],["orc","Orçamentos"],["aprender","Aprender"]];
- if(TEAM)sub=sub.filter(([id])=>id==="orc"?teamHas("quotes"):teamHas("fin")&&id!=="comprar"&&id!=="plano");if(!sub.some(x=>x[0]===UI.fin))UI.fin=sub[0][0];
+ let sub=[["mes","Mês"],["contas","Contas"],["cartoes","Cartões"],["plano","Plano"],["fixos","Fixos"],["dividas","Dívidas"],["comprar","Posso comprar?"],["orc","Orçamentos"],["aprender","Aprender"]];
+ if(TEAM)sub=sub.filter(([id])=>id==="orc"?teamHas("quotes"):teamHas("fin")&&id!=="comprar"&&id!=="plano"&&id!=="contas");if(!sub.some(x=>x[0]===UI.fin))UI.fin=sub[0][0];
  return `<div class="stack"><div class="row between" style="margin-top:4px"><h1>${TEAM&&!teamHas("fin")?"Orçamentos":"Finanças"}</h1>${finLockOn()?`<button class="btn ghost sm" data-act="finLockNow" title="Trancar as finanças">${LOCK_ICO} Trancar</button>`:""}</div>${sub.length>1?"":"<!--"}
  <div class="subtabs" role="tablist">${sub.map(([id,n])=>`<button class="${UI.fin===id?"on":""}" data-act="fin" data-v="${id}">${n}</button>`).join("")}</div>${sub.length>1?"":"-->"}
- ${{mes:()=>finDiagMini()+finMonth()+pigGains("fin"),cartoes:finCards,plano:finPlan,fixos:finFixos,dividas:finDebts,comprar:finBuy,orc:finQuotes,aprender:finLearn}[UI.fin]()}</div>`}
+ ${{mes:()=>finDiagMini()+finMonth()+pigGains("fin"),contas:finAccounts,cartoes:finCards,plano:finPlan,fixos:finFixos,dividas:finDebts,comprar:finBuy,orc:finQuotes,aprender:finLearn}[UI.fin]()}</div>`}
 function scopeBanner(){if(finScope()==="t")return `<div class="banner info">${I.people.replace('<svg','<svg width="20" height="20" style="flex:none"')}<span>Finanças da equipe <b>${esc(TEAM.name)}</b>. Todos os membros veem e lançam aqui. Suas finanças pessoais continuam separadas.</span></div>
  <div class="chips">${[["all","Todos"],["me","Só eu"],["other","Outros membros"]].map(([id,n])=>`<button class="chip ${UI.filter===id?"on":""}" data-act="filter" data-v="${id}">${n}</button>`).join("")}</div>`;if(finScope()!=="h")return"";const ms=HH&&HH.members?Object.entries(HH.members).filter(([,v])=>v):[];
  const nm=ms.map(([id,m])=>id===ME.uid?"você":esc(m.nick||"parceiro")).join(" e ");
@@ -2872,6 +2872,7 @@ function finMonth(){
  <div class="row between"><button class="iconbtn" data-act="month" data-v="-1" aria-label="Mês anterior">${I.left}</button><h2 style="text-transform:capitalize">${monthLabel(k)}</h2><button class="iconbtn" data-act="month" data-v="1" aria-label="Próximo mês">${I.right}</button></div>
  <div class="card stack"><div class="grid3"><div class="stack-s"><span class="tiny muted">Renda</span><b class="num pos">${brl0(t.income)}</b></div><div class="stack-s"><span class="tiny muted">Gastos</span><b class="num">${brl0(t.spent)}</b></div><div class="stack-s"><span class="tiny muted">Saldo</span><b class="num" style="color:${t.income-t.spent>=0?"var(--good)":"var(--bad)"}">${brl0(t.income-t.spent)}</b></div></div>
   ${(()=>{const pe=t.expenses.filter(e=>expLeft(e)>0.009);if(!pe.length)return"";const left=pe.reduce((s,e)=>s+expLeft(e),0);return `<div class="row between small" style="background:var(--surface2);border-radius:12px;padding:8px 12px"><span>Já pago <b class="num">${brl0(t.spent-left)}</b></span><span>Falta pagar <b class="num" style="color:var(--bad)">${brl0(left)}</b></span></div>`})()}
+  ${finScope()==="t"?"":accMini()}
   ${budgetAlert(t)}
   ${inc?bucketBars(t.b,inc,plan,false):`<p class="small muted">Lance a renda do mês para ver quanto cabe em cada fatia.</p>`}
   <div class="grid2"><button class="btn money" data-act="addIncome">Lançar renda</button><button class="btn" data-act="addExpense">Lançar gasto</button></div>
@@ -3139,7 +3140,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.79</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.80</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -4187,14 +4188,14 @@ function normalizeRows(raw,card,k){if(!raw.length)return[];
   const isUsd=r.cur==="USD"||(card.cur==="USD"&&r.cur!=="BRL");const vv=Math.round(v*100)/100;
   // lançada à mão antes: mesmo valor e data parecida (o banco pode registrar 1 a 4 dias depois)
   let dupOf=null;if(!dup){const m=impManualMatch(pool,vv,isUsd,r.date,p);if(m)dupOf=m}
-  const isDup=dup||!!dupOf;return{date:r.date,desc:p.desc||r.desc,v:vv,usd:isUsd?vv:null,i:p.i,n:p.n,cat:dupOf&&dupOf.e.cat||guessCat(p.desc||r.desc),on:!isDup,dup:isDup,dupOf:dupOf?{id:dupOf.e.id,k:dupOf.k,desc:dupOf.e.desc,date:dupOf.e.bought||dupOf.e.date,nocard:!dupOf.e.card}:null,rep:!!rep}}).filter(Boolean)}
+  const isDup=dup||!!dupOf;return{date:r.date,desc:p.desc||r.desc,v:vv,usd:isUsd?vv:null,i:p.i,n:p.n,cat:dupOf&&dupOf.e.cat||guessCat(p.desc||r.desc),on:!isDup,dup:isDup,dupOf:dupOf?{id:dupOf.e.id,k:dupOf.k,desc:dupOf.e.desc,date:dupOf.e.bought||dupOf.e.date,nocard:!dupOf.e.card,v:dupOf.e.v,diff:dupOf.diff>0.009?dupOf.diff:0}:null,rep:!!rep}}).filter(Boolean)}
 /* gastos lançados à mão que podem ser a mesma compra da fatura */
 function impManualPool(card,k){const pool=[];for(const kk of [shiftMonth(k,-2),shiftMonth(k,-1),k,shiftMonth(k,1)])for(const e of monthData(kk).expenses){if(e.imp||e.pfc)continue;if(e.card===card.id||(!e.card&&!e.fixed&&!e.debtId&&!e.hol))pool.push({e,k:kk,used:false})}return pool}
 function impManualMatch(pool,v,isUsd,date,p){const dd=(a,b)=>Math.abs((parseDate(a)-parseDate(b))/864e5);let best=null;
- for(const x of pool){if(x.used)continue;const e=x.e;const ev=isUsd&&e.usd>0?e.usd:e.v;const same=Math.abs(ev-v)<=0.011;if(!same)continue;
+ for(const x of pool){if(x.used)continue;const e=x.e;const ev=isUsd&&e.usd>0?e.usd:e.v;const diff=Math.abs(ev-v);const tol=isUsd?Math.max(0.5,v*0.02):Math.max(2,v*0.02);if(diff>tol+0.001)continue;
   const when=e.card?(e.bought||e.date):e.date;const gap=dd(when,date);if(gap>(e.card?4:3))continue;if(e.card&&+e.n>1&&p.n>1&&(+e.i!==+p.i))continue;
-  const sc=gap+(e.card?0:2);if(!best||sc<best.sc)best={x,sc}}
- if(!best)return null;best.x.used=true;return best.x}
+  const sc=gap+(e.card?0:2)+diff*2;if(!best||sc<best.sc)best={x,sc,diff}}
+ if(!best)return null;best.x.used=true;best.x.diff=best.diff;return best.x}
 function ccImportForm(cardId){const cs=cardsList();if(!cs.length){toast("Cadastre um cartão primeiro.");cardForm();return}
  const c=cardById(cardId)||cs[0];const open=invoiceMonth(c,today());
  UI.imp={card:c.id,k:ccDefK(c),rows:null,future:true,src:"",paid:true};
@@ -4214,7 +4215,7 @@ function ccImpBody(){const im=UI.imp;const c=cardById(im.card);const cs=cardsLis
  return `<div class="row between"><span class="small"><b>${esc(c.name)}</b> · fatura que vence ${ddmm(dayIn(im.k,c.due))}</span><button class="btn ghost sm" data-act="impBack">Voltar</button></div>
  ${im.rows.length?`<p class="small muted">Encontrei ${im.rows.length} compra(s). Confira as categorias: o Prumo sugere sozinho e aprende com as suas correções.${im.rows.some(r=>r.dup)?" As que você já tinha lançado vieram desmarcadas para não duplicar.":""}${im.rows.some(r=>r.dupOf&&r.dupOf.nocard)?" Gastos lançados sem cartão que batem com a fatura passam para este cartão ao importar.":""}</p>
  ${im.rows.some(r=>r.usd>0)?`<div class="card flat stack-s" style="gap:8px"><b class="small">Compras em dólar</b><div class="grid2"><label class="field"><span>Cotação (R$ por US$)</span><input id="imp_rate" inputmode="decimal" value="${String(im.rate||usdRate()).replace(".",",")}"></label><label class="check" style="align-self:end"><input type="checkbox" id="imp_iof" ${im.iof!==false?"checked":""}><span class="small">Somar IOF 3,5%</span></label></div><span class="tiny muted">Os valores em reais são calculados com essa cotação.</span></div>`:""}
- <div class="stack-s" style="max-height:46vh;overflow:auto;margin-inline:-4px;padding-inline:4px">${im.rows.map((r,j)=>`<div class="card flat" style="padding:8px 10px;${r.on?"":"opacity:.55"}"><div class="row" style="gap:8px;align-items:flex-start"><input type="checkbox" data-imp-on="${j}" ${r.on?"checked":""} style="margin-top:4px;width:20px;height:20px;flex:none"><div class="grow stack-s" style="gap:4px;min-width:0"><div class="row between" style="gap:8px"><b class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.desc)}</b><b class="num small" style="flex:none">${brl(r.v)}</b></div><span class="tiny muted">${r.usd>0?usdFmt(r.usd)+" · ":""}${ddmm(r.date)}${r.n>1?` · parcela ${r.i}/${r.n}`:""}${r.dupOf?` · <span style="color:var(--warn)">parece ser “${esc(r.dupOf.desc)}” que você lançou em ${ddmm(r.dupOf.date)}${r.dupOf.nocard?" sem cartão":""}</span>`:r.dup?' · <span style="color:var(--warn)">já lançada</span>':r.rep?' · <span style="color:var(--warn)">repetida?</span>':""}</span><select data-imp-cat="${j}" style="min-height:34px;padding:4px 8px;font-size:13px">${CATS.map(x=>`<option value="${x.id}" ${x.id===r.cat?"selected":""}>${x.n}</option>`).join("")}</select></div></div></div>`).join("")}</div>
+ <div class="stack-s" style="max-height:46vh;overflow:auto;margin-inline:-4px;padding-inline:4px">${im.rows.map((r,j)=>`<div class="card flat" style="padding:8px 10px;${r.on?"":"opacity:.55"}"><div class="row" style="gap:8px;align-items:flex-start"><input type="checkbox" data-imp-on="${j}" ${r.on?"checked":""} style="margin-top:4px;width:20px;height:20px;flex:none"><div class="grow stack-s" style="gap:4px;min-width:0"><div class="row between" style="gap:8px"><b class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.desc)}</b><b class="num small" style="flex:none">${brl(r.v)}</b></div><span class="tiny muted">${r.usd>0?usdFmt(r.usd)+" · ":""}${ddmm(r.date)}${r.n>1?` · parcela ${r.i}/${r.n}`:""}${r.dupOf?` · <span style="color:var(--warn)">parece ser “${esc(r.dupOf.desc)}” que você lançou em ${ddmm(r.dupOf.date)}${r.dupOf.nocard?" sem cartão":""}${r.dupOf.diff?` (por ${brl(r.dupOf.v)}, diferença de ${brl(r.dupOf.diff)})`:""}</span>`:r.dup?' · <span style="color:var(--warn)">já lançada</span>':r.rep?' · <span style="color:var(--warn)">repetida?</span>':""}</span><select data-imp-cat="${j}" style="min-height:34px;padding:4px 8px;font-size:13px">${CATS.map(x=>`<option value="${x.id}" ${x.id===r.cat?"selected":""}>${x.n}</option>`).join("")}</select></div></div></div>`).join("")}</div>
  ${im.rows.some(r=>r.n>r.i)?`<label class="check"><input type="checkbox" id="imp_future" ${im.future?"checked":""}><span class="small">Lançar também as próximas parcelas nos meses seguintes (${fut} parcela(s)). Assim você já vê as faturas futuras.</span></label>`:""}
  ${dayIn(im.k,c.due)<today()?`<label class="check"><input type="checkbox" id="imp_paid" ${im.paid?"checked":""}><span class="small">Esta fatura já venceu. Marcar como paga</span></label>`:""}
  <button class="btn block" data-act="impSave" ${on.length?"":"disabled"}>Importar ${on.length} compra(s) · ${brl(tot)}</button>`
@@ -4318,9 +4319,11 @@ Object.assign(A,{
  ccPartUndo:el=>{finPatch("meta",{cardPart:{[el.dataset.v]:{[ccKey(el.dataset.k)]:null}}});saveApp();toast("Pagamento parcial desfeito.")},
  impParse:()=>{const t=v("imp_text");if(!t.trim()){toast("Cole as linhas da fatura.");return}let raw=parseText(t);if(!raw.length&&/[;,]/.test(t))raw=parseCSV(t);impLoad(raw,"text")},
  impBack:()=>{UI.imp.rows=null;impRefresh()},
- impSave:()=>{const im=UI.imp;const c=cardById(im.card);const rows=im.rows.filter(r=>r.on);const mv=im.rows.filter(r=>!r.on&&r.dupOf&&r.dupOf.nocard);if(!rows.length&&!mv.length)return;const all={};const td=today();
+ impSave:()=>{const im=UI.imp;const c=cardById(im.card);const rows=im.rows.filter(r=>r.on);const mv=im.rows.filter(r=>!r.on&&r.dupOf&&r.dupOf.nocard);if(!rows.length&&!mv.length&&!im.rows.some(r=>!r.on&&r.dupOf&&r.dupOf.diff))return;const all={};const td=today();
+  // mesma compra com centavos/reais de diferença: vale o valor que o banco cobrou
+  im.rows.filter(r=>!r.on&&r.dupOf&&!r.dupOf.nocard&&r.dupOf.diff).forEach(r=>{const e=(monthData(r.dupOf.k).expenses||[]).find(x=>x.id===r.dupOf.id);if(e&&!(+e.n>1))finPatch(mid(r.dupOf.k),{expenses:{[e.id]:{v:r.v,total:r.v}}})});
   // gasto lançado sem cartão que é a mesma compra: passa para o cartão (sai do mês e entra na fatura)
-  mv.forEach(r=>{const e=(monthData(r.dupOf.k).expenses||[]).find(x=>x.id===r.dupOf.id);if(!e)return;finPatch(mid(r.dupOf.k),{expenses:{[e.id]:null}});const ent=ccPurchaseEntries(c,{total:e.v,n:1,desc:e.desc,cat:e.cat,bought:e.date,grp:rid(),by:e.by||ME.uid,t:e.t||Date.now(),added:e.added||td,firstK:im.k});Object.keys(ent).forEach(k=>Object.assign(all[k]=all[k]||{},ent[k]))});
+  mv.forEach(r=>{const e=(monthData(r.dupOf.k).expenses||[]).find(x=>x.id===r.dupOf.id);if(!e)return;finPatch(mid(r.dupOf.k),{expenses:{[e.id]:null}});const ent=ccPurchaseEntries(c,{total:r.v,n:1,desc:e.desc,cat:e.cat,bought:e.date,grp:rid(),by:e.by||ME.uid,t:e.t||Date.now(),added:e.added||td,firstK:im.k});Object.keys(ent).forEach(k=>Object.assign(all[k]=all[k]||{},ent[k]))});
   rows.forEach(r=>{const grp=rid();const n=im.future?r.n:r.i;const total=r.v*r.n;
    const ent=ccPurchaseEntries(c,{total,n:r.n,desc:r.desc,cat:r.cat,bought:r.date,grp,by:ME.uid,t:Date.now(),added:td,startI:r.i,firstK:im.k});
    Object.keys(ent).forEach(k=>{Object.entries(ent[k]).forEach(([id,e])=>{if(e.i>n)return;e.v=r.v;e.imp=1;if(r.usd>0){e.usd=r.usd;e.rate=im.rate||usdRate()}(all[k]=all[k]||{})[id]=e})})});if(rows.some(r=>r.usd>0)&&im.rateTouched)usdSetRate(im.rate);
@@ -4661,6 +4664,50 @@ const medNotified=new Set();
 function checkMeds(){const now=new Date(),d=today();for(const x of medDoses(d)){if(x.done||x.m.notify===false)continue;const [h,mi]=x.t.split(":").map(Number);const at=parseDate(d);at.setHours(h,mi,0,0);const key=x.m.id+d+x.t;
  if(now>=at&&now<=new Date(at.getTime()+10*60000)&&!medNotified.has(key)){medNotified.add(key);beep();toast(`💊 Hora do remédio: ${x.m.name}${medDoseTxt(x.m)?" "+medDoseTxt(x.m):""} · ${medQtyTxt(x.m)}`,10000)}}}
 setInterval(()=>{try{checkMeds()}catch(e){}},20000);setTimeout(()=>{try{checkMeds()}catch(e){}},2500);
+/* ---------- Contas: onde está o dinheiro ---------- */
+const ACC_TYPES=[["corrente","Conta corrente","🏦","livre"],["caixinha","Caixinha / cofrinho","🐷","guardado"],["poupanca","Poupança","💰","guardado"],["investimento","Investimento","📈","investido"],["dinheiro","Dinheiro em espécie","💵","livre"],["beneficio","Vale-refeição / benefício","🍽️","livre"],["outro","Outro","📦","livre"]];
+const ACC_T=Object.fromEntries(ACC_TYPES.map(x=>[x[0],{n:x[1],i:x[2],g:x[3]}]));
+const ACC_GROUPS={livre:["Disponível","var(--money)"],guardado:["Guardado","var(--pig-deep)"],investido:["Investido","var(--info,#3d7bd9)"]};
+const ACC_BANKS=["Nubank","Itaú","Bradesco","Santander","Banco do Brasil","Caixa","Inter","C6 Bank","Mercado Pago","PicPay","Sicredi","Sicoob","BTG","XP","Rico","Nomad","Wise"];
+function accList(){return vals(meta().accounts||{}).filter(Boolean).sort((a,b)=>(b.balance||0)-(a.balance||0))}
+function accTotal(){return accList().reduce((s,a)=>s+(+a.balance||0),0)}
+function accOpenBills(){let t=0;cardsList().forEach(c=>{cardInvoices(c).filter(i=>!i.paid&&i.left>0&&i.due<=addDays(today(),45)).forEach(i=>t+=i.left)});return t}
+function accAgo(d){if(!d)return"";const n=Math.round((parseDate(today())-parseDate(d))/864e5);return n<=0?"atualizado hoje":n===1?"atualizado ontem":`atualizado há ${n} dias`}
+function finAccounts(){const L=accList();const tot=accTotal();const bills=accOpenBills();const by={livre:0,guardado:0,investido:0};L.forEach(a=>by[(ACC_T[a.type]||ACC_T.outro).g]+=(+a.balance||0));
+ const old=L.filter(a=>a.updated&&(parseDate(today())-parseDate(a.updated))/864e5>30).length;const res=L.filter(a=>a.reserve).reduce((s,a)=>s+(+a.balance||0),0);
+ return `<div class="stack">${scopeBanner()}
+ <div class="card stack"><span class="tiny muted">Seu dinheiro hoje, somando todas as contas</span><b class="num" style="font-size:32px;letter-spacing:-1px;color:${tot<0?"var(--bad)":"inherit"}">${brl(tot)}</b>
+  ${tot>0?`<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--surface2)">${Object.entries(by).filter(([,v])=>v>0).map(([g,v])=>`<span style="width:${v/tot*100}%;background:${ACC_GROUPS[g][1]}"></span>`).join("")}</div>
+  <div class="row wrap small" style="gap:6px 14px">${Object.entries(by).filter(([,v])=>v).map(([g,v])=>`<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${ACC_GROUPS[g][1]};margin-right:5px"></span>${ACC_GROUPS[g][0]} <b class="num">${brl0(v)}</b></span>`).join("")}</div>`:""}
+  ${bills>0?`<div class="row between small" style="background:var(--surface2);border-radius:12px;padding:8px 12px"><span>Depois de pagar as faturas abertas (${brl0(bills)})</span><b class="num" style="color:${tot-bills<0?"var(--bad)":"var(--good)"}">${brl0(tot-bills)}</b></div>`:""}
+  ${res>0?`<span class="tiny muted">Reserva de emergência: ${brl0(res)} (contas marcadas como reserva).</span>`:""}
+  ${old?`<span class="tiny" style="color:var(--warn)">${old} conta${old>1?"s":""} sem atualizar há mais de 30 dias.</span>`:""}</div>
+ <div class="section"><div class="label">Minhas contas</div>
+ ${L.length?`<div class="card plist">${L.map(a=>{const t=ACC_T[a.type]||ACC_T.outro;return `<button class="prow" data-act="accEdit" data-v="${a.id}"><span class="prow-ic" aria-hidden="true" style="font-size:18px">${t.i}</span><span class="grow stack-s" style="gap:1px;min-width:0"><b>${esc(a.name)}</b><span class="tiny muted">${t.n}${a.reserve?" · reserva":""}${a.updated?" · "+accAgo(a.updated):""}</span></span><b class="num small" style="flex:none;color:${(+a.balance||0)<0?"var(--bad)":"inherit"}">${brl(+a.balance||0)}</b>${pChev()}</button>`}).join("")}</div>`
+  :`<div class="card stack"><p style="margin:0"><b>Onde está o seu dinheiro?</b></p><p class="small muted" style="margin:0">Cadastre as contas, caixinhas, poupança e investimentos com o saldo de cada um. O Prumo soma tudo e mostra quanto você tem de verdade, separando o que está disponível, guardado e investido.</p></div>`}
+ <button class="btn block" data-act="accNew">+ Adicionar conta ou investimento</button></div>
+ <p class="tiny muted" style="margin:0;text-align:center">Os saldos são os que você informa. Atualize de vez em quando olhando o app do banco.</p></div>`}
+function accForm(a){a=a||{};const ed=!!a.id;UI.accType=a.type||"corrente";
+ openModal(ed?"Editar conta":"Nova conta",`<div class="stack">
+ ${ed?"":`<div class="chips" style="flex-wrap:wrap">${ACC_BANKS.map(b=>`<button type="button" class="chip" data-act="accBank" data-v="${esc(b)}">${esc(b)}</button>`).join("")}</div>`}
+ <label class="field"><span>Nome</span><input id="ac_name" value="${esc(a.name||"")}" placeholder="Ex.: Nubank, Caixinha viagem, Tesouro Selic"></label>
+ <label class="field"><span>Tipo</span><select id="ac_type">${ACC_TYPES.map(([id,n,i])=>`<option value="${id}" ${UI.accType===id?"selected":""}>${i} ${n}</option>`).join("")}</select></label>
+ <label class="field"><span>Saldo atual</span><input id="ac_bal" inputmode="decimal" value="${a.balance!=null?String(a.balance).replace(".",","):""}" placeholder="0,00" style="font-size:20px;font-weight:700"><span class="tiny muted">Se estiver no negativo (cheque especial), coloque um "-" na frente.</span></label>
+ <label class="check"><input type="checkbox" id="ac_res" ${a.reserve?"checked":""}><span><b>Faz parte da minha reserva de emergência</b><br><span class="small muted">O diagnóstico financeiro passa a usar esse saldo como reserva.</span></span></label>
+ <button class="btn block" data-act="accSave" data-v="${a.id||""}">${ed?"Salvar":"Adicionar"}</button>
+ ${ed?`<button class="btn danger sm" data-act="askDel" style="align-self:flex-start">Apagar conta</button>${confirmBox("accDel","Apagar esta conta do Prumo? (No banco nada muda.)")}`:""}</div>`)}
+Object.assign(A,{
+ accNew:()=>accForm(),
+ accEdit:el=>accForm((meta().accounts||{})[el.dataset.v]),
+ accBank:el=>{$("#ac_name").value=el.dataset.v;document.querySelectorAll('[data-act="accBank"]').forEach(b=>b.classList.toggle("on",b===el));const bal=$("#ac_bal");if(bal)bal.focus()},
+ accSave:el=>{const name=v("ac_name").trim();if(!name){toast("Dê um nome para a conta.");return}const raw=v("ac_bal").trim();const neg=/^-/.test(raw);const bal=(parseMoney(raw.replace(/^-/,""))||0)*(neg?-1:1);
+  const id=el.dataset.v||rid();const old=(meta().accounts||{})[id]||{};
+  finPatch("meta",{accounts:{[id]:{id,name,type:v("ac_type"),balance:Math.round(bal*100)/100,reserve:$("#ac_res").checked,updated:(old.balance!==Math.round(bal*100)/100||!old.updated)?today():old.updated,by:old.by||ME.uid,created:old.created||today()}}});
+  markActive();saveApp();closeModal();toast(old.id?"Conta atualizada.":`${name} adicionada.`)},
+ accDelYes:()=>{const id=document.querySelector('[data-act="accSave"]').dataset.v;finPatch("meta",{accounts:{[id]:null}});saveApp();closeModal();toast("Conta apagada.")}
+});
+function accMini(){const L=accList();if(!L.length)return`<button class="row between small" data-act="fin" data-v="contas" style="width:100%;border:1px dashed var(--line);background:none;border-radius:12px;padding:8px 12px;color:inherit;font:inherit;cursor:pointer"><span>Onde está seu dinheiro? Cadastre suas contas e investimentos</span>${pChev()}</button>`;
+ return `<button class="row between small" data-act="fin" data-v="contas" style="width:100%;border:0;background:var(--surface2);border-radius:12px;padding:8px 12px;color:inherit;font:inherit;cursor:pointer;text-align:left"><span>Dinheiro nas contas</span><span class="row" style="gap:6px"><b class="num">${brl0(accTotal())}</b>${pChev()}</span></button>`}
 Object.assign(A,{
  letterOpen:()=>letterModal(),
  letterOk:()=>{S.profile.letterSeen=today();closeModal();commit()},

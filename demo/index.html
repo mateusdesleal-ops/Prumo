@@ -3141,7 +3141,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.81</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.82</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -3879,7 +3879,9 @@ function medView(){if(!S.profile.medSeen){S.profile.medSeen=today();saveApp()}co
  <p class="tiny muted" style="margin-top:8px">As meditações guiadas são narradas pelo criador do Prumo. Meditação não substitui acompanhamento profissional. Em crise, ligue 188 (CVV).</p></div>`}
 /* ---- motor de áudio ---- */
 const MP={};
-function medCtx(){if(!MP.ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;MP.ctx=new C();MP.bgGain=MP.ctx.createGain();MP.bgGain.gain.value=.5;MP.bgGain.connect(MP.ctx.destination);MP.voGain=MP.ctx.createGain();MP.voGain.gain.value=1;MP.voGain.connect(MP.ctx.destination)}if(MP.ctx.state==="suspended")MP.ctx.resume();return MP.ctx}
+/* meditação toca mesmo com o iPhone no silencioso (como música); os outros sons respeitam o silencioso */
+function medSession(on){try{if(navigator.audioSession)navigator.audioSession.type=on?"playback":"auto"}catch(e){}}
+function medCtx(){medSession(true);if(!MP.ctx){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;MP.ctx=new C();MP.bgGain=MP.ctx.createGain();MP.bgGain.gain.value=.5;MP.bgGain.connect(MP.ctx.destination);MP.voGain=MP.ctx.createGain();MP.voGain.gain.value=1;MP.voGain.connect(MP.ctx.destination)}if(MP.ctx.state==="suspended")MP.ctx.resume();return MP.ctx}
 function medNoise(kind){const c=MP.ctx,len=c.sampleRate*4,buf=c.createBuffer(1,len,c.sampleRate),d=buf.getChannelData(0);let last=0;for(let i=0;i<len;i++){const w=Math.random()*2-1;if(kind==="brown"){last=(last+.02*w)/1.02;d[i]=last*3.5}else d[i]=w}const s=c.createBufferSource();s.buffer=buf;s.loop=true;return s}
 function medBgStart(kind){medBgStop();const c=medCtx();if(!c||kind==="none")return;const out=c.createGain();out.gain.value=0;out.gain.linearRampToValueAtTime(1,c.currentTime+2);out.connect(MP.bgGain);const nodes=[out];
  if(kind==="chuva"){const n=medNoise("white"),hp=c.createBiquadFilter(),lp=c.createBiquadFilter(),g=c.createGain();hp.type="highpass";hp.frequency.value=500;lp.type="lowpass";lp.frequency.value=5000;g.gain.value=.16;n.connect(hp);hp.connect(lp);lp.connect(g);g.connect(out);n.start();nodes.push(n)
@@ -3906,7 +3908,7 @@ function medPlay(){const c=medCtx();if(!c)return;if(MP.pos0>=MP.tl.total)MP.pos0
 function medHeard(){if(MP.playing&&MP.ctx)MP.heard=(MP.heard||0)+Math.max(0,Math.min(MP.ctx.currentTime-MP.ctx0,MP.tl.total-MP.pos0))}
 function medPause(){if(!MP.playing)return;medHeard();MP.pos0=medPos();MP.playing=false;medStopSources();medWake(false);medPaint()}
 function medSeek(p){const was=MP.playing;if(was){medHeard();MP.pos0=medPos();MP.playing=false;medStopSources()}MP.pos0=Math.max(0,Math.min(MP.tl.total,p));if(was){MP.playing=true;medSchedule()}medPaint()}
-async function medWake(on){try{if(on&&navigator.wakeLock&&!MP.lock)MP.lock=await navigator.wakeLock.request("screen");if(!on&&MP.lock){MP.lock.release();MP.lock=null}}catch(e){}}
+async function medWake(on){if(!on)medSession(false);try{if(on&&navigator.wakeLock&&!MP.lock)MP.lock=await navigator.wakeLock.request("screen");if(!on&&MP.lock){MP.lock.release();MP.lock=null}}catch(e){}}
 function medLoop(){cancelAnimationFrame(MP.raf);const f=()=>{if(!MP.open)return;const p=medPos();if(MP.playing&&p>=MP.tl.total){medHeard();MP.pos0=MP.tl.total;MP.playing=false;medStopSources();medWake(false);medPaint();medDone(true);return}medPaint();if(MP.playing)MP.raf=requestAnimationFrame(f)};MP.raf=requestAnimationFrame(f)}
 const mmss=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
 function medPaint(){const el=document.getElementById("medP");if(!el)return;const p=Math.min(medPos(),MP.tl.total),it=MP.tl.items.find(x=>p>=x.t&&p<x.t+x.dur)||MP.tl.items[MP.tl.items.length-1];

@@ -3127,7 +3127,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.74</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.75</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -4141,20 +4141,28 @@ function parseCSV(t){const lines=t.split(/\r?\n/).filter(l=>l.trim());if(lines.l
  const start=di<0||vi<0?0:1;if(di<0)di=0;if(xi<0)xi=1;if(vi<0)vi=head.length-1;const out=[];
  for(const l of lines.slice(start)){const c=csvSplit(l,sep);const date=parseDateAny(c[di]);const val=moneyNum(c[vi]);if(!date||val===null)continue;out.push({date,v:val,desc:c[xi]||""})}
  return out}
-function parseText(t){const out=[];const plusMode=/\+\s*R\$\s*\d/.test(t); /* faturas (ex.: Inter) marcam créditos com "+" e usam "-" como coluna vazia */const lines=t.split(/\r?\n/).map(l=>l.replace(/ /g," ").trim()).filter(Boolean);
+/* linha fora do padrão "data descrição valor": acha data e valor em qualquer ordem (ex.: "US$ 90,23 10/11/2026 Loja") */
+function impFlexLine(l){const dm=/(?:^|\s)(\d{1,2})[\/.\-](\d{1,2})(?:[\/.\-](\d{2,4}))?(?=\s|$)|(?:^|\s)(\d{1,2})\s*de\s*([a-zç]{3})[a-z]*\.?(?:\s*(?:de\s*)?(20\d{2}))?/i.exec(l);if(!dm)return null;
+ const date=dm[1]?mkDate(dm[1],dm[2],dm[3]):mkDate(dm[4],dm[5],dm[6]);if(!date)return null;let rest=(l.slice(0,dm.index)+" "+l.slice(dm.index+dm[0].length));
+ const vm=/(US\$|U\$|USD|R\$|\$)?\s*([+-]?)\s*(\d{1,3}(?:\.\d{3})+,\d{2}|\d+,\d{2}|\d+\.\d{2}(?!\d))\s*(USD|BRL)?/i.exec(rest);if(!vm)return null;
+ let v=moneyNum(vm[3].includes(",")?vm[3]:vm[3].replace(".",","));if(v==null)return null;if(vm[2]==="+")v=-v;const cm=((vm[1]||"")+(vm[4]||"")).toUpperCase();
+ const desc=(rest.slice(0,vm.index)+" "+rest.slice(vm.index+vm[0].length)).replace(/\s+/g," ").replace(/^[\s\-–·|]+|[\s\-–·|]+$/g,"").trim()||"Compra";
+ return{date,v,desc,cur:/US|^\$/.test(cm)?"USD":/R\$|BRL/.test(cm)?"BRL":null}}
+function parseText(t){const out=[],flex=[];const plusMode=/\+\s*R\$\s*\d/.test(t); /* faturas (ex.: Inter) marcam créditos com "+" e usam "-" como coluna vazia */const lines=t.split(/\r?\n/).map(l=>l.replace(/ /g," ").trim()).filter(Boolean);
  const dre=/^(\d{1,2})\s*(?:[\/\-.]\s*(\d{1,2})|\s*de\s*([a-zç]{3})[a-z]*\.?|\s*([a-zç]{3})[a-z]*\.?)(?:\s*[\/\-.]\s*(\d{2,4})|\s*(?:de\s*)?(20\d{2})(?=\s))?\s+(.*)$/i;
  const vre=/(-?\s*(?:R\$)?\s*-?\s*\d{1,3}(?:\.\d{3})*,\d{2}|-?\s*(?:R\$)?\s*\d+,\d{2})\s*(?:[CD]\b)?\s*$/i;
- for(let j=0;j<lines.length;j++){const m=dre.exec(lines[j]);if(!m)continue;const date=mkDate(m[1],m[2]||m[3]||m[4],m[5]||m[6]);if(!date)continue;let rest=m[7];let vm=vre.exec(rest);
+ for(let j=0;j<lines.length;j++){const m=dre.exec(lines[j]);if(!m){const fx=impFlexLine(lines[j]);if(fx)flex.push(fx);continue}const date=mkDate(m[1],m[2]||m[3]||m[4],m[5]||m[6]);if(!date)continue;let rest=m[7];let vm=vre.exec(rest);
   if(!vm&&lines[j+1]&&vre.test(lines[j+1])&&!dre.test(lines[j+1])){vm=vre.exec(lines[j+1]);rest=rest+" "+lines[j+1];j++;vm=vre.exec(rest)}
-  if(!vm)continue;let val=moneyNum(vm[1]);if(val===null)continue;if(plusMode)val=Math.abs(val);if(/\bC\s*$/.test(rest)||/\+\s*(?:R\$)?\s*$/.test(rest.slice(0,vm.index)))val=-Math.abs(val);const desc=rest.slice(0,vm.index).replace(/\s*\+?\s*R\$\s*$/,"").replace(/\s+[-+]\s*$/,"").trim();if(!desc)continue;out.push({date,v:val,desc})}
- return out}
+  if(!vm)continue;let val=moneyNum(vm[1]);if(val===null)continue;if(plusMode)val=Math.abs(val);if(/\bC\s*$/.test(rest)||/\+\s*(?:R\$)?\s*$/.test(rest.slice(0,vm.index)))val=-Math.abs(val);const desc=rest.slice(0,vm.index).replace(/\s*\+?\s*R\$\s*$/,"").replace(/\s+[-+]\s*$/,"").trim();if(!desc)continue;out.push({date,v:val,desc,cur:/US\$|U\$|USD/i.test(vm[1]+rest)?"USD":null})}
+ return out.length?out:flex}
+function impUsdConv(rows){const im=UI.imp||{};const rate=im.rate||usdRate(),iof=im.iof!==false;rows.forEach(r=>{if(r.usd>0)r.v=Math.round(r.usd*rate*(iof?1.035:1)*100)/100})}
 function normalizeRows(raw,card,k){if(!raw.length)return[];
  const negs=raw.filter(r=>r.v<0).length;const flip=negs>raw.length/2; // OFX costuma trazer compras negativas
  const existing={};for(const kk of [k,shiftMonth(k,-1),shiftMonth(k,1)])for(const e of monthData(kk).expenses)if(e.card===card.id){existing[kk+"|"+normDesc(e.desc)+"|"+Math.round(e.v*100)]=1;if(+e.n>1)existing[kk+"|"+normDesc(e.desc)+"|p"+e.i+"/"+e.n]=1}
  const seen={};
  return raw.map(r=>{let v=flip?-r.v:r.v;if(v<=0||IGNORE_RE.test(r.desc))return null;const p=splitParc(r.desc);const nd=normDesc(p.desc);
   const dup=!!(existing[k+"|"+nd+"|"+Math.round(v*100)]||(p.n>1&&existing[k+"|"+nd+"|p"+p.i+"/"+p.n]));const sk=r.date+nd+v;const rep=seen[sk];seen[sk]=1;
-  return{date:r.date,desc:p.desc||r.desc,v:Math.round(v*100)/100,i:p.i,n:p.n,cat:guessCat(p.desc||r.desc),on:!dup,dup,rep:!!rep}}).filter(Boolean)}
+  const isUsd=r.cur==="USD"||(card.cur==="USD"&&r.cur!=="BRL");return{date:r.date,desc:p.desc||r.desc,v:Math.round(v*100)/100,usd:isUsd?Math.round(v*100)/100:null,i:p.i,n:p.n,cat:guessCat(p.desc||r.desc),on:!dup,dup,rep:!!rep}}).filter(Boolean)}
 function ccImportForm(cardId){const cs=cardsList();if(!cs.length){toast("Cadastre um cartão primeiro.");cardForm();return}
  const c=cardById(cardId)||cs[0];const open=invoiceMonth(c,today());
  UI.imp={card:c.id,k:ccDefK(c),rows:null,future:true,src:"",paid:true};
@@ -4173,13 +4181,15 @@ function ccImpBody(){const im=UI.imp;const c=cardById(im.card);const cs=cardsLis
  const on=im.rows.filter(r=>r.on);const tot=sum(on);const fut=on.filter(r=>r.n>r.i).reduce((s,r)=>s+(r.n-r.i),0);
  return `<div class="row between"><span class="small"><b>${esc(c.name)}</b> · fatura que vence ${ddmm(dayIn(im.k,c.due))}</span><button class="btn ghost sm" data-act="impBack">Voltar</button></div>
  ${im.rows.length?`<p class="small muted">Encontrei ${im.rows.length} compra(s). Confira as categorias: o Prumo sugere sozinho e aprende com as suas correções.${im.rows.some(r=>r.dup)?" As que já estavam lançadas vieram desmarcadas.":""}</p>
- <div class="stack-s" style="max-height:46vh;overflow:auto;margin-inline:-4px;padding-inline:4px">${im.rows.map((r,j)=>`<div class="card flat" style="padding:8px 10px;${r.on?"":"opacity:.55"}"><div class="row" style="gap:8px;align-items:flex-start"><input type="checkbox" data-imp-on="${j}" ${r.on?"checked":""} style="margin-top:4px;width:20px;height:20px;flex:none"><div class="grow stack-s" style="gap:4px;min-width:0"><div class="row between" style="gap:8px"><b class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.desc)}</b><b class="num small" style="flex:none">${brl(r.v)}</b></div><span class="tiny muted">${ddmm(r.date)}${r.n>1?` · parcela ${r.i}/${r.n}`:""}${r.dup?' · <span style="color:var(--warn)">já lançada</span>':r.rep?' · <span style="color:var(--warn)">repetida?</span>':""}</span><select data-imp-cat="${j}" style="min-height:34px;padding:4px 8px;font-size:13px">${CATS.map(x=>`<option value="${x.id}" ${x.id===r.cat?"selected":""}>${x.n}</option>`).join("")}</select></div></div></div>`).join("")}</div>
+ ${im.rows.some(r=>r.usd>0)?`<div class="card flat stack-s" style="gap:8px"><b class="small">Compras em dólar</b><div class="grid2"><label class="field"><span>Cotação (R$ por US$)</span><input id="imp_rate" inputmode="decimal" value="${String(im.rate||usdRate()).replace(".",",")}"></label><label class="check" style="align-self:end"><input type="checkbox" id="imp_iof" ${im.iof!==false?"checked":""}><span class="small">Somar IOF 3,5%</span></label></div><span class="tiny muted">Os valores em reais são calculados com essa cotação.</span></div>`:""}
+ <div class="stack-s" style="max-height:46vh;overflow:auto;margin-inline:-4px;padding-inline:4px">${im.rows.map((r,j)=>`<div class="card flat" style="padding:8px 10px;${r.on?"":"opacity:.55"}"><div class="row" style="gap:8px;align-items:flex-start"><input type="checkbox" data-imp-on="${j}" ${r.on?"checked":""} style="margin-top:4px;width:20px;height:20px;flex:none"><div class="grow stack-s" style="gap:4px;min-width:0"><div class="row between" style="gap:8px"><b class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.desc)}</b><b class="num small" style="flex:none">${brl(r.v)}</b></div><span class="tiny muted">${r.usd>0?usdFmt(r.usd)+" · ":""}${ddmm(r.date)}${r.n>1?` · parcela ${r.i}/${r.n}`:""}${r.dup?' · <span style="color:var(--warn)">já lançada</span>':r.rep?' · <span style="color:var(--warn)">repetida?</span>':""}</span><select data-imp-cat="${j}" style="min-height:34px;padding:4px 8px;font-size:13px">${CATS.map(x=>`<option value="${x.id}" ${x.id===r.cat?"selected":""}>${x.n}</option>`).join("")}</select></div></div></div>`).join("")}</div>
  ${im.rows.some(r=>r.n>r.i)?`<label class="check"><input type="checkbox" id="imp_future" ${im.future?"checked":""}><span class="small">Lançar também as próximas parcelas nos meses seguintes (${fut} parcela(s)). Assim você já vê as faturas futuras.</span></label>`:""}
  ${dayIn(im.k,c.due)<today()?`<label class="check"><input type="checkbox" id="imp_paid" ${im.paid?"checked":""}><span class="small">Esta fatura já venceu. Marcar como paga</span></label>`:""}
  <button class="btn block" data-act="impSave" ${on.length?"":"disabled"}>Importar ${on.length} compra(s) · ${brl(tot)}</button>`
- :`<div class="banner warn">Não consegui encontrar compras. Confira se o arquivo é a fatura do cartão (PDF, OFX ou CSV) ou se cada linha colada tem data, descrição e valor. Se for um PDF escaneado (foto), ele não tem texto para ler: use o arquivo que o banco gera ou copie e cole as linhas.</div>`}`}
+ :`<div class="banner warn">Não consegui encontrar compras. Confira se o arquivo é a fatura do cartão (PDF, OFX ou CSV) ou se cada linha colada tem data e valor (a descrição é opcional, em qualquer ordem). Se for um PDF escaneado (foto), ele não tem texto para ler: use o arquivo que o banco gera ou copie e cole as linhas.</div>`}`}
 function impRefresh(){const r=$("#imp_root");if(r)r.innerHTML=ccImpBody()}
-function impLoad(raw,src){const im=UI.imp;const c=cardById(im.card);im.rows=normalizeRows(raw,c,im.k);im.src=src;impRefresh()}
+function impLoad(raw,src){const im=UI.imp;const c=cardById(im.card);im.rows=normalizeRows(raw,c,im.k);if(im.rows.some(r=>r.usd>0)){if(!im.rate)im.rate=usdRate();if(im.iof==null)im.iof=true;impUsdConv(im.rows);usdFetch().then(()=>{if(UI.imp&&UI.imp.rows&&!UI.imp.rateTouched){UI.imp.rate=usdRate();impUsdConv(UI.imp.rows);impRefresh()}})}im.src=src;impRefresh()}
+document.addEventListener("change",e=>{const id=e.target&&e.target.id;if((id==="imp_rate"||id==="imp_iof")&&UI.imp&&UI.imp.rows){if(id==="imp_rate"){const x=parseMoney(e.target.value);if(x>0){UI.imp.rate=x;UI.imp.rateTouched=1}}else UI.imp.iof=e.target.checked;impUsdConv(UI.imp.rows);impRefresh()}});
 function readFileText(file){return new Promise(res=>{const fr=new FileReader();fr.onload=()=>{const t=String(fr.result||"");if(t.includes("\uFFFD")){const f2=new FileReader();f2.onload=()=>res(String(f2.result||""));f2.readAsText(file,"ISO-8859-1")}else res(t)};fr.readAsText(file,"UTF-8")})}
 /* PDF da fatura: lê o texto com o pdf.js (guardado no próprio site), remonta as linhas e usa o mesmo leitor do "copiar e colar" */
 let PDFJS=null;
@@ -4279,7 +4289,7 @@ Object.assign(A,{
  impSave:()=>{const im=UI.imp;const c=cardById(im.card);const rows=im.rows.filter(r=>r.on);if(!rows.length)return;const all={};const td=today();
   rows.forEach(r=>{const grp=rid();const n=im.future?r.n:r.i;const total=r.v*r.n;
    const ent=ccPurchaseEntries(c,{total,n:r.n,desc:r.desc,cat:r.cat,bought:r.date,grp,by:ME.uid,t:Date.now(),added:td,startI:r.i,firstK:im.k});
-   Object.keys(ent).forEach(k=>{Object.entries(ent[k]).forEach(([id,e])=>{if(e.i>n)return;e.v=r.v;e.imp=1;(all[k]=all[k]||{})[id]=e})})});
+   Object.keys(ent).forEach(k=>{Object.entries(ent[k]).forEach(([id,e])=>{if(e.i>n)return;e.v=r.v;e.imp=1;if(r.usd>0){e.usd=r.usd;e.rate=im.rate||usdRate()}(all[k]=all[k]||{})[id]=e})})});if(rows.some(r=>r.usd>0)&&im.rateTouched)usdSetRate(im.rate);
   ccApply(all);if(im.paid&&dayIn(im.k,c.due)<today())finPatch("meta",{cardPaid:{[c.id]:{[ccKey(im.k)]:1}}});markActive();saveApp();closeModal();UI.imp=null;UI.ccOpen=c.id;
   toast(`${rows.length} compra(s) importada(s) na fatura de ${MONTHS[+im.k.slice(5)-1]}.`,4000)}
 });

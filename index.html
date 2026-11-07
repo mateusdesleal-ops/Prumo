@@ -3144,7 +3144,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.84</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.85</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -5203,7 +5203,7 @@ Object.assign(A,{
   if(m==="esqueci"){AUTH.ok=true;AUTH.msg="Se esse e-mail tiver conta, enviamos um link para trocar a senha.";render();return}
   if(m==="criar"&&!(r.data&&r.data.session)){AUTH.ok=true;AUTH.msg="Conta criada! Abra o link que enviamos para o seu e-mail e depois entre aqui.";AUTH.mode="entrar";render();return}
   AUTH.msg="";},
- signOut:async()=>{try{await sb.auth.signOut()}catch(e){}try{localStorage.removeItem(LSK);localStorage.removeItem("prumo.localMode")}catch(e){}location.reload()},
+ signOut:async()=>{try{const tk=localStorage.getItem("prumo.apns");if(tk)await sb.rpc("drop_native_push",{p_token:tk})}catch(e){}try{await sb.auth.signOut()}catch(e){}try{localStorage.removeItem(LSK);localStorage.removeItem("prumo.localMode")}catch(e){}location.reload()},
  enableNotif:async()=>{if(!("Notification" in window)){toast("Este navegador não permite notificações.");return}const p=await Notification.requestPermission();toast(p==="granted"?"Notificações ativadas.":"As notificações foram bloqueadas. Você pode liberar nas configurações do navegador.");render()},
 });
 if(sb)sb.auth.onAuthStateChange((ev,session)=>{SESSION=session;if(ev==="SIGNED_IN"&&session&&!Store.cloud)connectWithUser(session.user.id);if(ev==="PASSWORD_RECOVERY")openModal("Nova senha",`<div class="stack"><label class="field"><span>Nova senha</span><input id="np" type="password" autocomplete="new-password"></label><button class="btn block" data-act="saveNewPass">Salvar</button></div>`)});
@@ -5285,6 +5285,7 @@ function viewAdmin(){if(!UI.isAdmin)return `<div class="card empty">Acesso restr
   const base=Math.max(1,s.onboarded);const FN={fin:"Dinheiro",saude:"Saúde",estudo:"Estudos",rotina:"Rotina",fe:"Fé e mente"};
   const q=ADM.q.trim().toLowerCase();const us=(ADM.users||[]).filter(u=>!q||String(u.email).toLowerCase().includes(q));const list=ADM.all?us:us.slice(0,30);
   body=`<div class="grid2">${kpi("Contas",s.users,`${s.confirmed} confirmadas`)}${kpi("Terminaram o cadastro",s.onboarded,`${pct(s.onboarded,s.users)}% das contas`)}${kpi("Novas em 7 dias",s.new7,`${s.new30} em 30 dias`)}${kpi("Usaram hoje",s.active1,`${s.active7} na semana · ${s.active30} no mês`)}</div>
+  ${admApnsCard()}
   ${admAccCard()}
   <div class="card stack"><div class="label">Novas contas nos últimos 30 dias</div><svg viewBox="0 0 300 90" style="width:100%;height:auto" role="img" aria-label="Novas contas por dia">${days.map((d,i)=>{const h=(map[d]||0)/mx*70;return `<rect x="${i*10+1}" y="${78-h}" width="8" height="${Math.max(h,1)}" rx="2" fill="${map[d]?"var(--pig-deep)":"var(--line)"}"><title>${admDate(d)}: ${map[d]||0}</title></rect>`}).join("")}<text x="0" y="89" font-size="8" fill="var(--muted)">${admDate(days[0])}</text><text x="300" y="89" font-size="8" text-anchor="end" fill="var(--muted)">hoje</text></svg></div>
   <div class="card stack"><div class="label">O que as pessoas usam</div><p class="tiny muted">Entre as ${s.onboarded} pessoas que terminaram o cadastro.</p>
@@ -5308,6 +5309,25 @@ function viewAdmin(){if(!UI.isAdmin)return `<div class="card empty">Acesso restr
  <div class="row wrap" style="gap:8px"><button class="btn line sm" data-act="admReload" ${ADM.loading?"disabled":""}>${ADM.loading?"Atualizando…":"Atualizar números"}</button><button class="btn sm" data-act="openDemo">Abrir demonstração</button></div>
  ${typeof supAdminCard==="function"?supAdminCard():""}
  ${body}</div>`}
+/* notificações do app do iPhone (APNs): o administrador envia a chave .p8 uma vez; ela fica só no servidor */
+function admApnsCard(){if(!ADM.apns&&!ADM.apnsLoading){ADM.apnsLoading=1;sb.rpc("apns_status").then(r=>{ADM.apns=r.data||{};ADM.apnsLoading=0;render()},()=>{ADM.apnsLoading=0})}const st=ADM.apns||{};
+ return `<div class="card stack"><div class="label">Notificações do app do iPhone</div>
+ ${st.configured?`<p class="small" style="margin:0">✅ Chave da Apple configurada. ${st.devices||0} iPhone${st.devices===1?"":"s"} cadastrado${st.devices===1?"":"s"} para receber avisos.</p>`:`<p class="small muted" style="margin:0">Envie a chave de notificações da Apple (arquivo .p8 de "Keys", com APNs marcado) para os avisos de equipe, vaquinha e desafios chegarem no app do iPhone. A chave fica guardada só no servidor.</p>`}
+ <details ${st.configured?"":"open"}><summary class="small" style="cursor:pointer">${st.configured?"Trocar a chave":"Enviar a chave"}</summary><div class="stack" style="margin-top:8px">
+ <label class="field"><span>Key ID (10 letras e números)</span><input id="apns_kid" autocomplete="off" autocapitalize="characters" placeholder="Ex.: AB12CD34EF"></label>
+ <label class="field"><span>Arquivo .p8</span><input id="apns_file" type="file" accept=".p8,text/plain,application/octet-stream"></label>
+ <button class="btn" data-act="apnsSave">Salvar chave</button></div></details></div>`}
+A.apnsSave=async()=>{const kid=(v("apns_kid")||"").trim().toUpperCase();const f=$("#apns_file")&&$("#apns_file").files[0];if(!/^[A-Z0-9]{10}$/.test(kid)){toast("Confira o Key ID: são 10 letras e números.");return}if(!f){toast("Escolha o arquivo .p8.");return}
+ try{const txt=await f.text();if(!/BEGIN PRIVATE KEY/.test(txt)){toast("Esse arquivo não parece ser a chave .p8.");return}const {error}=await sb.rpc("set_apns_secret",{p_key_id:kid,p_p8:txt});if(error)throw error;ADM.apns=null;toast("Chave salva. Os avisos já podem chegar no app do iPhone.");render()}catch(e){toast("Não consegui salvar: "+((e&&e.message)||"erro"))}};
+/* registra o iPhone para receber avisos (app instalado pela loja) */
+const PN=()=>window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.PushNotifications;
+let pnDone=false;
+async function nativePushInit(){const pn=PN();if(!pn||pnDone||!Store.cloud)return;pnDone=true;try{
+ pn.addListener("registration",async t=>{try{if(t&&t.value){await sb.rpc("save_native_push",{p_token:t.value,p_platform:"ios"});try{localStorage.setItem("prumo.apns",t.value)}catch(e){}}}catch(e){console.warn(e)}});
+ pn.addListener("registrationError",e=>console.warn("apns",e));
+ pn.addListener("pushNotificationActionPerformed",a=>{try{const u=a&&a.notification&&a.notification.data&&a.notification.data.url;if(u&&u.startsWith("/")){history.replaceState({},"",u);location.reload()}}catch(e){}});
+ let p=await pn.checkPermissions();if(p.receive!=="granted")p=await pn.requestPermissions();if(p.receive==="granted")await pn.register()}catch(e){console.warn(e)}}
+if(PN())setInterval(nativePushInit,4000);
 A.goAdmin=()=>{UI.tab="admin";window.scrollTo(0,0);ADM.stats=null;ADM.sel=null;render()};
 function admAccCard(){const d=ADM.accDays||1;const L=ADM.acc;const hm=t=>{const x=new Date(t);const td=new Date();return x.toDateString()===td.toDateString()?"hoje às "+x.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):x.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})+" às "+x.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})};
  return `<div class="card stack" id="admAcc"><div class="row between"><div class="label">Quem acessou</div><div class="chips">${[[1,"Hoje"],[7,"7 dias"],[30,"30 dias"]].map(([k,n])=>`<button class="chip ${d===k?"on":""}" data-act="admAccDays" data-v="${k}">${n}</button>`).join("")}</div></div>

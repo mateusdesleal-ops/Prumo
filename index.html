@@ -2880,9 +2880,21 @@ function finMonth(){
  </div>
  ${monthDueCard(k)}
  ${trendChart()}
- <div class="section"><div class="label">Lançamentos</div>
+ <div class="searchbox"><input id="finQ" type="search" placeholder="Pesquisar renda ou gasto (nome, categoria, valor)" value="${esc(UI.finQ||"")}" autocomplete="off" aria-label="Pesquisar renda ou gasto">${UI.finQ?`<button class="iconbtn" data-act="clearQ" data-v="finQ" aria-label="Limpar pesquisa">×</button>`:""}</div>
+ ${UI.finQ&&UI.finQ.trim()?finSearch(UI.finQ):`<div class="section"><div class="label">Lançamentos</div>
  ${rows.length?Object.keys(groups).sort().reverse().map(d=>`<div class="card" style="padding:6px 16px"><div class="tiny muted" style="padding-top:8px;font-weight:700;text-transform:capitalize">${dayLabel(d)}</div><div class="list">${groups[d].map(txItem).join("")}</div></div>`).join(""):`<div class="card empty">Nenhum lançamento em ${monthLabel(k)}. Toque no + para registrar seu primeiro gasto.</div>`}
- </div>`}
+ </div>`}`}
+function finSearch(q){const nq=norm(q).trim();const num=parseMoney(q);const isNum=/^[\sR$\d.,]+$/.test(q.trim())&&num>0;const res=[];
+ for(const k of allMonths()){const t=monthData(k);[...t.incomes.map(x=>({...x,kind:"in"})),...t.expenses.map(x=>({...x,kind:"out"}))].forEach(x=>{
+  const c=x.kind==="in"?null:(CAT[x.cat]||CAT.outros);const cd=x.card&&cardById(x.card);
+  const hay=norm([x.desc,c?c.n:"renda salario",cd?cd.name:"",x.kind==="in"?"renda":"gasto",personName(x.by)||""].join(" "));
+  const ok=isNum?(Math.abs(x.v-num)<0.011||(!/[.,]/.test(q)&&Math.floor(x.v)===Math.floor(num))):nq.split(/\s+/).every(w=>hay.includes(w));if(ok)res.push(x)})}
+ if(!res.length)return `<div class="card empty">Nada encontrado para “${esc(q)}” em nenhum mês.</div>`;
+ res.sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.t||0)-(a.t||0));const sh=res.slice(0,200);
+ const out=res.filter(x=>x.kind==="out").reduce((s,x)=>s+x.v,0),inn=res.filter(x=>x.kind==="in").reduce((s,x)=>s+x.v,0);
+ const g={};sh.forEach(x=>{const m=mkey(x.date);(g[m]=g[m]||[]).push(x)});
+ return `<div class="section"><div class="label">Resultado da pesquisa</div><p class="small muted" style="margin:0">${res.length} lançamento${res.length===1?"":"s"} em todos os meses${out?` · gastos ${brl(out)}`:""}${inn?` · rendas ${brl(inn)}`:""}${res.length>200?" · mostrando os 200 mais recentes":""}.</p>
+ ${Object.keys(g).sort().reverse().map(m=>`<div class="card" style="padding:6px 16px"><div class="tiny muted" style="padding-top:8px;font-weight:700;text-transform:capitalize">${monthLabel(m)}</div><div class="list">${g[m].map(txItem).join("")}</div></div>`).join("")}</div>`}
 function txItem(x){const c=x.kind==="in"?null:(CAT[x.cat]||CAT.outros);const who=personName(x.by);
  const color=x.kind==="in"?"var(--good)":BUCKETS[c.b].color;
  return `<button class="item" style="width:100%;border-left:0;border-right:0;border-top:0;background:none;text-align:left;padding-inline:0" data-act="${x.kind==="in"?"editIncome":"editExpense"}" data-v="${x.id}" data-m="${mkey(x.date)}">
@@ -3035,7 +3047,7 @@ function calSearchView(){const q=norm(UI.calQ||"").trim();if(!q)return"";const h
  if(!out.length)return `<div class="card"><p class="small muted">Nada encontrado com “${esc(UI.calQ)}”.</p></div>`;
  return `<div class="card stack" style="gap:4px">${fut.length?`<div class="label">Próximos · ${fut.length}</div><div class="list">${fut.slice(0,30).map(row).join("")}</div>`:""}${past.length?`<div class="label" style="margin-top:8px">Já passaram · ${past.length}</div><div class="list">${past.slice(0,20).map(row).join("")}</div>`:""}</div>`}
 /* campos de pesquisa: atualizam a tela sem perder o foco nem o cursor */
-document.addEventListener("input",ev=>{const id=ev.target&&ev.target.id;if(id!=="taskQ"&&id!=="calQ")return;UI[id]=ev.target.value;clearTimeout(UI._sqT);UI._sqT=setTimeout(()=>{const p=ev.target.selectionStart;render();const e=document.getElementById(id);if(e){e.focus({preventScroll:true});try{e.setSelectionRange(p,p)}catch(x){}}},220)});
+document.addEventListener("input",ev=>{const id=ev.target&&ev.target.id;if(id!=="taskQ"&&id!=="calQ"&&id!=="finQ")return;UI[id]=ev.target.value;clearTimeout(UI._sqT);UI._sqT=setTimeout(()=>{const p=ev.target.selectionStart;render();const e=document.getElementById(id);if(e){e.focus({preventScroll:true});try{e.setSelectionRange(p,p)}catch(x){}}},220)});
 function viewAgenda(){if(UI.agendaSub==="tasks"){const tv=tasksView();return tv.replace(/<\/div>\s*$/,pigGains("tasks")+"</div>")}if(UI.agendaSub==="proj")return projView();const k=UI.calMonth;const [y,m]=k.split("-").map(Number);const first=new Date(y,m-1,1);const start=new Date(first);start.setDate(1-first.getDay());
  const rg=UI.calRange||"dia";const wk0=(()=>{const d=parseDate(UI.calDay);d.setDate(d.getDate()-d.getDay());return ymd(d)})();
  let cells="";for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const s=ymd(d);const has=calCount(s);const inWk=rg==="semana"&&s>=wk0&&s<=addDays(wk0,6);
@@ -3127,7 +3139,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.78</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.79</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -4168,11 +4180,21 @@ function impPairLines(lines){const VR=/(US\$|U\$|USD|R\$|\$)?\s*([+-]?)\s*(\d{1,
 function impUsdConv(rows){const im=UI.imp||{};const rate=im.rate||usdRate(),iof=im.iof!==false;rows.forEach(r=>{if(r.usd>0)r.v=Math.round(r.usd*rate*(iof?1.035:1)*100)/100})}
 function normalizeRows(raw,card,k){if(!raw.length)return[];
  const negs=raw.filter(r=>r.v<0).length;const flip=negs>raw.length/2; // OFX costuma trazer compras negativas
- const existing={};for(const kk of [k,shiftMonth(k,-1),shiftMonth(k,1)])for(const e of monthData(kk).expenses)if(e.card===card.id){existing[kk+"|"+normDesc(e.desc)+"|"+Math.round(e.v*100)]=1;if(+e.n>1)existing[kk+"|"+normDesc(e.desc)+"|p"+e.i+"/"+e.n]=1}
+ const pool=impManualPool(card,k);const existing={};for(const kk of [k,shiftMonth(k,-1),shiftMonth(k,1)])for(const e of monthData(kk).expenses)if(e.card===card.id){existing[kk+"|"+normDesc(e.desc)+"|"+Math.round(e.v*100)]=1;if(+e.n>1)existing[kk+"|"+normDesc(e.desc)+"|p"+e.i+"/"+e.n]=1}
  const seen={};
  return raw.map(r=>{let v=flip?-r.v:r.v;if(v<=0||IGNORE_RE.test(r.desc))return null;const p=splitParc(r.desc);const nd=normDesc(p.desc);
   const dup=!!(existing[k+"|"+nd+"|"+Math.round(v*100)]||(p.n>1&&existing[k+"|"+nd+"|p"+p.i+"/"+p.n]));const sk=r.date+nd+v;const rep=seen[sk];seen[sk]=1;
-  const isUsd=r.cur==="USD"||(card.cur==="USD"&&r.cur!=="BRL");return{date:r.date,desc:p.desc||r.desc,v:Math.round(v*100)/100,usd:isUsd?Math.round(v*100)/100:null,i:p.i,n:p.n,cat:guessCat(p.desc||r.desc),on:!dup,dup,rep:!!rep}}).filter(Boolean)}
+  const isUsd=r.cur==="USD"||(card.cur==="USD"&&r.cur!=="BRL");const vv=Math.round(v*100)/100;
+  // lançada à mão antes: mesmo valor e data parecida (o banco pode registrar 1 a 4 dias depois)
+  let dupOf=null;if(!dup){const m=impManualMatch(pool,vv,isUsd,r.date,p);if(m)dupOf=m}
+  const isDup=dup||!!dupOf;return{date:r.date,desc:p.desc||r.desc,v:vv,usd:isUsd?vv:null,i:p.i,n:p.n,cat:dupOf&&dupOf.e.cat||guessCat(p.desc||r.desc),on:!isDup,dup:isDup,dupOf:dupOf?{id:dupOf.e.id,k:dupOf.k,desc:dupOf.e.desc,date:dupOf.e.bought||dupOf.e.date,nocard:!dupOf.e.card}:null,rep:!!rep}}).filter(Boolean)}
+/* gastos lançados à mão que podem ser a mesma compra da fatura */
+function impManualPool(card,k){const pool=[];for(const kk of [shiftMonth(k,-2),shiftMonth(k,-1),k,shiftMonth(k,1)])for(const e of monthData(kk).expenses){if(e.imp||e.pfc)continue;if(e.card===card.id||(!e.card&&!e.fixed&&!e.debtId&&!e.hol))pool.push({e,k:kk,used:false})}return pool}
+function impManualMatch(pool,v,isUsd,date,p){const dd=(a,b)=>Math.abs((parseDate(a)-parseDate(b))/864e5);let best=null;
+ for(const x of pool){if(x.used)continue;const e=x.e;const ev=isUsd&&e.usd>0?e.usd:e.v;const same=Math.abs(ev-v)<=0.011;if(!same)continue;
+  const when=e.card?(e.bought||e.date):e.date;const gap=dd(when,date);if(gap>(e.card?4:3))continue;if(e.card&&+e.n>1&&p.n>1&&(+e.i!==+p.i))continue;
+  const sc=gap+(e.card?0:2);if(!best||sc<best.sc)best={x,sc}}
+ if(!best)return null;best.x.used=true;return best.x}
 function ccImportForm(cardId){const cs=cardsList();if(!cs.length){toast("Cadastre um cartão primeiro.");cardForm();return}
  const c=cardById(cardId)||cs[0];const open=invoiceMonth(c,today());
  UI.imp={card:c.id,k:ccDefK(c),rows:null,future:true,src:"",paid:true};
@@ -4190,9 +4212,9 @@ function ccImpBody(){const im=UI.imp;const c=cardById(im.card);const cs=cardsLis
   <button class="btn" data-act="impParse">Ler compras</button></div>`;
  const on=im.rows.filter(r=>r.on);const tot=sum(on);const fut=on.filter(r=>r.n>r.i).reduce((s,r)=>s+(r.n-r.i),0);
  return `<div class="row between"><span class="small"><b>${esc(c.name)}</b> · fatura que vence ${ddmm(dayIn(im.k,c.due))}</span><button class="btn ghost sm" data-act="impBack">Voltar</button></div>
- ${im.rows.length?`<p class="small muted">Encontrei ${im.rows.length} compra(s). Confira as categorias: o Prumo sugere sozinho e aprende com as suas correções.${im.rows.some(r=>r.dup)?" As que já estavam lançadas vieram desmarcadas.":""}</p>
+ ${im.rows.length?`<p class="small muted">Encontrei ${im.rows.length} compra(s). Confira as categorias: o Prumo sugere sozinho e aprende com as suas correções.${im.rows.some(r=>r.dup)?" As que você já tinha lançado vieram desmarcadas para não duplicar.":""}${im.rows.some(r=>r.dupOf&&r.dupOf.nocard)?" Gastos lançados sem cartão que batem com a fatura passam para este cartão ao importar.":""}</p>
  ${im.rows.some(r=>r.usd>0)?`<div class="card flat stack-s" style="gap:8px"><b class="small">Compras em dólar</b><div class="grid2"><label class="field"><span>Cotação (R$ por US$)</span><input id="imp_rate" inputmode="decimal" value="${String(im.rate||usdRate()).replace(".",",")}"></label><label class="check" style="align-self:end"><input type="checkbox" id="imp_iof" ${im.iof!==false?"checked":""}><span class="small">Somar IOF 3,5%</span></label></div><span class="tiny muted">Os valores em reais são calculados com essa cotação.</span></div>`:""}
- <div class="stack-s" style="max-height:46vh;overflow:auto;margin-inline:-4px;padding-inline:4px">${im.rows.map((r,j)=>`<div class="card flat" style="padding:8px 10px;${r.on?"":"opacity:.55"}"><div class="row" style="gap:8px;align-items:flex-start"><input type="checkbox" data-imp-on="${j}" ${r.on?"checked":""} style="margin-top:4px;width:20px;height:20px;flex:none"><div class="grow stack-s" style="gap:4px;min-width:0"><div class="row between" style="gap:8px"><b class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.desc)}</b><b class="num small" style="flex:none">${brl(r.v)}</b></div><span class="tiny muted">${r.usd>0?usdFmt(r.usd)+" · ":""}${ddmm(r.date)}${r.n>1?` · parcela ${r.i}/${r.n}`:""}${r.dup?' · <span style="color:var(--warn)">já lançada</span>':r.rep?' · <span style="color:var(--warn)">repetida?</span>':""}</span><select data-imp-cat="${j}" style="min-height:34px;padding:4px 8px;font-size:13px">${CATS.map(x=>`<option value="${x.id}" ${x.id===r.cat?"selected":""}>${x.n}</option>`).join("")}</select></div></div></div>`).join("")}</div>
+ <div class="stack-s" style="max-height:46vh;overflow:auto;margin-inline:-4px;padding-inline:4px">${im.rows.map((r,j)=>`<div class="card flat" style="padding:8px 10px;${r.on?"":"opacity:.55"}"><div class="row" style="gap:8px;align-items:flex-start"><input type="checkbox" data-imp-on="${j}" ${r.on?"checked":""} style="margin-top:4px;width:20px;height:20px;flex:none"><div class="grow stack-s" style="gap:4px;min-width:0"><div class="row between" style="gap:8px"><b class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.desc)}</b><b class="num small" style="flex:none">${brl(r.v)}</b></div><span class="tiny muted">${r.usd>0?usdFmt(r.usd)+" · ":""}${ddmm(r.date)}${r.n>1?` · parcela ${r.i}/${r.n}`:""}${r.dupOf?` · <span style="color:var(--warn)">parece ser “${esc(r.dupOf.desc)}” que você lançou em ${ddmm(r.dupOf.date)}${r.dupOf.nocard?" sem cartão":""}</span>`:r.dup?' · <span style="color:var(--warn)">já lançada</span>':r.rep?' · <span style="color:var(--warn)">repetida?</span>':""}</span><select data-imp-cat="${j}" style="min-height:34px;padding:4px 8px;font-size:13px">${CATS.map(x=>`<option value="${x.id}" ${x.id===r.cat?"selected":""}>${x.n}</option>`).join("")}</select></div></div></div>`).join("")}</div>
  ${im.rows.some(r=>r.n>r.i)?`<label class="check"><input type="checkbox" id="imp_future" ${im.future?"checked":""}><span class="small">Lançar também as próximas parcelas nos meses seguintes (${fut} parcela(s)). Assim você já vê as faturas futuras.</span></label>`:""}
  ${dayIn(im.k,c.due)<today()?`<label class="check"><input type="checkbox" id="imp_paid" ${im.paid?"checked":""}><span class="small">Esta fatura já venceu. Marcar como paga</span></label>`:""}
  <button class="btn block" data-act="impSave" ${on.length?"":"disabled"}>Importar ${on.length} compra(s) · ${brl(tot)}</button>`
@@ -4296,12 +4318,14 @@ Object.assign(A,{
  ccPartUndo:el=>{finPatch("meta",{cardPart:{[el.dataset.v]:{[ccKey(el.dataset.k)]:null}}});saveApp();toast("Pagamento parcial desfeito.")},
  impParse:()=>{const t=v("imp_text");if(!t.trim()){toast("Cole as linhas da fatura.");return}let raw=parseText(t);if(!raw.length&&/[;,]/.test(t))raw=parseCSV(t);impLoad(raw,"text")},
  impBack:()=>{UI.imp.rows=null;impRefresh()},
- impSave:()=>{const im=UI.imp;const c=cardById(im.card);const rows=im.rows.filter(r=>r.on);if(!rows.length)return;const all={};const td=today();
+ impSave:()=>{const im=UI.imp;const c=cardById(im.card);const rows=im.rows.filter(r=>r.on);const mv=im.rows.filter(r=>!r.on&&r.dupOf&&r.dupOf.nocard);if(!rows.length&&!mv.length)return;const all={};const td=today();
+  // gasto lançado sem cartão que é a mesma compra: passa para o cartão (sai do mês e entra na fatura)
+  mv.forEach(r=>{const e=(monthData(r.dupOf.k).expenses||[]).find(x=>x.id===r.dupOf.id);if(!e)return;finPatch(mid(r.dupOf.k),{expenses:{[e.id]:null}});const ent=ccPurchaseEntries(c,{total:e.v,n:1,desc:e.desc,cat:e.cat,bought:e.date,grp:rid(),by:e.by||ME.uid,t:e.t||Date.now(),added:e.added||td,firstK:im.k});Object.keys(ent).forEach(k=>Object.assign(all[k]=all[k]||{},ent[k]))});
   rows.forEach(r=>{const grp=rid();const n=im.future?r.n:r.i;const total=r.v*r.n;
    const ent=ccPurchaseEntries(c,{total,n:r.n,desc:r.desc,cat:r.cat,bought:r.date,grp,by:ME.uid,t:Date.now(),added:td,startI:r.i,firstK:im.k});
    Object.keys(ent).forEach(k=>{Object.entries(ent[k]).forEach(([id,e])=>{if(e.i>n)return;e.v=r.v;e.imp=1;if(r.usd>0){e.usd=r.usd;e.rate=im.rate||usdRate()}(all[k]=all[k]||{})[id]=e})})});if(rows.some(r=>r.usd>0)&&im.rateTouched)usdSetRate(im.rate);
   ccApply(all);if(im.paid&&dayIn(im.k,c.due)<today())finPatch("meta",{cardPaid:{[c.id]:{[ccKey(im.k)]:1}}});markActive();saveApp();closeModal();UI.imp=null;UI.ccOpen=c.id;
-  toast(`${rows.length} compra(s) importada(s) na fatura de ${MONTHS[+im.k.slice(5)-1]}.`,4000)}
+  const skip=im.rows.filter(r=>!r.on&&r.dupOf&&!r.dupOf.nocard).length;toast(`${rows.length} compra(s) importada(s) na fatura de ${MONTHS[+im.k.slice(5)-1]}.${skip?` ${skip} já lançada(s) por você ficaram de fora.`:""}${mv.length?` ${mv.length} gasto(s) sem cartão passaram para o ${c.name}.`:""}`,6000)}
 });
 
 

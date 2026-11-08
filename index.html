@@ -2747,7 +2747,7 @@ function viewHome(){
  return `<div class="stack">
  <div class="stack-s" style="margin-top:4px"><h1>${hi}${first?", "+esc(first):""}</h1><p class="muted">${dayLabel(today())==="Hoje"?new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"}):""}</p></div>
  ${whyCard()}
- ${newsMedCard()}${letterHomeCard()}${prumoCard()}${msgCard()}${missionsCard()}${shareCard()}
+ ${typeof bannerCard==="function"?bannerCard():""}${newsMedCard()}${letterHomeCard()}${prumoCard()}${msgCard()}${missionsCard()}${shareCard()}
  ${pigCard}
  ${envWarning()}${studyWarning()}${taskWarning()}${vocabCard(true)}${stkHomeCard()}
  <div class="card"><div class="label" style="margin-bottom:12px">Metas de hoje</div>
@@ -3144,7 +3144,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.90</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.91</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -5286,6 +5286,7 @@ function viewAdmin(){if(!UI.isAdmin)return `<div class="card empty">Acesso restr
   const base=Math.max(1,s.onboarded);const FN={fin:"Dinheiro",saude:"Saúde",estudo:"Estudos",rotina:"Rotina",fe:"Fé e mente"};
   const q=ADM.q.trim().toLowerCase();const us=(ADM.users||[]).filter(u=>!q||String(u.email).toLowerCase().includes(q));const list=ADM.all?us:us.slice(0,30);
   body=`<div class="grid2">${kpi("Contas",s.users,`${s.confirmed} confirmadas`)}${kpi("Terminaram o cadastro",s.onboarded,`${pct(s.onboarded,s.users)}% das contas`)}${kpi("Novas em 7 dias",s.new7,`${s.new30} em 30 dias`)}${kpi("Usaram hoje",s.active1,`${s.active7} na semana · ${s.active30} no mês`)}</div>
+  ${admBannerCard()}
   ${admApnsCard()}
   ${admAccCard()}
   <div class="card stack"><div class="label">Novas contas nos últimos 30 dias</div><svg viewBox="0 0 300 90" style="width:100%;height:auto" role="img" aria-label="Novas contas por dia">${days.map((d,i)=>{const h=(map[d]||0)/mx*70;return `<rect x="${i*10+1}" y="${78-h}" width="8" height="${Math.max(h,1)}" rx="2" fill="${map[d]?"var(--pig-deep)":"var(--line)"}"><title>${admDate(d)}: ${map[d]||0}</title></rect>`}).join("")}<text x="0" y="89" font-size="8" fill="var(--muted)">${admDate(days[0])}</text><text x="300" y="89" font-size="8" text-anchor="end" fill="var(--muted)">hoje</text></svg></div>
@@ -5329,6 +5330,50 @@ async function nativePushInit(){const pn=PN();if(!pn||pnDone||!Store.cloud)retur
  pn.addListener("pushNotificationActionPerformed",a=>{try{const u=a&&a.notification&&a.notification.data&&a.notification.data.url;if(u&&u.startsWith("/")){history.replaceState({},"",u);location.reload()}}catch(e){}});
  let p=await pn.checkPermissions();if(p.receive!=="granted")p=await pn.requestPermissions();if(p.receive==="granted")await pn.register()}catch(e){console.warn(e)}}
 if(PN())setInterval(nativePushInit,4000);
+
+/* ---------- Avisos para todos (banners vindos do servidor: aparecem na hora no site e no app) ---------- */
+const BAN={list:null,at:0};
+const BAN_GO=[["","Sem botão de destino"],["ex:medit","Saúde → Meditação"],["ex:remed","Saúde → Remédios"],["ex:comida","Saúde → Alimentação"],["fin:mes","Finanças → Mês"],["fin:contas","Finanças → Meu dinheiro"],["fin:cartoes","Finanças → Cartões"],["fin:dividas","Finanças → Dívidas"],["study:hoje","Estudos"],["agenda:cal","Agenda"],["agenda:tasks","Tarefas"],["pig:","Porquinho"],["profile:","Perfil"]];
+async function banLoad(force){if(!sb||!Store.cloud||Store.demo)return;if(!force&&BAN.list&&Date.now()-BAN.at<10*60000)return;BAN.at=Date.now();
+ try{const {data}=await sb.from("banners").select("id,title,body,btn,go,ends,img,created_at").order("created_at",{ascending:false}).limit(5);BAN.list=data||[];render();setTimeout(banPopup,1500)}catch(e){}}
+const banSeen=()=>(S.profile.banSeen=S.profile.banSeen||{});
+function bannerPending(){return !!(BAN.list||[]).find(b=>!banSeen()[b.id])}
+function banHTML(b,inModal){const btn=b.btn||(b.go?"Ver agora":"");
+ return `${b.img?`<img src="${esc(b.img)}" alt="${esc(b.title||"Aviso do Prumo")}" style="width:100%;display:block;border-radius:${inModal?"18px":"14px"};${inModal?"":"max-height:220px;object-fit:cover"}">`:""}
+ ${b.title&&!(b.img&&b.title==="Novidade")?`<b style="font-size:${inModal?"19px":"16px"};line-height:1.25">${esc(b.title)}</b>`:""}${b.body?`<p class="small" style="margin:0;white-space:pre-line">${esc(b.body)}</p>`:""}
+ ${btn?`<button class="btn ${inModal?"block":"sm"}" data-act="banGo" data-v="${b.id}" ${inModal?"":'style="align-self:flex-start"'}>${esc(btn)}</button>`:""}`}
+function banPopup(){if(Store.demo||UI.needAuth||(UI.onb>=0&&UI.onb<3)||UI.popShown||$("#modal").innerHTML||document.getElementById("medP"))return;if(typeof TEAM!=="undefined"&&TEAM)return;
+ const b=(BAN.list||[]).find(x=>!banSeen()[x.id]);if(!b)return;banSeen()[b.id]=today();saveApp();UI.popShown=1;
+ openModal(b.title&&!b.img?b.title:"Novidade no Prumo",`<div class="stack">${banHTML(b,true)}<button class="btn ghost block" data-act="closeModal">${b.btn||b.go?"Agora não":"Fechar"}</button></div>`)}
+function bannerCard(){if(Store.demo)return"";const off=S.profile.banOff||{};const b=(BAN.list||[]).find(x=>!off[x.id]);if(!b)return"";
+ return `<div class="card stack" style="gap:10px;position:relative"><button class="iconbtn" data-act="banOff" data-v="${b.id}" aria-label="Dispensar aviso" style="position:absolute;top:8px;right:8px;width:32px;height:32px;z-index:1;background:rgba(255,255,255,.85)">×</button>${banHTML(b,false)}</div>`}
+A.banGo=el=>{const b=(BAN.list||[]).find(x=>x.id===el.dataset.v);closeModal();if(!b||!b.go)return;const [tab,sub]=b.go.split(":");if(typeof TEAM!=="undefined"&&TEAM&&typeof teamExit==="function")teamExit();UI.tab=tab;
+ if(tab==="ex")UI.ex=sub;else if(tab==="fin"){UI.fin=sub;UI.finOpen=true}else if(tab==="study")UI.study=sub||"hoje";else if(tab==="agenda")UI.agendaSub=sub||"cal";window.scrollTo(0,0);render()};
+A.banOff=el=>{S.profile.banOff=S.profile.banOff||{};S.profile.banOff[el.dataset.v]=1;banSeen()[el.dataset.v]=banSeen()[el.dataset.v]||today();saveApp();render()};
+{const _np=typeof newsPending==="function"?newsPending:()=>false;newsPending=function(){return _np()||bannerPending()}}
+setTimeout(()=>banLoad(true),2500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)banLoad()});
+
+/* painel do administrador */
+function admBannerCard(){if(!ADM.ban&&!ADM.banLoading){ADM.banLoading=1;sb.rpc("banner_list_admin").then(r=>{ADM.ban=r.data||[];ADM.banLoading=0;render()},()=>{ADM.banLoading=0})}
+ const L=ADM.ban||[];const f=ADM.banForm||{};const live=b=>b.active&&(!b.ends||b.ends>=today());
+ return `<div class="card stack"><div class="label">Avisos para todos</div>
+ <p class="small muted" style="margin:0">Publique um banner (imagem e/ou texto). Ele aparece na hora para todo mundo, no site e no app do iPhone, sem precisar de atualização. Cada pessoa vê a janela uma vez, e o cartão fica no Início até a data final.</p>
+ <label class="field"><span>Imagem do banner (opcional)</span><input type="file" id="ban_img" accept="image/*">${f.preview?`<img src="${f.preview}" alt="" style="width:100%;border-radius:14px;margin-top:8px;display:block">`:""}</label>
+ <label class="field"><span>Título</span><input id="ban_title" maxlength="80" value="${esc(f.title||"")}" placeholder="Ex.: Agora o Prumo tem Meditação"></label>
+ <label class="field"><span>Texto (opcional)</span><textarea id="ban_body" rows="3" maxlength="600" style="width:100%;font:inherit;padding:10px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)">${esc(f.body||"")}</textarea></label>
+ <div class="grid2"><label class="field"><span>Texto do botão</span><input id="ban_btn" maxlength="30" value="${esc(f.btn||"")}" placeholder="Ex.: Experimentar"></label>
+ <label class="field"><span>Leva para</span><select id="ban_go">${BAN_GO.map(([v,n])=>`<option value="${v}" ${(f.go||"")===v?"selected":""}>${n}</option>`).join("")}</select></label></div>
+ <label class="field"><span>Mostrar até</span><input id="ban_ends" type="date" value="${f.ends||addDays(today(),14)}"></label>
+ <button class="btn" data-act="banPublish" ${ADM.banBusy?"disabled":""}>${ADM.banBusy?"Publicando…":"Publicar para todos"}</button>
+ ${L.length?`<div class="label" style="margin-top:6px">Publicados</div><div class="list">${L.map(b=>`<div class="item" style="gap:10px">${b.img?`<img src="${esc(b.img)}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:10px;flex:none">`:`<span class="ico" style="background:var(--pig-soft);color:var(--pig-deep)">📣</span>`}<div class="grow stack-s" style="gap:1px;min-width:0"><b class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.title)}</b><span class="tiny muted">${live(b)?"No ar":"Fora do ar"}${b.ends?" · até "+ddmm(b.ends):""}</span></div><button class="btn ghost sm" data-act="banToggle" data-v="${b.id}">${b.active?"Tirar do ar":"Reativar"}</button></div>`).join("")}</div>`:""}</div>`}
+function banKeepForm(){ADM.banForm=Object.assign(ADM.banForm||{},{title:v("ban_title"),body:v("ban_body"),btn:v("ban_btn"),go:v("ban_go"),ends:v("ban_ends")})}
+function banShrink(file){return new Promise((ok,ko)=>{const img=new Image();const u=URL.createObjectURL(file);img.onload=()=>{const m=1400,sc=Math.min(1,m/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?ok(b):ko(new Error("imagem")),"image/jpeg",.86)};img.onerror=()=>ko(new Error("Não consegui abrir a imagem"));img.src=u})}
+document.addEventListener("change",async e=>{if(!e.target||e.target.id!=="ban_img"||!e.target.files[0])return;banKeepForm();try{const blob=await banShrink(e.target.files[0]);ADM.banBlob=blob;ADM.banForm.preview=URL.createObjectURL(blob);render()}catch(x){toast((x&&x.message)||"Não consegui abrir a imagem")}});
+A.banPublish=async()=>{banKeepForm();const f=ADM.banForm;if(!f.title.trim()&&!ADM.banBlob){toast("Coloque uma imagem ou um título.");return}
+ ADM.banBusy=1;render();try{let img=null;if(ADM.banBlob){const path=`b_${Date.now()}_${Math.random().toString(36).slice(2,8)}.jpg`;const up=await sb.storage.from("banners").upload(path,ADM.banBlob,{contentType:"image/jpeg",cacheControl:"31536000"});if(up.error)throw up.error;img=sb.storage.from("banners").getPublicUrl(path).data.publicUrl}
+  const {error}=await sb.rpc("banner_save",{p_id:null,p_title:f.title.trim()||"Novidade",p_body:f.body.trim(),p_btn:f.btn.trim(),p_go:f.go,p_ends:f.ends||null,p_active:true,p_img:img});if(error)throw error;
+  ADM.banForm=null;ADM.banBlob=null;ADM.ban=null;banLoad(true);toast("Aviso publicado! Já aparece para todo mundo.",4000)}catch(x){toast("Não consegui publicar: "+((x&&x.message)||"erro"),6000)}ADM.banBusy=0;render()};
+A.banToggle=async el=>{const b=(ADM.ban||[]).find(x=>x.id===el.dataset.v);if(!b)return;try{const {error}=await sb.rpc("banner_save",{p_id:b.id,p_title:b.title,p_body:b.body,p_btn:b.btn||"",p_go:b.go||"",p_ends:b.ends,p_active:!b.active,p_img:null});if(error)throw error;ADM.ban=null;banLoad(true);toast(b.active?"Aviso tirado do ar.":"Aviso de volta ao ar.")}catch(x){toast("Não consegui mudar: "+((x&&x.message)||"erro"))}};
 A.goAdmin=()=>{UI.tab="admin";window.scrollTo(0,0);ADM.stats=null;ADM.sel=null;render()};
 function admAccCard(){const d=ADM.accDays||1;const L=ADM.acc;const hm=t=>{const x=new Date(t);const td=new Date();return x.toDateString()===td.toDateString()?"hoje às "+x.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):x.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})+" às "+x.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})};
  return `<div class="card stack" id="admAcc"><div class="row between"><div class="label">Quem acessou</div><div class="chips">${[[1,"Hoje"],[7,"7 dias"],[30,"30 dias"]].map(([k,n])=>`<button class="chip ${d===k?"on":""}" data-act="admAccDays" data-v="${k}">${n}</button>`).join("")}</div></div>

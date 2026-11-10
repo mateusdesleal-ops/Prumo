@@ -994,7 +994,17 @@ function occursOn(ev,day){if(ev.date===day)return true;if(!ev.repeat||ev.repeat=
 const eventsOn=day=>[...vals(S.agenda.events).filter(e=>occursOn(e,day)),...taskEvents(day)].sort((a,b)=>(a.time||"").localeCompare(b.time||""));
 function upcoming(n){const out=[];for(let i=0;i<14&&out.length<n;i++){const d=addDays(today(),i);for(const e of eventsOn(d)){if(i===0&&e.time){const now=new Date();const [h,m]=e.time.split(":").map(Number);if(h*60+m<now.getHours()*60+now.getMinutes()-30)continue}out.push({...e,day:d})}}return out.slice(0,n)}
 const notified=new Set();
-function checkReminders(){checkWater();const now=new Date();
+/* ---------- Modo silencioso: pausa lembretes e avisos (ex.: tela compartilhada numa reunião) ---------- */
+function quietUntil(){try{const q=+(S&&S.profile&&S.profile.quiet)||0;return q>Date.now()?q:0}catch(e){return 0}}
+function quietOn(){return !!quietUntil()}
+function quietLabel(){const q=quietUntil();if(!q)return"";if(q>Date.now()+300*864e5)return"até você desligar";const d=new Date(q);const t=`${pad(d.getHours())}:${pad(d.getMinutes())}`;return ymd(d)===today()?`até ${t}`:`até amanhã às ${t}`}
+function quietMenu(){const on=quietOn();
+ openModal("Modo silencioso",`<div class="stack"><p class="small" style="margin:0">Pausa os lembretes de contas, tarefas, agenda, remédios e água, os avisos das equipes e as janelas de novidades. Nada aparece na tela nem toca, nem no celular. Ideal para quando você está apresentando ou compartilhando a tela.</p>
+ ${on?`<div class="banner info"><span>🔕 Ligado <b>${quietLabel()}</b>.</span></div><button class="btn block" data-act="quietSet" data-v="0">Desligar o modo silencioso</button>`:""}
+ <div class="label" style="margin-top:4px">${on?"Mudar para":"Silenciar por"}</div>
+ <div class="grid2">${[["60","1 hora"],["120","2 horas"],["eod","Até o fim do dia"],["inf","Até eu desligar"]].map(([v,n])=>`<button class="btn line" data-act="quietSet" data-v="${v}">${n}</button>`).join("")}</div>
+ <p class="tiny muted" style="margin:0">Os lembretes perdidos nesse período não voltam depois. Os avisos das equipes ficam guardados no sininho.</p></div>`)}
+function checkReminders(){if(quietOn())return;checkWater();const now=new Date();
  for(const d of [today(),addDays(today(),1)])for(const e of [...eventsOn(d),...(TEAM&&PERS&&PERS.S===S?withPersonal(()=>eventsOn(d)):[])]){if(!e.time)continue;const [h,m]=e.time.split(":").map(Number);const at=parseDate(d);at.setHours(h,m,0,0);const rem=new Date(at.getTime()-(+e.remind||0)*60000);const key=e.id+d;
   if(now>=rem&&now<=new Date(at.getTime()+5*60000)&&!notified.has(key)){notified.add(key);beep();toast(`${e.title} ${remWhen(Math.round((at-now)/60000),e.time)}`,8000);notify(e.title,(w=>w[0].toUpperCase()+w.slice(1))(remWhen(Math.round((at-now)/60000),e.time)))}}
 }
@@ -1045,9 +1055,11 @@ function pigPokeLine(){const td=today(),h=new Date().getHours();if(PV.pokeDay!==
   if(last&&last<addDays(td,-2))return"miss";return h<12?"morning":h>=19?"night":"greet"}
  const hh=pigHealth();if(hh.mood==="triste")return Math.random()<.5?"needlove":"worried";if(hh.mood==="preocupado")return Math.random()<.6?"worried":"poke";
  if(S.profile.pet&&studyDecay().lost&&Math.random()<.3)return"lostAcc";const r=Math.random();return hh.mood==="feliz"?(r<.6?"poke":r<.8?"happy":"great"):"poke"}
-function beep(){if(S.profile.oinc!==false){oinc();return}try{if(!AC)return;const t=AC.currentTime;[0,.22,.44].forEach((o,i)=>{const g=AC.createGain(),os=AC.createOscillator();os.frequency.value=[660,880,990][i];os.type="sine";g.gain.setValueAtTime(0,t+o);g.gain.linearRampToValueAtTime(.25,t+o+.02);g.gain.exponentialRampToValueAtTime(.001,t+o+.2);os.connect(g).connect(AC.destination);os.start(t+o);os.stop(t+o+.22)})}catch(e){}}
+function beep(){if(quietBlock())return;if(S.profile.oinc!==false){oinc();return}try{if(!AC)return;const t=AC.currentTime;[0,.22,.44].forEach((o,i)=>{const g=AC.createGain(),os=AC.createOscillator();os.frequency.value=[660,880,990][i];os.type="sine";g.gain.setValueAtTime(0,t+o);g.gain.linearRampToValueAtTime(.25,t+o+.02);g.gain.exponentialRampToValueAtTime(.001,t+o+.2);os.connect(g).connect(AC.destination);os.start(t+o);os.stop(t+o+.22)})}catch(e){}}
 function oink(){try{unlockAudio();if(!AC)return;const t=AC.currentTime;[0,.16].forEach(o=>{const os=AC.createOscillator(),g=AC.createGain(),f=AC.createBiquadFilter();os.type="sawtooth";os.frequency.setValueAtTime(320,t+o);os.frequency.exponentialRampToValueAtTime(170,t+o+.13);f.type="lowpass";f.frequency.value=900;g.gain.setValueAtTime(0,t+o);g.gain.linearRampToValueAtTime(.18,t+o+.02);g.gain.exponentialRampToValueAtTime(.001,t+o+.14);os.connect(f).connect(g).connect(AC.destination);os.start(t+o);os.stop(t+o+.15)})}catch(e){}}
-function toast(msg,ms){const el=document.createElement("div");el.className="toast";el.textContent=msg;$("#toasts").appendChild(el);setTimeout(()=>el.remove(),ms||3200)}
+var LAST_INPUT=0;["pointerdown","keydown"].forEach(ev=>document.addEventListener(ev,()=>{LAST_INPUT=Date.now()},true));
+function quietBlock(){return typeof quietOn==="function"&&quietOn()&&Date.now()-LAST_INPUT>4000}
+function toast(msg,ms){if(quietBlock())return;const el=document.createElement("div");el.className="toast";el.textContent=msg;$("#toasts").appendChild(el);setTimeout(()=>el.remove(),ms||3200)}
 
 /* ============================================================
    Desenho do porquinho
@@ -1996,7 +2008,7 @@ function waterRemView(){const c=waterCfg();const sug=waterSuggest(c);const ev=+c
   const n=Math.floor((toMin(tmp.to)-toMin(tmp.from))/e)+1;$("#wr_count").textContent=n>0?`Com esse intervalo, serão ${n} lembretes por dia.`:"";
   document.querySelectorAll('[data-act="wrEvery"]').forEach(b=>b.classList.toggle("on",+b.dataset.v===e))};
   ["wr_from","wr_to","wr_every"].forEach(id=>$("#"+id).addEventListener("input",upd));upd()})}
-function checkWater(){const c=waterCfg();if(!c.on)return;const now=new Date();const nm=now.getHours()*60+now.getMinutes();const d=today();
+function checkWater(){const c=waterCfg();if(!c.on||quietOn())return;const now=new Date();const nm=now.getHours()*60+now.getMinutes();const d=today();
  for(const t of waterSlots()){const key="w"+d+t;if(nm>=t&&nm<=t+4&&!notified.has(key)){notified.add(key);const done=+S.food.water[d]||0,g=waterGoal();beep();toast(`Hora de beber água. Você está em ${done} de ${g} copos hoje.`,7000);if(typeof notify==="function")notify("Hora de beber água",`Você está em ${done} de ${g} copos hoje.`)}}}
 
 
@@ -2676,7 +2688,7 @@ async function stkArt(k){const a=STK_AREAS.find(x=>x.k===k);const n=stkCount(k);
 async function storyOpen(k){const a=STK_AREAS.find(x=>x.k===k);const n=stkCount(k);if(n<2){toast("Com 2 dias seguidos você já pode compartilhar.");return}
  openModal("Compartilhar nos stories",`<div class="tiny muted" style="padding:40px 0;text-align:center">Montando a arte…</div>`);
  const b=await stkArt(k);UI.stkArea=k;stkShareModal("Compartilhar nos stories",b,`Arte da sequência de ${n} dias ${a.t}`)}
-function storyAskPopup(){if(newsPending()||S.profile.storyAsk===false||!S.profile.created||UI.needAuth||UI.onb>=0&&UI.onb<3)return;const asked=S.profile.storyAsked||{};
+function storyAskPopup(){if(typeof quietOn==="function"&&quietOn())return;if(newsPending()||S.profile.storyAsk===false||!S.profile.created||UI.needAuth||UI.onb>=0&&UI.onb<3)return;const asked=S.profile.storyAsked||{};
  const hit=stkList().find(a=>a.today&&a.n>=10&&a.n%10===0&&asked[a.k]!==a.n);if(!hit)return;
  if($("#modal").innerHTML){setTimeout(storyAskPopup,4000);return}
  S.profile.storyAsked={...asked,[hit.k]:hit.n};saveApp();
@@ -2691,7 +2703,7 @@ function storyAskPopup(){if(newsPending()||S.profile.storyAsk===false||!S.profil
 function tourAreas(){return withPersonal(()=>{const n=o=>Object.keys(o||{}).length>0;
  const fin=allMonths().some(k=>{const m=monthData(k);return(m.expenses||[]).length||(m.incomes||[]).length});
  return{fin,ex:n(S.ex&&S.ex.logs)||n(S.food&&S.food.logs),study:n(S.study&&S.study.logs)||n(S.study&&S.study.books)||n(VOC().words),agenda:n(S.tasks&&S.tasks.items)}})}
-function tourPopup(){const p=S.profile;if(newsPending()||p.tour1||!p.created||UI.needAuth||(UI.onb>=0&&UI.onb<3))return;
+function tourPopup(){if(typeof quietOn==="function"&&quietOn())return;const p=S.profile;if(newsPending()||p.tour1||!p.created||UI.needAuth||(UI.onb>=0&&UI.onb<3))return;
  if(p.created>=today())return;
  if($("#modal").innerHTML){setTimeout(tourPopup,5000);return}
  const used=tourAreas();if(Object.values(used).filter(Boolean).length>=3){p.tour1=today();saveApp();return}
@@ -2716,7 +2728,7 @@ function tourPopup(){const p=S.profile;if(newsPending()||p.tour1||!p.created||UI
 function newsPending(){const p=S.profile||{};return !p.newsMed&&!!p.created&&p.created<today()&&!/\/demo\//.test(location.pathname)&&!(typeof TEAM!=="undefined"&&TEAM)}
 function newsMedCard(){const p=S.profile;if(p.medSeen||p.medCardOff||today()>"2026-11-20"||/\/demo\//.test(location.pathname))return"";
  return `<div class="card" style="display:flex;gap:14px;align-items:center;background:linear-gradient(135deg,#2b2140,#4a3a5e);color:#fff;border:0"><div style="width:62px;flex:none">${pigSVG({score:96,mood:"feliz",equip:{head:"zen"},env:0,mini:true})}</div><div class="grow stack-s" style="gap:4px"><span class="tiny" style="font-weight:800;letter-spacing:.1em;color:#F7C3D3">NOVIDADE</span><b>Agora o Prumo tem Meditação</b><span class="small" style="opacity:.85">Meditações guiadas e respiração de 3 minutos.</span></div><div class="stack-s" style="gap:6px;flex:none"><button class="btn sm" data-act="newsMedGo">Experimentar</button><button class="btn ghost sm" style="color:#fff" data-act="medCardOff" aria-label="Dispensar aviso de meditação">Agora não</button></div></div>`}
-function newsMedPopup(){const p=S.profile;if(/\/demo\//.test(location.pathname)||p.newsMed||!p.created||UI.needAuth||UI.popShown||(UI.onb>=0&&UI.onb<3)||p.created>=today())return;
+function newsMedPopup(){if(typeof quietOn==="function"&&quietOn())return;const p=S.profile;if(/\/demo\//.test(location.pathname)||p.newsMed||!p.created||UI.needAuth||UI.popShown||(UI.onb>=0&&UI.onb<3)||p.created>=today())return;
  if(typeof TEAM!=="undefined"&&TEAM)return;if($("#modal").innerHTML||document.getElementById("medP"))return;
  p.newsMed=today();saveApp();UI.popShown=1;const first=(p.name||"").split(" ")[0];
  let pig="";try{pig=pigSVG({score:100,mood:"feliz",equip:Object.assign({},p.pet?effectiveEquip():{},{head:"zen"}),env:0,dry:false,peace:0,zen:0,mini:true})}catch(e){}
@@ -3116,6 +3128,7 @@ function viewProfile(){const p=S.profile;
  <div class="section"><div class="label">Seu jeito</div>
  <div class="card plist">
   ${pRow(I.spark,"Áreas do app e lembrete diário","O que organizar primeiro e quando o Prumo te chama","habitModal")}
+  ${pRow(I.bell,"Modo silencioso",quietOn()?"🔕 Ligado "+quietLabel()+". Toque para desligar.":"Pausa os lembretes quando for apresentar ou compartilhar a tela","quietMenu")}
   ${hh?"":pRow(I.people,"Dividir finanças com alguém","Cônjuge, namorado(a) ou quem divide as contas com você","hhInfo")}
  </div></div>
  <div class="section"><div class="label">Abas e mascote</div>
@@ -3150,7 +3163,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.95</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.96</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -4671,9 +4684,14 @@ Object.assign(A,{
   if(m&&m.stock!=null&&m.stock!==""){m.stock=Math.max(0,Math.round(((+m.stock)+(was?1:-1)*(+m.qty||1))*100)/100)}
   markActive();saveApp();if(!was){const sd=m?medStockDays(m):null;toast(sd!=null&&sd<=7?`Anotado. O estoque dá para uns ${sd} dia${sd===1?"":"s"}: hora de comprar mais.`:"Anotado. Cuide-se! 💊")}}
 });
+A.quietMenu=()=>quietMenu();
+A.quietSet=el=>{const v=el.dataset.v;let until=0;const now=Date.now();
+ if(v==="60"||v==="120")until=now+(+v)*60000;else if(v==="eod"){const d=new Date();d.setHours(23,59,0,0);until=d.getTime()}else if(v==="inf")until=now+3650*864e5;
+ S.profile.quiet=until||null;saveApp();closeModal();render();if(typeof scheduleNative==="function")scheduleNative();
+ toast(until?`🔕 Modo silencioso ligado ${quietLabel()}.`:"🔔 Modo silencioso desligado. Os lembretes voltaram.",3500)};
 /* aviso com o app aberto */
 const medNotified=new Set();
-function checkMeds(){const now=new Date(),d=today();for(const x of medDoses(d)){if(x.done||x.m.notify===false)continue;const [h,mi]=x.t.split(":").map(Number);const at=parseDate(d);at.setHours(h,mi,0,0);const key=x.m.id+d+x.t;
+function checkMeds(){if(quietOn())return;const now=new Date(),d=today();for(const x of medDoses(d)){if(x.done||x.m.notify===false)continue;const [h,mi]=x.t.split(":").map(Number);const at=parseDate(d);at.setHours(h,mi,0,0);const key=x.m.id+d+x.t;
  if(now>=at&&now<=new Date(at.getTime()+10*60000)&&!medNotified.has(key)){medNotified.add(key);beep();toast(`💊 Hora do remédio: ${x.m.name}${medDoseTxt(x.m)?" "+medDoseTxt(x.m):""} · ${medQtyTxt(x.m)}`,10000)}}}
 setInterval(()=>{try{checkMeds()}catch(e){}},20000);setTimeout(()=>{try{checkMeds()}catch(e){}},2500);
 /* ---------- Contas: onde está o dinheiro ---------- */
@@ -5222,11 +5240,11 @@ function notify(title,body){try{if(!("Notification" in window)||Notification.per
 if("serviceWorker" in navigator)window.addEventListener("load",()=>{const had=!!navigator.serviceWorker.controller;
  navigator.serviceWorker.register("sw.js").then(reg=>{const chk=()=>{reg.update().catch(()=>{})};setInterval(chk,20*60000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)chk()})}).catch(()=>{});
  let done=false;navigator.serviceWorker.addEventListener("controllerchange",()=>{if(!had||done)return;done=true;
-  const busy=()=>{const a=document.activeElement;return ($("#modal")&&$("#modal").innerHTML)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))};
+  const busy=()=>{const a=document.activeElement;return (typeof quietOn==="function"&&quietOn())||($("#modal")&&$("#modal").innerHTML)||(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))};
   const go=()=>{try{sessionStorage.setItem("prumo-upd","1")}catch(e){}location.reload()};
   if(!busy()&&document.hidden){go();return}
   if(!busy()){go();return}
-  const b=document.createElement("button");b.className="updbar";b.textContent="Nova versão do Prumo pronta · tocar para atualizar";b.onclick=go;document.body.appendChild(b);
+  if(typeof quietOn==="function"&&quietOn()){const w=setInterval(()=>{if(!quietOn()){clearInterval(w);go()}},30000);return}const b=document.createElement("button");b.className="updbar";b.textContent="Nova versão do Prumo pronta · tocar para atualizar";b.onclick=go;document.body.appendChild(b);
   const t=setInterval(()=>{if(document.hidden&&!busy()){clearInterval(t);go()}},3000)})});
 try{if(sessionStorage.getItem("prumo-upd")){sessionStorage.removeItem("prumo-upd");setTimeout(()=>toast("Prumo atualizado para a versão mais nova."),1200)}}catch(e){}
 document.head.insertAdjacentHTML("beforeend",`<style>.updbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:90;border:0;border-radius:999px;padding:10px 16px;background:var(--ink);color:var(--bg);font-weight:700;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.25);cursor:pointer;max-width:92vw}</style>`);
@@ -5237,7 +5255,7 @@ let lnTimer=null;
 function scheduleNative(){const ln=LN();if(!ln)return;clearTimeout(lnTimer);lnTimer=setTimeout(async()=>{try{
  const perm=await ln.checkPermissions();if(perm.display!=="granted"){const r=await ln.requestPermissions();if(r.display!=="granted")return}
  const pend=await ln.getPending();if(pend.notifications.length)await ln.cancel({notifications:pend.notifications.map(n=>({id:n.id}))});
- const list=[];let nid=1;const now=Date.now();
+ const list=[];let nid=1;const now=Math.max(Date.now(),typeof quietUntil==="function"?quietUntil():0);
  for(let i=0;i<45&&list.length<60;i++){const d=addDays(today(),i);for(const e of eventsOn(d)){if(!e.time)continue;const [h,m]=e.time.split(":").map(Number);const at=parseDate(d);at.setHours(h,m,0,0);const when=new Date(at.getTime()-(+e.remind||0)*60000);if(when.getTime()>now)list.push({id:nid++,title:e.title,body:(e.remind>0?(typeof remAhead==="function"?remAhead(+e.remind,e.time):"Em "+e.remind+" min · "+e.time):"Agora · "+e.time)+(e.place?" · "+e.place:""),schedule:{at:when}})}}
  const water=waterSlots().slice(0,20).map((t,i)=>({id:5000+i,title:"Hora de beber água",body:"Um copo agora ajuda a bater sua meta do dia.",schedule:{on:{hour:Math.floor(t/60),minute:t%60},repeats:true}}));
  const meds=[];if(typeof medDoses==="function")for(let i=0;i<10&&meds.length<30;i++){const d=addDays(today(),i);for(const x of medDoses(d)){if(x.m.notify===false||(i===0&&x.done))continue;const [h,m]=x.t.split(":").map(Number);const at=parseDate(d);at.setHours(h,m,0,0);if(at.getTime()<=now)continue;meds.push({id:3000+meds.length,title:`💊 Hora do remédio: ${x.m.name}${medDoseTxt(x.m)?" "+medDoseTxt(x.m):""}`,body:`${medQtyTxt(x.m)}${x.m.notes?" · "+x.m.notes:""}`,schedule:{at},extra:{go:"meds"}});if(meds.length>=30)break}}
@@ -5348,7 +5366,7 @@ function banHTML(b,inModal){const btn=b.btn||(b.go?"Ver agora":"");
  return `${b.img?`<img src="${esc(b.img)}" alt="${esc(b.title||"Aviso do Prumo")}" style="width:100%;display:block;border-radius:${inModal?"18px":"14px"};${inModal?"":"max-height:220px;object-fit:cover"}">`:""}
  ${b.title&&!(b.img&&b.title==="Novidade")?`<b style="font-size:${inModal?"19px":"16px"};line-height:1.25">${esc(b.title)}</b>`:""}${b.body?`<p class="small" style="margin:0;white-space:pre-line">${esc(b.body)}</p>`:""}
  ${btn?`<button class="btn ${inModal?"block":"sm"}" data-act="banGo" data-v="${b.id}" ${inModal?"":'style="align-self:flex-start"'}>${esc(btn)}</button>`:""}`}
-function banPopup(){if(Store.demo||UI.needAuth||(UI.onb>=0&&UI.onb<3)||UI.popShown||$("#modal").innerHTML||document.getElementById("medP"))return;if(typeof TEAM!=="undefined"&&TEAM)return;
+function banPopup(){if(typeof quietOn==="function"&&quietOn())return;if(Store.demo||UI.needAuth||(UI.onb>=0&&UI.onb<3)||UI.popShown||$("#modal").innerHTML||document.getElementById("medP"))return;if(typeof TEAM!=="undefined"&&TEAM)return;
  const b=(BAN.list||[]).find(x=>!banSeen()[x.id]);if(!b)return;banSeen()[b.id]=today();saveApp();UI.popShown=1;
  openModal(b.title&&!b.img?b.title:"Novidade no Prumo",`<div class="stack">${banHTML(b,true)}<button class="btn ghost block" data-act="closeModal">${b.btn||b.go?"Agora não":"Fechar"}</button></div>`)}
 function bannerCard(){if(Store.demo)return"";const off=S.profile.banOff||{};const b=(BAN.list||[]).find(x=>!off[x.id]);if(!b)return"";
@@ -5972,7 +5990,7 @@ if(typeof startDemo==="function"){const _sd=startDemo;startDemo=function(){_sd()
 
 /* convite novo: abre no centro da tela para a pessoa não deixar passar */
 const INV_SEEN=new Set();
-function teamInvitePopup(){if(!TINV||!TINV.length||UI.needAuth||!S.profile.created)return;
+function teamInvitePopup(){if(typeof quietOn==="function"&&quietOn())return;if(!TINV||!TINV.length||UI.needAuth||!S.profile.created)return;
  const i=TINV.find(x=>!INV_SEEN.has(x.team_id));if(!i)return;if($("#modal").innerHTML){setTimeout(teamInvitePopup,3000);return}
  INV_SEEN.add(i.team_id);
  openModal("Convite para equipe",`<div class="stack" style="align-items:center;text-align:center;gap:12px">
@@ -6016,7 +6034,7 @@ function vqExpDel(t,r,d){if(!d)return;myFinPatch(mid(mkey(d)),{expenses:{[vqExpI
 /* pagamentos antigos que ainda não estão nos gastos: pergunta uma vez */
 function vqBackfillList(){const out=[];const skip=(S.profile.vqBfSkip||{});for(const t of TEAMS||[]){const x=TEAM&&TEAM.id===t.id?{items:VQ().items}:VQX[t.id];if(!x)continue;
  for(const r of Object.values(x.items||{})){if(!r)continue;const d=(r.paid||{})[ME.uid];const my=+((r.shares||{})[ME.uid])||0;if(!d||!(my>0)||r.payer===ME.uid||skip[vqExpId(t.id,r.id)]||vqExpHas(t.id,r,d))continue;out.push({t,r,d,v:my})}}return out}
-function vqBackfillAsk(){if(TEAM||Store.demo||UI.vqBfAsked||$("#modal").innerHTML||(typeof newsPending==="function"&&newsPending()))return;const L=vqBackfillList();if(!L.length)return;UI.vqBfAsked=1;UI.vqBfL=L;
+function vqBackfillAsk(){if(typeof quietOn==="function"&&quietOn())return;if(TEAM||Store.demo||UI.vqBfAsked||$("#modal").innerHTML||(typeof newsPending==="function"&&newsPending()))return;const L=vqBackfillList();if(!L.length)return;UI.vqBfAsked=1;UI.vqBfL=L;
  openModal("Vaquinhas pagas",`<div class="stack"><p class="small" style="margin:0">Você pagou ${L.length===1?"esta vaquinha":"estas vaquinhas"}, mas ${L.length===1?"ela ainda não está":"elas ainda não estão"} nos seus gastos:</p><div class="card list">${L.map(o=>`<div class="item"><div class="grow stack-s" style="gap:0"><b>🐮 ${esc(o.r.title)}</b><span class="tiny muted">${esc(o.t.name)} · pago em ${ddmm(o.d)}</span></div><b class="num">${brl(o.v)}</b></div>`).join("")}</div>
  <button class="btn block" data-act="vqBfYes">Lançar nos meus gastos</button><button class="btn ghost block" data-act="vqBfNo">Já lancei por conta própria</button></div>`)}
 A.vqBfYes=()=>{(UI.vqBfL||[]).forEach(o=>vqExpAdd(o.t,o.r,o.d));const n=(UI.vqBfL||[]).length;closeModal();render();toast(`${n} ${n===1?"gasto lançado":"gastos lançados"} em Outros, com o nome da vaquinha.`)};
@@ -6190,7 +6208,7 @@ function chAutoCheck(){if(chAutoBusy||!TEAM||!teamHas("desafios")||!TD.chal)retu
 const chPend=(c,d)=>!!(((c.pend||{})[ME.uid]||{})[d]);
 const chActName=c=>({ex:"seu treino na aba Saúde",study:"seu estudo",food:"suas refeições do dia",fin:"seus gastos do dia",prayer:"sua oração do dia"})[c.auto]||"sua atividade";
 function chPendText(c){return `Você registrou ${esc(chActName(c))}. Para valer no desafio <b>${esc(c.name)}</b>, é obrigatório tirar uma foto${chLive(c)?" na hora":""} para validar o check-in. O que você registrou continua salvo normalmente.`}
-function chPendPopup(cid,d){const c=CHP().items[cid];if(!c||!chPend(c,d)||(((c.checkins||{})[ME.uid]||{})[d]))return;if($("#modal").innerHTML){setTimeout(()=>chPendPopup(cid,d),3000);return}
+function chPendPopup(cid,d){if(typeof quietOn==="function"&&quietOn())return;const c=CHP().items[cid];if(!c||!chPend(c,d)||(((c.checkins||{})[ME.uid]||{})[d]))return;if($("#modal").innerHTML){setTimeout(()=>chPendPopup(cid,d),3000);return}
  openModal("Falta a foto do desafio",`<div class="stack" style="align-items:center;text-align:center;gap:12px">
  <div style="font-size:44px;line-height:1">📸</div><p>${chPendText(c)}</p>
  <button class="btn block" data-act="chPendGo" data-c="${cid}" data-d="${d}">${chLive(c)?"Tirar a foto agora":"Mandar a foto"}</button>
@@ -6239,7 +6257,7 @@ async function chStory(cid,mode){const c=CHP().items[cid];if(!c)return;openModal
 function chAskKey(cid,m){return `prumo-chask-${m}-${cid}`}
 function chAsked(cid,m){try{return localStorage.getItem(chAskKey(cid,m))==="1"}catch(e){return false}}
 function chSetAsked(cid,m){try{localStorage.setItem(chAskKey(cid,m),"1")}catch(e){}}
-function chWinPopup(){if(!TEAM||!teamHas("desafios")||!TD.chal)return;const c=vals(CHP().items).find(c=>chEnded(c)&&addDays(chEnd(c),14)>=today()&&chWinners(c).some(w=>w.u===ME.uid)&&!chAsked(c.id,"win"));if(!c)return;
+function chWinPopup(){if(typeof quietOn==="function"&&quietOn())return;if(!TEAM||!teamHas("desafios")||!TD.chal)return;const c=vals(CHP().items).find(c=>chEnded(c)&&addDays(chEnd(c),14)>=today()&&chWinners(c).some(w=>w.u===ME.uid)&&!chAsked(c.id,"win"));if(!c)return;
  if($("#modal").innerHTML){setTimeout(chWinPopup,4000);return}chSetAsked(c.id,"win");
  openModal("Você ganhou!",`<div class="stack" style="align-items:center;text-align:center;gap:12px"><div style="font-size:52px;line-height:1">🏆</div><h2 style="margin:0">${esc(c.name)}</h2><p>Você terminou em primeiro lugar no desafio. Quer comemorar nos stories com a equipe?</p>
  <button class="btn block" data-act="chStory" data-v="${c.id}" data-m="end">Criar arte para os stories</button><button class="btn ghost block" data-act="closeModal">Agora não</button></div>`);
@@ -6618,7 +6636,7 @@ setInterval(()=>{if(Store.cloud&&!document.hidden)notifLoad()},60000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&Store.cloud)notifLoad()});
 function notifAgo(s){const m=Math.round((Date.now()-new Date(s))/60000);return m<1?"agora":m<60?`há ${m} min`:m<1440?`há ${Math.round(m/60)} h`:new Date(s).toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}
 function notifView(){const L=NOTIF.list;
- openModal("Avisos",`<div class="stack">${L.length?`<div class="list">${L.map(n=>`<button class="item" style="width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;padding-inline:0;align-items:flex-start" data-act="notifGo" data-v="${n.id}">
+ openModal("Avisos",`<div class="stack"><button class="btn ghost sm" data-act="quietMenu" style="align-self:flex-start">${typeof quietOn==="function"&&quietOn()?"🔕 Silencioso "+quietLabel()+" · desligar":"🔕 Silenciar lembretes"}</button>${L.length?`<div class="list">${L.map(n=>`<button class="item" style="width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left;padding-inline:0;align-items:flex-start" data-act="notifGo" data-v="${n.id}">
   <span style="width:10px;height:10px;border-radius:50%;margin-top:6px;flex:none;background:${n.read_at?"transparent":"var(--pig-deep)"}"></span>
   <span class="grow stack-s" style="gap:2px;min-width:0"><b class="small">${esc(n.title)}</b>${n.body?`<span class="small muted">${esc(n.body)}</span>`:""}<span class="tiny muted">${notifAgo(n.created_at)}</span></span></button>`).join("")}</div>`
   :`<div class="empty">Nenhum aviso por enquanto.</div>`}
@@ -6650,7 +6668,8 @@ let pushChecked=false;
  if(!pushChecked&&pushOK()&&Notification.permission==="granted"){pushChecked=true;setTimeout(()=>pushSubscribe(false),1500)}
  if(UI.pendTeam&&TEAMS)setTimeout(notifApply,0);
  const top=document.querySelector("#app .top");const un=NOTIF.list.filter(x=>!x.read_at).length;
- if(top&&(NOTIF.list.length||TEAMS&&TEAMS.length)&&!document.getElementById("bellBtn")){const ref=top.querySelector(".streak");const h=`<button id="bellBtn" class="iconbtn" data-act="notifOpen" aria-label="Avisos${un?`: ${un} novos`:""}" style="position:relative">${I.bell}${un?`<span class="supdot" style="background:var(--bad);font-size:10px;font-weight:800;width:18px;height:18px">${un>9?"9+":un}</span>`:""}</button>`;if(ref)ref.insertAdjacentHTML("beforebegin",h);else top.insertAdjacentHTML("beforeend",h)}}catch(e){}}}
+ if(top&&(NOTIF.list.length||TEAMS&&TEAMS.length)&&!document.getElementById("bellBtn")){const ref=top.querySelector(".streak");const h=`<button id="bellBtn" class="iconbtn" data-act="notifOpen" aria-label="Avisos${un?`: ${un} novos`:""}" style="position:relative">${I.bell}${un?`<span class="supdot" style="background:var(--bad);font-size:10px;font-weight:800;width:18px;height:18px">${un>9?"9+":un}</span>`:""}</button>`;if(ref)ref.insertAdjacentHTML("beforebegin",h);else top.insertAdjacentHTML("beforeend",h)}
+ if(top&&typeof quietOn==="function"&&quietOn()&&!document.getElementById("quietBtn")){const ref=top.querySelector("#bellBtn")||top.querySelector(".streak");const h=`<button id="quietBtn" class="streak" data-act="quietMenu" title="Modo silencioso ${quietLabel()}" style="cursor:pointer;border:0">🔕 <span class="tiny">Silencioso</span></button>`;if(ref)ref.insertAdjacentHTML("beforebegin",h);else top.insertAdjacentHTML("beforeend",h)}}catch(e){}}}
 
 /* convite para ativar as notificações (na tela da equipe) */
 {const _vt=viewTeamHome;viewTeamHome=function(){let h=_vt();let off=false;try{off=localStorage.getItem("prumo.pushAsk")==="no"}catch(e){}
@@ -6763,7 +6782,7 @@ function insNeeded(st){if(typeof NATIVE_PN==="function"&&NATIVE_PN())return fals
 function insBody(st,compact){const plat=isIOS()?"ios":isAndroid()?"android":"pc";const inst=isStandalone();
  const step=inst||plat==="pc"?`<p class="small">Falta só um toque: ative as notificações e pronto.</p>`:`<p class="small">${plat==="ios"?"No iPhone, as notificações só funcionam com o Prumo instalado na tela de início.":"Instalado, ele abre como app, em tela cheia, e os avisos chegam mesmo com ele fechado."} Leva 1 minuto:</p><img src="${GUIDE_IMG[plat]}" alt="Passo a passo para instalar o Prumo" style="width:100%;border-radius:16px;display:block" loading="lazy">`;
  return step}
-function insPopup(){if((typeof newsPending==="function"&&newsPending())||UI.popShown||$("#modal").innerHTML||UI.needAuth||(UI.onb>=0&&UI.onb<3))return;const g=insGet();
+function insPopup(){if(typeof quietOn==="function"&&quietOn())return;if((typeof newsPending==="function"&&newsPending())||UI.popShown||$("#modal").innerHTML||UI.needAuth||(UI.onb>=0&&UI.onb<3))return;const g=insGet();
  if((g.n||0)>=3||g.no||(g.t&&Date.now()-g.t<5*864e5))return;
  pushState().then(st=>{PUSHST=st;if(!insNeeded(st)||$("#modal").innerHTML||UI.popShown)return;UI.popShown=1;insSet({n:(g.n||0)+1,t:Date.now()});
   const inst=isStandalone()||!isMobile();

@@ -2967,11 +2967,42 @@ function finMonth(){
   ${prevFixed.length&&!hasFixed?`<button class="btn ghost" data-act="copyFixed">Trazer ${prevFixed.length} conta(s) fixa(s) do mês passado</button>`:""}
  </div>
  ${monthDueCard(k)}
+ ${paretoCard(k,t)}
  ${trendChart()}
  <div class="searchbox"><input id="finQ" type="search" placeholder="Pesquisar renda ou gasto (nome, categoria, valor)" value="${esc(UI.finQ||"")}" autocomplete="off" aria-label="Pesquisar renda ou gasto">${UI.finQ?`<button class="iconbtn" data-act="clearQ" data-v="finQ" aria-label="Limpar pesquisa">×</button>`:""}</div>
  ${UI.finQ&&UI.finQ.trim()?finSearch(UI.finQ):`<div class="section"><div class="label">Lançamentos</div>
  ${rows.length?Object.keys(groups).sort().reverse().map(d=>`<div class="card" style="padding:6px 16px"><div class="tiny muted" style="padding-top:8px;font-weight:700;text-transform:capitalize">${dayLabel(d)}</div><div class="list">${groups[d].map(txItem).join("")}</div></div>`).join(""):`<div class="card empty">Nenhum lançamento em ${monthLabel(k)}. Toque no + para registrar seu primeiro gasto.</div>`}
  </div>`}`}
+/* ---------- Pareto: para onde vai o dinheiro (poucas categorias concentram quase tudo) ---------- */
+const PARETO_SKIP=new Set(["reserva","investimento","sonho","outrosF"]);
+const PARETO_FIXED=new Set(["moradia","contas","impostos","divida","educacao","filhos"]);
+function paretoData(exps){const by={};let tot=0;for(const e of exps){if(PARETO_SKIP.has(e.cat))continue;const v=+e.v||0;if(!(v>0))continue;const c=CAT[e.cat]?e.cat:"outros";by[c]=(by[c]||0)+v;tot+=v}
+ const arr=Object.entries(by).map(([id,v])=>({id,n:(CAT[id]||CAT.outros).n,v,fixed:PARETO_FIXED.has(id)})).sort((a,b)=>b.v-a.v);let acc=0;
+ arr.forEach(x=>{x.p=tot?x.v/tot:0;const before=acc;acc+=x.p;x.acc=acc;x.top=before<0.8-1e-9});return{arr,tot}}
+function paretoSVG(arr){const show=arr.slice(0,7);const rest=arr.slice(7);if(rest.length)show.push({n:"Outras",v:rest.reduce((s,x)=>s+x.v,0),p:rest.reduce((s,x)=>s+x.p,0),acc:1,top:false,rest:true});
+ const W=320,H=150,pl=8,pr=30,pt=10,pb=22;const bw=(W-pl-pr)/show.length;const max=Math.max(...show.map(x=>x.p),0.01);const y=v=>pt+(H-pt-pb)*(1-v);
+ const bars=show.map((x,i)=>{const h=(H-pt-pb)*(x.p/max)*.95;return `<rect x="${pl+i*bw+bw*.15}" y="${H-pb-h}" width="${bw*.7}" height="${h}" rx="4" fill="${x.top?"var(--pig-deep)":"var(--line)"}"/><text x="${pl+i*bw+bw/2}" y="${H-6}" font-size="8" text-anchor="middle" fill="currentColor" opacity=".7">${esc(x.rest?"Outras":({divida:"Dívidas",contas:"Contas",delivery:"Delivery",transporte:"Transp.",assinaturas:"Assin.",combustivel:"Combust.",impostos:"Impostos",educacao:"Educação",filhos:"Filhos",beleza:"Beleza",roupas:"Roupas",presentes:"Presentes"}[x.id]||x.n.split(" ")[0]).slice(0,9))}</text>`}).join("");
+ const pts=show.map((x,i)=>`${pl+i*bw+bw/2},${y(x.acc)}`).join(" ");
+ return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Gráfico de Pareto dos gastos" style="display:block;color:var(--ink)">
+ <line x1="${pl}" x2="${W-pr}" y1="${y(.8)}" y2="${y(.8)}" stroke="var(--bad)" stroke-dasharray="4 4" stroke-width="1"/><text x="${W-pr+3}" y="${y(.8)+3}" font-size="9" fill="var(--bad)">80%</text><text x="${W-pr+3}" y="${y(1)+3}" font-size="9" fill="currentColor" opacity=".6">100%</text>
+ ${bars}<polyline points="${pts}" fill="none" stroke="var(--ink)" stroke-width="1.8" stroke-linejoin="round"/>${show.map((x,i)=>`<circle cx="${pl+i*bw+bw/2}" cy="${y(x.acc)}" r="2.6" fill="var(--ink)"/>`).join("")}</svg>`}
+function paretoCard(k,t){const {arr,tot}=paretoData(t.expenses);if(tot<100||arr.length<3)return"";const top=arr.filter(x=>x.top);const topP=top.length?top[top.length-1].acc:0;
+ const open=UI.paretoOpen!==false;const adj=top.filter(x=>!x.fixed).slice(0,2);const save=adj.reduce((s,x)=>s+x.v,0)*.1;const sub=arr.find(x=>x.id==="assinaturas");
+ const names=L=>L.map(x=>x.n.toLowerCase()).join(L.length>1?", ":"").replace(/, ([^,]*)$/," e $1");
+ const tip=adj.length?`Cortar 10% em ${names(adj)} rende cerca de <b>${brl0(save)}</b> por mês.${sub&&sub.p<.06&&sub.v<save*1.5?` Cancelar todas as assinaturas renderia ${brl0(sub.v)}, mas elas são só ${Math.round(sub.p*100)}% do total.`:""}`
+  :`Os maiores gastos deste mês são fixos (${names(top.slice(0,3))}). Para economizar, o caminho é renegociar: aluguel, contas ou juros das dívidas.`;
+ const dc=UI.paretoCat&&arr.find(x=>x.id===UI.paretoCat);
+ return `<div class="card stack" style="gap:10px"><button class="row between" style="border:0;background:none;padding:0;text-align:left;color:inherit;font:inherit;width:100%" data-act="paretoToggle"><div class="stack-s" style="gap:1px"><div class="label" style="margin:0">Para onde vai o seu dinheiro</div><span class="small"><b>${top.length} ${top.length===1?"categoria concentra":"categorias concentram"} ${Math.round(topP*100)}%</b> dos gastos</span></div><span class="muted" style="transform:rotate(${open?90:0}deg);transition:.2s">${I.right.replace('<svg','<svg width="18" height="18"')}</span></button>
+ ${open?`${paretoSVG(arr)}
+ <div class="row between tiny muted" style="padding:0 4px"><span>Categoria</span><span class="row" style="gap:10px"><span>Valor</span><span style="width:34px;text-align:right">%</span><span style="width:38px;text-align:right">Acum.</span></span></div>
+ <div class="list">${arr.map(x=>`<button class="row between small" style="width:100%;gap:8px;border:0;border-bottom:1px solid var(--line);background:${dc&&dc.id===x.id?"var(--surface2)":"none"};padding:7px 4px;text-align:left;color:inherit;font:inherit" data-act="paretoCat" data-v="${x.id}"><span class="row" style="gap:8px;min-width:0"><i class="dot" style="background:${x.top?"var(--pig-deep)":"var(--line)"}"></i><span style="${x.top?"font-weight:700":""}">${esc(x.n)}</span>${x.fixed?`<span class="tiny muted">fixo</span>`:""}</span><span class="row" style="gap:10px;flex:none"><span class="num">${brl0(x.v)}</span><span class="tiny muted num" style="width:34px;text-align:right">${Math.round(x.p*100)}%</span><span class="tiny muted num" style="width:38px;text-align:right">${Math.round(x.acc*100)}%</span></span></button>`).join("")}</div>
+ <span class="tiny muted">Toque numa categoria para ver o que pesa nela.</span>
+ ${dc?paretoDrill(t.expenses,dc):""}
+ <p class="small" style="margin:0;background:var(--surface2);border-radius:12px;padding:10px 12px">💡 ${tip}</p>`:""}</div>`}
+function paretoDrill(exps,c){const by={};let tot=0;for(const e of exps){if((CAT[e.cat]?e.cat:"outros")!==c.id)continue;const key=norm(String(e.desc||(CAT[e.cat]||CAT.outros).n).replace(/\s*\(?\d+\s*\/\s*\d+\)?\s*$/,"")).trim()||"sem nome";const v=+e.v||0;by[key]=by[key]||{n:e.desc||c.n,v:0,q:0};by[key].v+=v;by[key].q++;tot+=v}
+ const L=Object.values(by).sort((a,b)=>b.v-a.v);
+ return `<div class="card flat stack" style="gap:6px;padding:10px 12px"><div class="row between"><b class="small">Dentro de ${esc(c.n)}</b><button class="btn ghost sm" data-act="paretoCat" data-v="">Fechar</button></div>
+ ${L.slice(0,6).map(x=>`<div class="row between small"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.n.replace(/\s*\(?\d+\s*\/\s*\d+\)?\s*$/,""))}${x.q>1?` <span class="tiny muted">${x.q}x</span>`:""}</span><span class="row" style="gap:10px;flex:none"><b class="num">${brl0(x.v)}</b><span class="tiny muted num" style="width:34px;text-align:right">${Math.round(x.v/tot*100)}%</span></span></div>`).join("")}${L.length>6?`<span class="tiny muted">E mais ${L.length-6} lançamentos menores.</span>`:""}</div>`}
 function finSearch(q){const nq=norm(q).trim();const num=parseMoney(q);const isNum=/^[\sR$\d.,]+$/.test(q.trim())&&num>0;const res=[];
  for(const k of allMonths()){const t=monthData(k);[...t.incomes.map(x=>({...x,kind:"in"})),...t.expenses.map(x=>({...x,kind:"out"}))].forEach(x=>{
   const c=x.kind==="in"?null:(CAT[x.cat]||CAT.outros);const cd=x.card&&cardById(x.card);
@@ -3228,7 +3259,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.97</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.98</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -4763,6 +4794,7 @@ Object.assign(A,{
   else UI.tkPri[k]=UI.tkPri[k]===val&&k==="urg"?null:val;
   document.querySelectorAll(`[data-act="tkPri"][data-k="${k}"]`).forEach(c=>c.classList.toggle("on",c===el&&!(k==="urg"&&UI.tkPri.urg==null)))}
 });
+Object.assign(A,{paretoToggle:()=>{UI.paretoOpen=UI.paretoOpen===false;render()},paretoCat:el=>{UI.paretoCat=el.dataset.v&&UI.paretoCat!==el.dataset.v?el.dataset.v:null;render()}});
 /* aviso com o app aberto */
 const medNotified=new Set();
 function checkMeds(){if(quietOn())return;const now=new Date(),d=today();for(const x of medDoses(d)){if(x.done||x.m.notify===false)continue;const [h,mi]=x.t.split(":").map(Number);const at=parseDate(d);at.setHours(h,mi,0,0);const key=x.m.id+d+x.t;

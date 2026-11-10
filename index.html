@@ -3149,7 +3149,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.93</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.94</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -5912,7 +5912,7 @@ function viewVaq(){if(!TEAM||!teamHas("vaq")){if(lsTeam()&&TEAMS===null)return `
  const owes=who?ds.filter(x=>x.from===who).reduce((s,x)=>s+x.v,0):0,gets=who?ds.filter(x=>x.to===who).reduce((s,x)=>s+x.v,0):0;
  return `<div class="card stack"><div class="row between" style="gap:10px;flex-wrap:wrap"><div class="label" style="margin:0">Quem deve para quem</div><label class="row small" style="gap:8px"><span class="muted">Ver</span><select class="vq_who" aria-label="Filtrar por pessoa" style="min-width:180px"><option value="">Todo mundo</option>${ppl.map(u=>`<option value="${u}" ${u===who?"selected":""}>${esc(nm(u))}</option>`).join("")}</select></label></div>
  ${who?`<div class="row small" style="gap:14px;flex-wrap:wrap;background:var(--surface2);border-radius:12px;padding:10px 12px"><span>${who===ME.uid?"Você deve":esc(nm(who))+" deve"}: <b class="num">${brl(owes)}</b></span><span>Tem a receber: <b class="num">${brl(gets)}</b></span></div>`:""}
- ${dv.map(x=>`<div class="row between small"><span class="row" style="gap:6px"><span class="avatar">${teamInitials(x.from)}</span>${esc(nm(x.from))} → <span class="avatar">${teamInitials(x.to)}</span>${esc(nm(x.to))}</span><b class="num">${brl(x.v)}</b></div>`).join("")}<span class="tiny muted">Já descontado o que um deve para o outro.</span></div>`})():""}
+ ${(()=>{const C=vqComp(VQ().items);return dv.map(x=>{const at=vqSettleAt(C,x.from,x.to);return `<div class="stack-s" style="gap:2px"><div class="row between small"><span class="row" style="gap:6px"><span class="avatar">${teamInitials(x.from)}</span>${esc(nm(x.from))} → <span class="avatar">${teamInitials(x.to)}</span>${esc(nm(x.to))}</span><b class="num">${brl(x.v)}</b></div>${at.length?`<span class="tiny muted" style="padding-left:4px">Quitar em: ${at.map(a=>`“${esc(a.title)}” (${brl(a.rem)})`).join(", ")}</span>`:""}</div>`}).join("")})()}<span class="tiny muted">Já descontado o que um deve para o outro.</span></div>`})():""}
  <div class="chips">${[["abertas","Em aberto"],["fechadas","Quitadas"]].map(([id,n])=>`<button class="chip ${f===id?"on":""}" data-act="vaqFilter" data-v="${id}">${n}</button>`).join("")}</div>
  ${list.length?list.map(r=>{const sh=Object.entries(r.shares||{}).filter(([,v])=>v!=null);const pd=sh.filter(([u])=>(r.paid||{})[u]||u===r.payer).length;return `<button class="card stack" style="text-align:left;gap:6px" data-act="vaqOpen" data-v="${r.id}"><div class="row between"><b>${esc(r.title)}</b><b class="num">${brl(r.total)}</b></div>
   <div class="row" style="gap:4px;flex-wrap:wrap">${sh.map(([u])=>`<span class="avatar" style="${(r.paid||{})[u]||u===r.payer?"background:var(--good)":"background:var(--surface2);color:var(--muted)"}" title="${esc(nm(u))}">${teamInitials(u)}</span>`).join("")}</div>
@@ -5932,10 +5932,10 @@ function vaqForm(r){r=r||{};const isEdit=!!r.id;const sh=r.shares||{};
  <label class="field"><span>Chave Pix para receber (opcional)</span><input id="vq_pix" value="${esc(isEdit?(r.pix||""):(S.profile.vqPix||""))}" placeholder="CPF, telefone, e-mail ou chave aleatória"><span class="tiny muted">${!isEdit&&S.profile.vqPix?"Preenchida com a última que você usou. Pode trocar à vontade.":"Fica salva para as próximas vaquinhas. Pode trocar quando quiser."}</span></label>
  <label class="field"><span>Observação (opcional)</span><input id="vq_note" value="${esc(r.note||"")}" placeholder="Ex.: pagar até sexta"></label>
  <button class="btn block" data-act="vaqSave" data-v="${r.id||""}">${isEdit?"Salvar":"Criar vaquinha"}</button></div>`)}
-function vaqDetail(id){const r=VQ().items[id];if(!r)return;const sh=Object.entries(r.shares||{}).filter(([,v])=>v!=null);UI.vqDel=id;
+function vaqDetail(id){const r=VQ().items[id];if(!r)return;UI.vqC=vqComp(VQ().items);const sh=Object.entries(r.shares||{}).filter(([,v])=>v!=null);UI.vqDel=id;
  openModal(r.title,`<div class="stack"><div class="row" style="gap:12px">${cowPig(64)}<div class="stack-s" style="gap:2px"><b class="num" style="font-size:22px">${brl(r.total)}</b><span class="tiny muted">${dayLabel(r.date)}${r.payer?` · ${esc(nm(r.payer))} pagou a conta`:""}</span>${r.note?`<span class="small">${esc(r.note)}</span>`:""}</div></div>
  ${r.pix?`<div class="row between" style="gap:8px;background:var(--surface2);border-radius:12px;padding:10px 12px"><span class="stack-s" style="gap:0;min-width:0"><span class="tiny muted">Pix para pagar${r.payer?" · "+esc(nm(r.payer)):""}</span><b style="word-break:break-all">${esc(r.pix)}</b></span><button class="btn ghost sm" data-act="vqCopyPix" data-v="${esc(r.pix)}" style="flex:none">Copiar</button></div>`:""}
- <div class="card list">${[...sh].map((x,i)=>[x,i]).sort(([a,ia],[b,ib])=>{const pd=(r.paid||{}),ra=a[0]===r.payer?2:pd[a[0]]?1:0,rb=b[0]===r.payer?2:pd[b[0]]?1:0;if(ra!==rb)return ra-rb;if(ra===1)return String(pd[a[0]]).localeCompare(String(pd[b[0]]))||ia-ib;return ia-ib}).map(([x])=>x).map(([u,val])=>{const ok=!!(r.paid||{})[u]||u===r.payer;return `<div class="item"><span class="avatar" style="${ok?"background:var(--good)":""}">${teamInitials(u)}</span><div class="grow stack-s" style="gap:0"><b>${esc(nm(u))}</b><span class="tiny ${ok?"":"muted"}" style="${ok?"color:#2f6fdb;font-weight:600":""}">${u===r.payer?"Pagou a conta":ok?"Pagou em "+ddmm((r.paid||{})[u]):"Falta pagar"}</span></div><b class="num">${brl(+val||0)}</b>${u===r.payer||!vqCanPay(r,u)?"":`<button class="btn ${ok?"ghost":"line"} sm" data-act="vaqPaid" data-v="${r.id}" data-u="${u}">${ok?"Desfazer":u===ME.uid?"Paguei":"Pagou"}</button>`}</div>`}).join("")}</div>
+ <div class="card list">${[...sh].map((x,i)=>[x,i]).sort(([a,ia],[b,ib])=>{const pd=(r.paid||{}),ra=a[0]===r.payer?2:pd[a[0]]?1:0,rb=b[0]===r.payer?2:pd[b[0]]?1:0;if(ra!==rb)return ra-rb;if(ra===1)return String(pd[a[0]]).localeCompare(String(pd[b[0]]))||ia-ib;return ia-ib}).map(([x])=>x).map(([u,val])=>{const ok=!!(r.paid||{})[u]||u===r.payer;return `<div class="item"><span class="avatar" style="${ok?"background:var(--good)":""}">${teamInitials(u)}</span><div class="grow stack-s" style="gap:0"><b>${esc(nm(u))}</b><span class="tiny ${ok?"":"muted"}" style="${ok?"color:#2f6fdb;font-weight:600":""}">${u===r.payer?"Pagou a conta":ok?((r.comp||{})[u]?"Acertado por compensação em ":"Pagou em ")+ddmm((r.paid||{})[u]):vqZero(UI.vqC[r.id+"|"+u])?"Compensado":"Falta pagar"}</span>${ok?"":vqNoteHTML(UI.vqC[r.id+"|"+u],nmL)}</div>${ok?`<b class="num">${brl(+val||0)}</b>`:vqValHTML(UI.vqC[r.id+"|"+u],val)}${u===r.payer||!vqCanPay(r,u)||vqZero(UI.vqC[r.id+"|"+u])?vqOkBtn(UI.vqC[r.id+"|"+u],"team"):`<button class="btn ${ok?"ghost":"line"} sm" data-act="vaqPaid" data-v="${r.id}" data-u="${u}">${ok?"Desfazer":u===ME.uid?"Paguei":"Pagou"}</button>`}</div>`}).join("")}</div>
  ${vqCanEdit(r)?`<button class="btn ghost" data-act="vaqEdit" data-v="${r.id}">Editar</button>
  <button class="btn danger sm" data-act="askDel" style="align-self:center">Apagar vaquinha</button>${confirmBox("vaqDel","Apagar esta vaquinha para toda a equipe?")}`:`<p class="tiny muted" style="text-align:center;margin:0">${r.by&&r.by!==ME.uid?"Criada por "+esc(nm(r.by))+". ":""}Só quem criou pode editar, apagar e marcar o pagamento dos outros. Você marca o seu.</p>`}</div>`)}
 
@@ -5957,7 +5957,7 @@ function demoTeamData(){const D=n=>addDays(today(),n);const k=mkey();const id=()
  [["Filamento PLA e PETG","compras",780,"m_lucas",4],["Energia da oficina","contas",410,"demo",10],["Anúncios no Instagram","outros",300,"m_ana",6],["Embalagens","compras",190,"m_ana",9],["Parcela da impressora","divida",900,"demo",12,"dimp"],["Parcela da impressora","divida",600,"m_ana",12,"dimp"]].forEach(([desc,cat,v,by,d,debtId])=>exp[id()]={v,desc,cat,by,date:k+"-"+pad(Math.min(d,28)),t:Date.now(),debtId:debtId||null});
  TFIN["m"+k.replace("-","")]={incomes:inc,expenses:exp};
  TFIN.meta={debts:{dimp:{name:"Impressora 3D Bambu (financiada)",kind:"financiamento",balance:7200,rate:1.6,min:900,inst:8,created:today(),split:{demo:3600,m_ana:2400,m_lucas:1200}}}};
- TFIN.vaq={items:{v1:{id:"v1",title:"Estande na feira de artesanato",total:450,date:D(-3),payer:"demo",shares:{demo:150,m_ana:150,m_lucas:150},paid:{m_ana:D(-2)},by:"demo",created:Date.now()-3e8,note:"PIX para o José"},
+ TFIN.vaq={items:{v1:{id:"v1",title:"Estande na feira de artesanato",total:450,date:D(-3),payer:"demo",shares:{demo:150,m_ana:150,m_lucas:150},paid:{},by:"demo",created:Date.now()-3e8,note:"PIX para o José"},
   v2:{id:"v2",title:"Almoço de comemoração (100 pedidos!)",total:186,date:D(-1),payer:"m_ana",shares:{demo:62,m_ana:62,m_lucas:62},paid:{},by:"m_ana",created:Date.now()-1e8},
   v3:{id:"v3",title:"Caixa de ferramentas",total:240,date:D(-20),payer:"m_lucas",shares:{demo:80,m_ana:80,m_lucas:80},paid:{demo:D(-18),m_ana:D(-15)},by:"m_lucas",created:Date.now()-2e9}}}}
 
@@ -6002,7 +6002,7 @@ function vqxMine(){const out=[];for(const t of TEAMS||[]){const x=TEAM&&TEAM.id=
  for(const r of Object.values(x.items||{})){if(!r)continue;const my=(r.shares||{})[ME.uid];if(my==null||!(+my>0)||r.payer===ME.uid||(r.paid||{})[ME.uid])continue;out.push({t,r,v:+my})}}
  return out.sort((a,b)=>(a.r.date||"").localeCompare(b.r.date||""))}
 function vqxDueRows(k){if(TEAM||Store.demo||k!==mkey())return"";setTimeout(()=>vqxLoad(),0);
- return vqxMine().map(({t,r,v})=>`<div class="row between small" style="gap:8px"><span class="grow stack-s" style="min-width:0;gap:0"><span>🐮 ${esc(r.title)} <span class="pill info">vaquinha</span></span><span class="tiny muted">${esc(t.name)}${r.payer?` · pagar para ${esc(tNick(t,r.payer))}`:""}${r.pix?` · Pix ${esc(r.pix)}`:""}${r.note?` · ${esc(r.note.slice(0,60))}`:""}</span></span><span class="row" style="gap:6px;flex:none"><b class="num">${brl(v)}</b><button class="btn money sm" data-act="vqxPaid" data-t="${t.id}" data-v="${r.id}">Paguei</button></span></div>`).join("")}
+ const CC={};return vqxMine().map(({t,r,v})=>{const C=CC[t.id]=CC[t.id]||vqComp((TEAM&&TEAM.id===t.id?VQ():VQX[t.id]||{}).items);const c=C[r.id+"|"+ME.uid];return `<div class="row between small" style="gap:8px"><span class="grow stack-s" style="min-width:0;gap:0"><span>🐮 ${esc(r.title)} <span class="pill info">vaquinha</span></span><span class="tiny muted">${esc(t.name)}${r.payer?` · pagar para ${esc(tNick(t,r.payer))}`:""}${r.pix&&!vqZero(c)?` · Pix ${esc(r.pix)}`:""}${r.note?` · ${esc(r.note.slice(0,60))}`:""}</span>${vqNoteHTML(c,u=>tNick(t,u))}</span><span class="row" style="gap:6px;flex:none">${vqValHTML(c,v)}${vqZero(c)?vqOkBtn(c,t.id):`<button class="btn money sm" data-act="vqxPaid" data-t="${t.id}" data-v="${r.id}">Paguei</button>`}</span></div>`}).join("")}
 /* minha parte paga na vaquinha entra como gasto nas MINHAS finanças (mesmo estando dentro da equipe) */
 function myFinPatch(id,patch){const hh=((typeof personalS==="function"?personalS():S).profile||{}).household;const sc=hh&&Store.cloud?"h":"p";const docs=sc==="h"?HFIN:PFIN;docs[id]=deepMerge(docs[id]||{},clone(patch));
  if(Store.cloud){const p=sc==="h"?`households/${hh}/fin/${id}`:`data/users/${ME.uid}/fin-${id}`;enqueue(p,async()=>{const ref=Store.db.doc(p);try{await ref.update(patch)}catch(e){if(e&&e.code==="invalid_argument"){await ref.set(stripNulls(clone(patch)))}else throw e}})}lsPut()}
@@ -6029,6 +6029,51 @@ A.vqxPaid=async el=>{const t=(TEAMS||[]).find(x=>x.id===el.dataset.t);const x=VQ
 
 document.addEventListener("change",e=>{if(e.target&&e.target.classList&&e.target.classList.contains("vq_who")){UI.vqWho=e.target.value;render()}});
 A.vqCopyPix=el=>copyText(el.dataset.v,"Chave Pix copiada. Cole no app do seu banco.");
+
+/* ---------- Compensação entre vaquinhas ----------
+   Se A deve para B numa vaquinha e B deve para A em outra, desconta uma da outra:
+   o lado menor fica zerado ("compensado") e o maior mostra o valor original riscado,
+   o novo valor e a justificativa. Quando a diferença é paga, as compensadas fecham juntas. */
+const nmL=u=>u===ME.uid?"você":teamNick(u);
+const r2c=x=>Math.round(x*100)/100;
+function vqComp(items){const res={},open=[];
+ for(const r of Object.values(items||{})){if(!r||!r.payer)continue;for(const [u,v] of Object.entries(r.shares||{})){if(v==null||u===r.payer||(r.paid||{})[u]||!(+v>0))continue;open.push({r,u,to:r.payer,v:+v})}}
+ const pairs={};open.forEach(o=>{const k=[o.u,o.to].sort().join("|");(pairs[k]=pairs[k]||[]).push(o)});
+ const byDate=(x,y)=>(x.r.date||"").localeCompare(y.r.date||"")||(x.r.created||0)-(y.r.created||0);
+ for(const k in pairs){const L=pairs[k];const [a]=k.split("|");const ab=L.filter(o=>o.u===a),ba=L.filter(o=>o.u!==a);if(!ab.length||!ba.length)continue;
+  const sa=ab.reduce((s,o)=>s+o.v,0),sb=ba.reduce((s,o)=>s+o.v,0);const big=(sa>=sb?ab:ba).sort(byDate),small=(sa>=sb?ba:ab).sort(byDate);
+  let left=r2c(Math.min(sa,sb));const settle=[];
+  const sw=small.map(o=>({id:o.r.id,title:o.r.title,v:o.v})),bw=big.map(o=>({id:o.r.id,title:o.r.title,v:o.v}));
+  big.forEach(o=>{const take=r2c(Math.min(o.v,left));left=r2c(left-take);const rem=r2c(o.v-take);res[o.r.id+"|"+o.u]={orig:o.v,rem,off:take,kind:"big",from:o.u,to:o.to,with:sw,pair:k,rid:o.r.id};if(rem>0.004)settle.push({id:o.r.id,title:o.r.title,rem,from:o.u,to:o.to})});
+  small.forEach(o=>{res[o.r.id+"|"+o.u]={orig:o.v,rem:0,off:o.v,kind:"small",from:o.u,to:o.to,with:bw,pair:k,rid:o.r.id}});
+  L.forEach(o=>{res[o.r.id+"|"+o.u].settle=settle})}
+ return res}
+const vqZero=c=>!!(c&&c.rem<=0.004);
+function vqSettleAt(C,from,to){const out=[],seen={};for(const k in C){const c=C[k];for(const s of c.settle||[])if(s.from===from&&s.to===to&&!seen[s.id]){seen[s.id]=1;out.push(s)}}return out}
+function vqValHTML(c,val){if(!c||!(c.off>0))return `<b class="num">${brl(+val||0)}</b>`;
+ return `<span class="stack-s" style="gap:0;align-items:flex-end;flex:none"><s class="tiny muted num">${brl(c.orig)}</s><b class="num" style="color:${c.rem>0?"inherit":"var(--good)"}">${brl(c.rem)}</b></span>`}
+function vqNoteHTML(c,N){if(!c||!(c.off>0))return"";const ttl=L=>L.map(x=>`“${esc(x.title)}”`).join(", ");const sum=L=>L.reduce((s,x)=>s+x.v,0);
+ const rest=c.settle.reduce((s,x)=>s+x.rem,0);
+ const txt=c.kind==="big"
+  ?`Descontado ${brl(c.off)} que ${esc(N(c.to))} deve para ${esc(N(c.from))} em ${ttl(c.with)}. ${c.rem>0?`Falta só ${brl(c.rem)}, quitado aqui.`:"Os valores se anulam."}`
+  :`Descontado dos ${brl(sum(c.with))} que ${esc(N(c.to))} deve para ${esc(N(c.from))} em ${ttl(c.with)}. ${rest>0?`A diferença de ${brl(rest)} ${esc(N(c.to))} quita em ${ttl(c.settle)}.`:"Os valores se anulam."}`;
+ return `<span class="tiny" style="color:#2f6fdb;line-height:1.3;margin-top:2px">${txt}</span>`}
+function vqOkBtn(c,where){if(!c||!vqZero(c)||(c.settle||[]).length)return"";if(!(vqAdm()||c.from===ME.uid||c.to===ME.uid))return"";
+ return `<button class="btn line sm" data-act="vqCompOk" data-t="${where}" data-v="${esc(c.pair)}" style="flex:none">Confirmar acerto</button>`}
+/* depois que a diferença é paga, fecha tudo o que estava compensado entre as duas pessoas */
+function vqCompClose(items,rid,u){const C=vqComp(items);const c=C[rid+"|"+u];if(!c)return null;if(c.settle.some(s=>s.id!==rid))return null;
+ const d=today(),patch={},mine=[];for(const k in C){const x=C[k];if(x.pair!==c.pair||k===rid+"|"+u)continue;patch[x.rid]=deepMerge(patch[x.rid]||{},{paid:{[x.from]:d},comp:{[x.from]:1}});if(x.from===ME.uid)mine.push(x.rid)}
+ return Object.keys(patch).length?{patch,mine,d}:null}
+function vqCompPair(items,pair){const C=vqComp(items);const d=today(),patch={},mine=[];for(const k in C){const x=C[k];if(x.pair!==pair)continue;patch[x.rid]=deepMerge(patch[x.rid]||{},{paid:{[x.from]:d},comp:{[x.from]:1}});if(x.from===ME.uid)mine.push(x.rid)}return Object.keys(patch).length?{patch,mine,d}:null}
+async function vqApplyComp(tid,cp){if(!cp)return;const t=(TEAMS||[]).find(x=>x.id===tid)||TEAM;
+ if(TEAM&&TEAM.id===tid){vaqPatch({items:cp.patch});cp.mine.forEach(id=>{const r=VQ().items[id];if(r)vqExpAdd(TEAM,r,cp.d)})}
+ else{const x=VQX[tid];if(!x)return;await Store.db.doc(`teams/${tid}/fin/vaq`).update({items:cp.patch});for(const id in cp.patch)x.items[id]=deepMerge(x.items[id],cp.patch[id]);x.js=JSON.stringify(x.items);cp.mine.forEach(id=>vqExpAdd(t,x.items[id],cp.d));render()}}
+{const _vp=A.vaqPaid;A.vaqPaid=el=>{const r=VQ().items[el.dataset.v];const u=el.dataset.u;const was=r&&(r.paid||{})[u];const cp=!was&&r?vqCompClose(VQ().items,r.id,u):null;_vp(el);
+ const now=VQ().items[el.dataset.v];if(cp&&now&&(now.paid||{})[u]){vqApplyComp(TEAM.id,cp);toast(`Pago! As vaquinhas compensadas entre ${nmL(u)} e ${nmL(r.payer)} também foram fechadas.`,4500);vaqDetail(r.id)}}}
+{const _xp=A.vqxPaid;A.vqxPaid=async el=>{const x=VQX[el.dataset.t];const r=x&&x.items[el.dataset.v];const cp=r?vqCompClose(x.items,r.id,ME.uid):null;await _xp(el);
+ if(cp&&x.items[r.id]&&(x.items[r.id].paid||{})[ME.uid]){try{await vqApplyComp(el.dataset.t,cp);toast("Pago! As vaquinhas compensadas com essa pessoa também foram fechadas.",4500)}catch(e){console.warn(e)}}}}
+A.vqCompOk=async el=>{const tid=el.dataset.t==="team"?TEAM&&TEAM.id:el.dataset.t;const items=el.dataset.t==="team"?VQ().items:(VQX[tid]||{}).items;const cp=vqCompPair(items,el.dataset.v);if(!cp)return;
+ el.disabled=true;try{await vqApplyComp(tid,cp);toast("Acerto confirmado. Os valores se anularam e as vaquinhas foram fechadas. 🐮",4500);if(el.dataset.t==="team"&&UI.vqDel&&VQ().items[UI.vqDel])vaqDetail(UI.vqDel)}catch(e){el.disabled=false;toast("Não consegui confirmar agora. Tente de novo.")}};
 
 /* ============================================================
    Apoios por Pix: a pessoa avisa que doou e o administrador confirma.

@@ -3150,7 +3150,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.94</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.95</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -5892,6 +5892,7 @@ function viewTeamHome(){const t=TEAM;const tk=teamHas("tasks")&&TD.agenda?vals(S
  return `<div class="stack"><h1 style="margin-top:4px">${esc(t.name)}</h1>${workPrompt(t)}
  <div class="card stack" style="gap:10px"><div class="row" style="gap:6px;flex-wrap:wrap">${t.members.map(m=>`<span class="chip" style="cursor:default"><span class="avatar">${teamInitials(m.uid)}</span>${esc(nm(m.uid))}</span>`).join("")}</div>
   <div class="row between"><span class="tiny muted">Usando: ${teamFeatList(t).join(", ")}</span><button class="btn ghost sm" data-act="teamManage">${iOwn()?"Gerenciar":"Ver equipe"}</button></div></div>
+ ${teamMuteCard(t)}
  ${teamHas("proj")?(()=>{const ps=vals(PJ().items).filter(p=>p.status!=="done");const my=vals(S.tasks.items).filter(t=>t.proj&&PJ().items[t.proj]&&t.who===ME.uid&&t.status!=="done").length;
   return `<div class="card stack"><div class="row between"><div class="label">Projetos</div><button class="btn ghost sm" data-act="goProj">Abrir</button></div>
   ${ps.length?ps.slice(0,4).map(p=>`<button class="stack-s" style="gap:4px;border:0;background:none;text-align:left;padding:0" data-act="goProj" data-v="${p.id}"><div class="row between small"><b>${esc(p.name)}</b><span class="num muted">${Math.round(projProg(p.id)*100)}%</span></div><div class="meter"><i style="width:${Math.round(projProg(p.id)*100)}%;background:${p.color}"></i></div></button>`).join(""):`<p class="small muted">Nenhum projeto em andamento.</p>`}
@@ -6075,6 +6076,18 @@ async function vqApplyComp(tid,cp){if(!cp)return;const t=(TEAMS||[]).find(x=>x.i
  if(cp&&x.items[r.id]&&(x.items[r.id].paid||{})[ME.uid]){try{await vqApplyComp(el.dataset.t,cp);toast("Pago! As vaquinhas compensadas com essa pessoa também foram fechadas.",4500)}catch(e){console.warn(e)}}}}
 A.vqCompOk=async el=>{const tid=el.dataset.t==="team"?TEAM&&TEAM.id:el.dataset.t;const items=el.dataset.t==="team"?VQ().items:(VQX[tid]||{}).items;const cp=vqCompPair(items,el.dataset.v);if(!cp)return;
  el.disabled=true;try{await vqApplyComp(tid,cp);toast("Acerto confirmado. Os valores se anularam e as vaquinhas foram fechadas. 🐮",4500);if(el.dataset.t==="team"&&UI.vqDel&&VQ().items[UI.vqDel])vaqDetail(UI.vqDel)}catch(e){el.disabled=false;toast("Não consegui confirmar agora. Tente de novo.")}};
+
+/* ---------- Modo silencioso por equipe ----------
+   Os avisos da equipe continuam no sininho (já como lidos), mas sem notificação no celular,
+   sem som, sem e-mail e sem lembretes da agenda da equipe. Vale só para mim. */
+function teamMuteCard(t){const on=!!t.muted;
+ return `<div class="card stack" style="gap:6px;${on?"background:var(--surface2)":""}"><label class="check sw" style="margin:0;border:0;padding:0"><span class="grow"><b>${on?"🔕":"🔔"} Modo silencioso</b><br><span class="small muted">${on?"Você não recebe notificações desta equipe. Os avisos ficam guardados no sininho.":"Desliga as notificações, o som, os e-mails e os lembretes desta equipe só para você."}</span></span><input type="checkbox" id="tmute" role="switch" data-t="${t.id}" ${on?"checked":""}></label></div>`}
+document.addEventListener("change",async e=>{if(!e.target||e.target.id!=="tmute")return;const id=e.target.dataset.t;const on=e.target.checked;
+ if(Store.demo){toast("Na demonstração isso não é salvo.");e.target.checked=!on;return}
+ const r=await trpc("set_team_mute",{p_team:id,p_muted:on},on?"Modo silencioso ligado. Você não vai receber notificações desta equipe.":"Modo silencioso desligado. As notificações desta equipe voltaram.");
+ if(r===null){e.target.checked=!on;return}
+ (TEAMS||[]).forEach(t=>{if(t.id===id)t.muted=on});if(TEAM&&TEAM.id===id)TEAM.muted=on;
+ if(typeof remSync==="function"){remTT=0;remSync(true)}if(typeof scheduleNative==="function")scheduleNative();render()});
 
 /* ============================================================
    Apoios por Pix: a pessoa avisa que doou e o administrador confirma.
@@ -6781,7 +6794,7 @@ async function remTeamLoad(){if(!TEAMS||Store.demo||!Store.cloud)return;if(Date.
  for(const t of TEAMS){const f=t.features||{};if(!(f.agenda||f.tasks||f.proj))continue;
   if(TEAM&&TEAM.id===t.id&&TD.agenda){REMT[t.id]=clone(TD.agenda);continue}
   try{const d=await Store.db.doc(`teams/${t.id}/agenda`).get();REMT[t.id]=d.exists?(d.data()||{}):{}}catch(e){}}}
-function remTeamItems(now){const out=[];for(const t of TEAMS||[]){const f=t.features||{};const doc=(TEAM&&TEAM.id===t.id&&TD.agenda)?TD.agenda:REMT[t.id];if(!doc)continue;
+function remTeamItems(now){const out=[];for(const t of TEAMS||[]){if(t.muted)continue;const f=t.features||{};const doc=(TEAM&&TEAM.id===t.id&&TD.agenda)?TD.agenda:REMT[t.id];if(!doc)continue;
  const evs=f.agenda?vals((doc.agenda||{}).events||{}):[];const tks=vals((doc.tasks||{}).items||{}).filter(x=>x&&x.status!=="done"&&x.time&&x.cal!==false&&(x.who===ME.uid||(x.help||[]).includes(ME.uid)));
  for(let i=0;i<14;i++){const d=addDays(today(),i);
   const list=[...evs.filter(e=>e&&e.time&&occursOn(e,d)).map(e=>({...e,kindT:"ev"})),...tks.filter(x=>x.date===d).map(x=>({...x,kindT:"tk"}))];

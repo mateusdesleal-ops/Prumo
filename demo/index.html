@@ -3259,7 +3259,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 1.99</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.00</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -5439,6 +5439,7 @@ function viewAdmin(){if(!UI.isAdmin)return `<div class="card empty">Acesso restr
   const base=Math.max(1,s.onboarded);const FN={fin:"Dinheiro",saude:"Saúde",estudo:"Estudos",rotina:"Rotina",fe:"Fé e mente"};
   const q=ADM.q.trim().toLowerCase();const us=(ADM.users||[]).filter(u=>!q||String(u.email).toLowerCase().includes(q));const list=ADM.all?us:us.slice(0,30);
   body=`<div class="grid2">${kpi("Contas",s.users,`${s.confirmed} confirmadas`)}${kpi("Terminaram o cadastro",s.onboarded,`${pct(s.onboarded,s.users)}% das contas`)}${kpi("Novas em 7 dias",s.new7,`${s.new30} em 30 dias`)}${kpi("Usaram hoje",s.active1,`${s.active7} na semana · ${s.active30} no mês`)}</div>
+  ${typeof admPlusCard==="function"?admPlusCard():""}
   ${admBannerCard()}
   ${admApnsCard()}
   ${admAccCard()}
@@ -7032,6 +7033,114 @@ async function ttMove(tid,id,to){const doc=REMT[tid];const x0=doc&&((doc.tasks||
  catch(e){console.warn(e);toast("Não consegui salvar agora. Confira a internet.");render()}}
 A.ttDone=el=>{el.disabled=true;ttMove(el.dataset.t,el.dataset.v,"done")};
 A.ttStart=el=>{el.disabled=true;ttMove(el.dataset.t,el.dataset.v,"doing")};
+
+
+/* ============================================================
+   Prumo Plus: assinatura (R$ 9,90/mês ou R$ 79,90/ano)
+   - O servidor diz o plano de cada pessoa (my_plan): aberto (cobrança ainda não começou),
+     grátis para sempre, fundador, teste, assinante ou gratuito.
+   - Enquanto a data de início da cobrança não for definida no painel do administrador, tudo fica liberado.
+   - iPhone: compra pela App Store (obrigatório pela Apple). Site: Mercado Pago (cartão ou Pix).
+   ============================================================ */
+const PLUS={plan:null,at:0,prods:null,busy:false};
+const PLUS_IDS={mensal:"br.com.prumovidaemordem.app.mensal",anual:"br.com.prumovidaemordem.app.anual"};
+const PLUS_PRICE={mensal:"R$ 9,90",anual:"R$ 79,90"};
+const IAP=()=>window.Capacitor&&window.Capacitor.getPlatform&&window.Capacitor.getPlatform()==="ios"&&window.Capacitor.Plugins&&window.Capacitor.Plugins.PrumoIAP;
+const isNativeApp=()=>!!(window.Capacitor&&window.Capacitor.getPlatform&&window.Capacitor.getPlatform()!=="web");
+const plusTier=()=>PLUS.plan&&PLUS.plan.tier||"open";
+function isPlus(){if(Store.demo||!Store.cloud||!PLUS.plan)return true;return ["open","free_forever","plus","founder","trial"].includes(plusTier())}
+async function plusLoad(force){if(!sb||!Store.cloud||Store.demo)return;if(!force&&PLUS.plan&&Date.now()-PLUS.at<5*60000)return;PLUS.at=Date.now();
+ try{const {data,error}=await sb.rpc("my_plan");if(!error&&data){const was=isPlus();PLUS.plan=data;if(was!==isPlus()||force)render()}}catch(e){}}
+/* o que é pago */
+const PLUS_FIN_FREE=new Set(["mes","plano","aprender"]);
+function plusRoute(){if(TEAM)return "Equipes";
+ if(UI.tab==="fin"&&!PLUS_FIN_FREE.has(UI.fin||"mes"))return {contas:"Meu dinheiro",cartoes:"Cartões",fixos:"Contas fixas",dividas:"Dívidas e diagnóstico",comprar:"Posso comprar?",orc:"Orçamentos"}[UI.fin]||"Este recurso";
+ if(UI.tab==="ex"&&UI.ex!=="remed")return UI.ex==="medit"?"Meditação":"Saúde";
+ if(UI.tab==="agenda")return UI.agendaSub==="tasks"?"Tarefas":UI.agendaSub==="proj"?"Projetos":"Agenda";
+ return null}
+/* bloqueio na hora de desenhar a tela */
+{const _r=render;render=function(){_r();try{if(isPlus()||!UI.booted||!S.profile.created)return;const what=plusRoute();if(!what)return;
+ if(TEAM&&typeof teamExit==="function"){teamExit();return}
+ const app=$("#app");const h=app.querySelector(".top");app.innerHTML=(h?h.outerHTML:"")+(typeof envBar==="function"?envBar():"")+paywallView(what);const f=$("#fab");if(f)f.hidden=true}catch(e){console.warn(e)}}}
+/* ações pagas abertas por botões */
+["ccImport","paySlip","teamNew"].forEach(k=>{const o=A[k];if(typeof o!=="function")return;A[k]=function(el){if(!isPlus()){plusModal(k==="paySlip"?"Importar holerite":k==="ccImport"?"Importar fatura em PDF":"Equipes");return}return o.apply(this,arguments)}});
+if(typeof teamEnter==="function"){const _te=teamEnter;teamEnter=function(){if(!isPlus()){plusModal("Equipes");return}return _te.apply(this,arguments)}}
+
+function plusPerks(){return [["💳","Cartões, faturas e importação de PDF e holerite"],["📉","Dívidas, diagnóstico e plano para sair delas"],["🏦","Meu dinheiro: bancos, caixinhas e investimentos"],["📌","Contas fixas, orçamentos e “Posso comprar?”"],["🍎","Saúde completa: alimentação, água, peso e exercícios"],["🧘","Meditações e respirações guiadas"],["🗓️","Agenda, tarefas e projetos"],["👥","Equipes, vaquinhas e desafios em grupo"]]}
+function plusPlanBtn(id){const p=(PLUS.prods||{})[id];const price=p&&p.price||PLUS_PRICE[id];const per=id==="anual"?"por ano":"por mês";
+ const extra=id==="anual"?`<span class="pill good" style="position:absolute;top:-10px;right:12px">Economize 33%</span>`:"";const sub=id==="anual"?"Sai por menos de R$ 6,70 por mês":"Cancele quando quiser";
+ return `<button class="card stack plus-plan ${UI.plusPick===id?"on":""}" data-act="plusPick" data-v="${id}" style="position:relative;gap:2px;text-align:left;cursor:pointer;border:2px solid ${UI.plusPick===id?"var(--pig-deep)":"var(--line)"};padding:14px 16px">${extra}<b>${id==="anual"?"Anual":"Mensal"}</b><span><b class="num" style="font-size:22px">${esc(price)}</b> <span class="small muted">${per}</span></span><span class="tiny muted">${sub}</span></button>`}
+function plusTrialNote(){const t=plusTier();const p=PLUS.plan||{};
+ if(t==="trial")return `Seu teste grátis vai até <b>${ddmm(String(p.until).slice(0,10))}</b>.`;
+ if(t==="founder")return `Como fundador, você tem acesso grátis até <b>${ddmm(String(p.until).slice(0,10))}</b>.`;
+ if(t==="free")return "Seu período de teste terminou. Assine para continuar usando tudo.";return ""}
+function paywallBody(what){UI.plusPick=UI.plusPick||"anual";const native=!!IAP();const t=plusTier();
+ if(native&&!PLUS.prods)plusProducts();
+ return `<div class="stack" id="plusBody" style="gap:12px">
+ <div class="row" style="gap:12px;align-items:center"><div style="width:84px;flex:none">${pigSVG({score:96,mood:"feliz",equip:effectiveEquip(),env:0,mini:true})}</div><div class="stack-s" style="gap:2px"><b style="font-size:20px;line-height:1.2">${what?esc(what)+" faz parte do Prumo Plus":"Prumo Plus"}</b><span class="small muted">Tudo o que o Prumo tem, para colocar a vida em ordem de verdade.</span></div></div>
+ ${plusTrialNote()?`<div class="banner info"><span>${plusTrialNote()}</span></div>`:""}
+ <div class="stack-s" style="gap:6px">${plusPerks().map(([i,n])=>`<div class="row small" style="gap:10px"><span style="width:22px;text-align:center">${i}</span><span>${n}</span></div>`).join("")}</div>
+ <div class="grid2" style="gap:10px;margin-top:4px">${plusPlanBtn("mensal")}${plusPlanBtn("anual")}</div>
+ ${isNativeApp()&&!native?`<div class="banner info"><span>Para assinar pelo iPhone, atualize o Prumo na App Store.</span></div><a class="btn block" href="https://apps.apple.com/app/id6832061965" target="_blank" rel="noopener">Atualizar o app</a>`:native?`<button class="btn block" data-act="plusBuy" ${PLUS.busy?"disabled":""}>${PLUS.busy?"Abrindo a App Store…":"Assinar com a App Store"}</button>
+  <button class="btn ghost block" data-act="plusRestore">Restaurar compras</button>
+  <p class="tiny muted" style="margin:0">A assinatura renova sozinha no mesmo valor, a cada mês ou ano, até você cancelar. A cobrança é feita na sua conta Apple, e você pode cancelar a qualquer momento em Ajustes › seu nome › Assinaturas, até 24 horas antes da renovação. <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noopener">Termos de uso</a> · <a href="https://prumovidaemordem.com.br/privacidade.html" target="_blank" rel="noopener">Privacidade</a></p>`
+ :`<div class="grid2" style="gap:10px"><button class="btn" data-act="plusMp" data-v="card" ${PLUS.busy?"disabled":""}>💳 Cartão</button><button class="btn line" data-act="plusMp" data-v="pix" ${PLUS.busy?"disabled":""}>Pix</button></div>
+  <p class="tiny muted" style="margin:0">No cartão, a assinatura renova sozinha até você cancelar. No Pix, você paga 1 mês ou 1 ano por vez, sem renovação automática. Pagamento seguro pelo Mercado Pago. <a href="https://prumovidaemordem.com.br/privacidade.html" target="_blank" rel="noopener">Privacidade</a></p>`}
+ ${t==="free"?`<p class="tiny muted" style="margin:0">Sem assinar, você continua com os lançamentos, o mês, o plano necessidades/desejos/futuro, Estudos, Palavra do dia, lembrete de remédios e o seu porquinho.</p>`:""}
+ </div>`}
+function paywallView(what){const back=UI.tab==="fin"?["fin","Ver o mês nas Finanças"]:UI.tab==="ex"?["ex","Ir para Remédios"]:["home","Voltar ao início"];
+ return `<div class="card" style="margin-top:8px">${paywallBody(what)}</div><button class="btn ghost block" data-act="plusBack" data-v="${back[0]}" style="margin-top:10px">${back[1]}</button>`}
+A.plusBack=el=>{const t=el.dataset.v;if(t==="fin")UI.fin="mes";else if(t==="ex")UI.ex="remed";else UI.tab="home";window.scrollTo(0,0);render()};
+function plusModal(what){UI.plusWhat=what||"";openModal("Prumo Plus",paywallBody(what))}
+async function plusProducts(){const P=IAP();if(!P||PLUS.prodLoading)return;PLUS.prodLoading=1;try{const r=await P.products({ids:Object.values(PLUS_IDS)});const m={};(r.products||[]).forEach(p=>{const k=Object.keys(PLUS_IDS).find(x=>PLUS_IDS[x]===p.id);if(k)m[k]=p});PLUS.prods=m;render();if($("#modal").innerHTML&&$("#modal").textContent.includes("Prumo Plus"))plusRefreshModal()}catch(e){console.warn(e)}PLUS.prodLoading=0}
+function plusRefreshModal(){const b=document.querySelector("#modal #plusBody");if(b)b.outerHTML=paywallBody(UI.plusWhat)}
+async function plusSend(jws){if(!jws||!jws.length)return null;try{const {data}=await sb.functions.invoke("iap",{body:{jws}});if(data&&data.plan){PLUS.plan=data.plan;PLUS.at=Date.now();render()}return data}catch(e){console.warn(e);return null}}
+Object.assign(A,{
+ plusOpen:el=>{UI.plusWhat=el&&el.dataset.v||"";plusModal(UI.plusWhat)},
+ plusPick:el=>{UI.plusPick=el.dataset.v;document.querySelectorAll('[data-act="plusPick"]').forEach(b=>{const on=b.dataset.v===UI.plusPick;b.classList.toggle("on",on);b.style.borderColor=on?"var(--pig-deep)":"var(--line)"})},
+ plusBuy:async()=>{const P=IAP();if(!P)return;PLUS.busy=true;render();plusRefreshModal();
+  try{const r=await P.purchase({id:PLUS_IDS[UI.plusPick||"anual"],uid:ME.uid});
+   if(r.status==="ok"){const d=await plusSend([r.jws]);closeModal();toast(d&&d.saved&&d.saved.length?"Bem-vindo ao Prumo Plus! 🐷✨":"Compra feita. Estamos confirmando com a Apple…",4500);if(!(d&&d.saved&&d.saved.length))setTimeout(()=>plusLoad(true),5000)}
+   else if(r.status==="pending")toast("A compra está aguardando aprovação (ex.: Compras pedem aprovação da família).",5000)}
+  catch(e){toast((e&&e.message)||"Não consegui concluir a compra.",5000)}PLUS.busy=false;render();plusRefreshModal()},
+ plusRestore:async()=>{const P=IAP();if(!P)return;toast("Procurando suas compras…");try{const r=await P.restore();const d=await plusSend(r.jws||[]);toast(d&&d.saved&&d.saved.length?"Assinatura restaurada! 🐷":"Não encontramos assinatura ativa nesta conta Apple.",4500);if(d&&d.saved&&d.saved.length)closeModal()}catch(e){toast("Não consegui restaurar agora.")}},
+ plusManage:async()=>{const P=IAP();const p=PLUS.plan||{};if(P&&p.source==="apple"){try{await P.manage()}catch(e){}return}
+  if(p.source==="mp")openModal("Sua assinatura",`<div class="stack"><p class="small" style="margin:0">Sua assinatura é pelo Mercado Pago. Para cancelar ou trocar o cartão, entre no app ou site do Mercado Pago, em <b>Seu perfil › Assinaturas</b>.</p><a class="btn block" href="https://www.mercadopago.com.br/subscriptions" target="_blank" rel="noopener">Abrir o Mercado Pago</a></div>`);
+  else if(p.source==="apple")toast("Para gerenciar, abra Ajustes › seu nome › Assinaturas no iPhone.",5000)},
+ plusMp:async el=>{if(PLUS.busy)return;PLUS.busy=true;plusRefreshModal();
+  try{const {data,error}=await sb.functions.invoke("mp",{body:{plan:UI.plusPick||"anual",method:el.dataset.v==="pix"?"pix":"card"}});if(error||!data||!data.url)throw new Error((data&&data.error)||"Não consegui abrir o pagamento agora.");location.href=data.url}
+  catch(e){toast(e.message||"Não consegui abrir o pagamento agora.",5000)}PLUS.busy=false;plusRefreshModal()}
+});
+/* status no perfil */
+function plusRow(){if(Store.demo||!Store.cloud)return"";const t=plusTier(),p=PLUS.plan||{};const d=x=>x?ddmm(String(x).slice(0,10)):"";
+ const txt={open:p.start?`A assinatura começa em ${d(p.start)}`+(p.ent==="founder"?" · você é fundador: 3 meses grátis":p.ent==="free_forever"?" · sua conta é gratuita para sempre":""):"Todos os recursos liberados",free_forever:"Gratuito para sempre 💛",plus:`Assinante${p.until?" · renova ou vence em "+d(p.until):""}`,founder:`Fundador · grátis até ${d(p.until)}`,trial:`Teste grátis até ${d(p.until)}`,free:"Plano gratuito · toque para assinar"}[t]||"";
+ const act=t==="plus"?"plusManage":(t==="free"||t==="trial"||t==="founder")?"plusOpen":"";
+ return `<div class="card stack" style="gap:6px"><div class="row between" style="gap:8px"><div class="stack-s" style="gap:1px"><b>✨ Prumo Plus</b><span class="small muted">${txt}</span></div>${act?`<button class="btn ${t==="free"?"":"ghost "}sm" data-act="${act}">${t==="plus"?"Gerenciar":"Assinar"}</button>`:""}</div></div>`}
+{const _vp=viewProfile;viewProfile=function(){const h=_vp();const row=plusRow();if(!row)return h;const i=h.indexOf('<div class="section">');return i>0?h.slice(0,i)+row+h.slice(i):row+h}}
+/* aviso quando o teste ou o período de fundador está acabando */
+function plusEndingCard(){const t=plusTier(),p=PLUS.plan||{};if(!(t==="trial"||t==="founder")||!p.until)return"";const left=Math.ceil((new Date(p.until)-Date.now())/864e5);if(left>3)return"";
+ return `<div class="card stack" style="gap:8px;border:2px solid var(--pig-soft)"><b>${t==="trial"?"Seu teste grátis":"Seu acesso de fundador"} termina ${left<=1?"amanhã":`em ${left} dias`}</b><span class="small muted">Assine para continuar com cartões, dívidas, saúde, agenda, equipes e todo o resto.</span><button class="btn sm" data-act="plusOpen" style="align-self:flex-start">Ver planos</button></div>`}
+{const _vh=viewHome;viewHome=function(){const h=_vh();const c=plusEndingCard();if(!c)return h;const i=h.indexOf('<div class="card');return i>0?h.slice(0,i)+c+h.slice(i):c+h}}
+/* volta do Mercado Pago */
+{const q=new URLSearchParams(location.search).get("plus");if(q){history.replaceState(null,"",location.pathname);setTimeout(()=>{toast(q==="ok"?"Pagamento recebido! Liberando o Prumo Plus… 🐷":q==="pend"?"Pagamento em análise. Assim que for aprovado, o Plus é liberado.":"O pagamento não foi concluído.",6000);plusLoad(true);setTimeout(()=>plusLoad(true),8000)},2500)}}
+/* iPhone: renovações e compras feitas fora do app */
+setTimeout(async()=>{await plusLoad(true);const P=IAP();if(!P)return;try{P.addListener("transaction",r=>plusSend([r.jws]));const r=await P.entitlements();if(r.jws&&r.jws.length)plusSend(r.jws)}catch(e){}},3000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)plusLoad()});
+
+/* painel do administrador */
+function admPlusCard(){if(!ADM.plus&&!ADM.plusLoading){ADM.plusLoading=1;sb.rpc("plan_stats").then(r=>{ADM.plus=r.data||{};ADM.plusLoading=0;render()},()=>{ADM.plusLoading=0})}
+ const s=ADM.plus||{};const st=s.start?String(s.start).slice(0,10):"";
+ return `<div class="card stack"><div class="label">Prumo Plus (assinatura)</div>
+ <div class="grid2">${[["Assinantes iPhone",s.apple||0],["Assinantes site",s.mp||0],["Fundadores",s.founders||0],["Grátis para sempre",s.free_forever||0]].map(([n,v])=>`<div class="stack-s" style="gap:0"><span class="tiny muted">${n}</span><b class="num" style="font-size:20px">${v}</b></div>`).join("")}</div>
+ <label class="field"><span>Início da cobrança</span><input type="date" id="plus_start" value="${st}"><span class="tiny muted">${st?`Desde ${ddmm(st)}: fundadores têm 3 meses grátis e os demais 10 dias de teste.`:"Sem data: tudo continua liberado para todos. Avise os usuários com um banner uns 15 dias antes."}</span></label>
+ <div class="row" style="gap:8px"><button class="btn sm" data-act="plusStartSave">Salvar data</button>${st?`<button class="btn ghost sm" data-act="plusStartOff">Desligar cobrança</button>`:""}</div>
+ <label class="field" style="margin-top:6px"><span>Mercado Pago: Access Token de produção ${s.mp_ready?"✅ configurado":"(ainda não configurado)"}</span><input id="plus_mp" type="password" autocomplete="off" placeholder="APP_USR-…"><span class="tiny muted">Fica guardado só no servidor. No Mercado Pago: Seu negócio › Configurações › Credenciais de produção. Depois cadastre o aviso (webhook) em Suas integrações › Notificações com o endereço <b>https://ngneowwmurutsueuyzey.supabase.co/functions/v1/mp?hook=1</b>, eventos “Pagamentos” e “Planos e assinaturas”.</span></label>
+ <button class="btn ghost sm" data-act="plusMpSave" style="align-self:flex-start">Salvar token</button></div>`}
+Object.assign(A,{
+ plusStartSave:async()=>{const d=v("plus_start");if(!d){toast("Escolha a data.");return}const {error}=await sb.rpc("set_billing_start",{p_start:d+"T00:00:00-03:00"});if(error){toast("Não consegui salvar: "+error.message);return}ADM.plus=null;plusLoad(true);toast("Data de início da cobrança salva.")},
+ plusStartOff:async()=>{const {error}=await sb.rpc("set_billing_start",{p_start:null});if(error){toast("Não consegui: "+error.message);return}ADM.plus=null;plusLoad(true);toast("Cobrança desligada. Tudo liberado para todos.")},
+ plusMpSave:async()=>{const t=v("plus_mp").trim();if(!/^APP_USR-/.test(t)){toast("Cole o Access Token de produção (começa com APP_USR-).");return}const {error}=await sb.rpc("set_mp_secret",{p_token:t});if(error){toast("Não consegui salvar: "+error.message);return}$("#plus_mp").value="";ADM.plus=null;render();toast("Token do Mercado Pago salvo.")}
+});
 
 /* início */
 (function boot(){

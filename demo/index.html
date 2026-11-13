@@ -2270,7 +2270,7 @@ const updDate=ts=>{const d=new Date(ts);return d.toLocaleDateString("pt-BR",{day
 function renderTaskUpds(){const el=$("#tk_upds");if(!el)return;const us=(UI.tkUpds||[]).slice().sort((a,b)=>b.at-a.at);
  el.innerHTML=us.length?us.map(u=>`<div class="card flat" style="padding:10px 12px;gap:2px;display:flex;flex-direction:column"><span class="tiny muted">${updDate(u.at)}${u.by&&teamAg()?" · "+esc(u.by===ME.uid?"você":teamNick(u.by)):""}${u.status?` · <b>${esc(u.status)}</b>`:""}</span><span class="small" style="white-space:pre-line;overflow-wrap:anywhere">${esc(u.txt)}</span></div>`).join(""):`<p class="tiny muted">Nenhuma atualização ainda.</p>`}
 /* progresso de uma etapa: concluída = 100%; com subtarefas, proporcional; cancelada não conta */
-function stepPct(t){if(t.final==="cancelada")return null;if(t.status==="done")return 1;const s=t.subs||[];return s.length?s.filter(x=>x.done).length/s.length:0}
+function stepPct(t){if(t.final==="cancelada")return null;const s=t.subs||[];const r=s.length?s.filter(x=>x.done).length/s.length:0;if(t.status==="done")return s.length?r:1;return r}
 function renderTaskSubs(){const el=$("#tk_subs");if(!el)return;el.innerHTML=(UI.taskSubs||[]).map((s,i)=>`<div class="row" style="gap:8px"><button type="button" class="iconbtn" style="width:30px;height:30px;border-radius:8px;${s.done?"background:var(--good);color:#fff":""}" data-act="tkToggleSub" data-v="${i}" aria-label="${s.done?"Desmarcar":"Marcar"} ${esc(s.t)}">${s.done?I.check.replace('<svg','<svg width="14" height="14"'):""}</button><span class="small grow" style="${s.done?"text-decoration:line-through;color:var(--muted)":""}">${esc(s.t)}</span><button type="button" class="btn ghost sm" data-act="tkDelSub" data-v="${i}" aria-label="Remover">${I.trash.replace('<svg','<svg width="14" height="14"')}</button></div>`).join("")}
 function moveTask(id,to){const t=S.tasks.items[id];if(!t||t.status===to)return;const lb=taskDecay().lost;setTimeout(()=>taskLostToast(lb),0);const prev=t.status;t.status=to;
  if(to==="done"){t.doneAt=Date.now();S.tasks.doneTotal=(+S.tasks.doneTotal||0)+1;markActive();pigSay("task",{cd:60e3});let tot=S.tasks.doneTotal;if(teamAg()&&PERS&&PERS.tasks){PERS.tasks.doneTotal=(+PERS.tasks.doneTotal||0)+1;tot=PERS.tasks.doneTotal;t.doneBy=ME.uid}const r=TASK_REWARDS.find(x=>x.tasks===tot);
@@ -3259,7 +3259,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.00</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.01</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -5257,7 +5257,7 @@ Object.assign(A,{
  projDelYes:()=>{const id=document.querySelector('[data-act="projSave"]').dataset.v;projSteps(id).forEach(t=>delete S.tasks.items[t.id]);delete PJ().items[id];UI.projOpen=null;closeModal();commit();toast("Projeto apagado.")},
  projAddStep:()=>{const id=UI.projOpen;if(!id)return;taskForm(null,{proj:id,kind:TEAM?"trabalho":"pessoal",title:""})},
  pjView:el=>{UI.pjView=el.dataset.v;render()},
- projStepDone:el=>{const t=S.tasks.items[el.dataset.v];if(!t)return;moveTask(t.id,t.status==="done"?"todo":"done")},
+ projStepDone:el=>{const t=S.tasks.items[el.dataset.v];if(!t)return;const pend=(t.subs||[]).filter(x=>!x.done).length;moveTask(t.id,t.status==="done"?"todo":"done");if(t.status==="done"&&pend)setTimeout(()=>toast(`Ainda ${pend===1?"falta 1 subtarefa":`faltam ${pend} subtarefas`}. O progresso só chega a 100% quando todas forem marcadas.`,5000),300)},
  projStepMove:el=>{const t=S.tasks.items[el.dataset.v];if(!t)return;const st=projSteps(t.proj);const i=st.findIndex(x=>x.id===t.id);const j=i+(+el.dataset.d);if(j<0||j>=st.length)return;
   st.forEach((x,k)=>x.order=k+1);const o=st[j].order;st[j].order=t.order;t.order=o;commit()},
 });

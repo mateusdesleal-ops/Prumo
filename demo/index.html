@@ -3259,7 +3259,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.03</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.04</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -7068,7 +7068,9 @@ if(typeof teamEnter==="function"){const _te=teamEnter;teamEnter=function(){if(!i
 
 function plusPerks(){return [["💳","Cartões, faturas e importação de PDF e holerite"],["📉","Dívidas, diagnóstico e plano para sair delas"],["🏦","Meu dinheiro: bancos, caixinhas e investimentos"],["📌","Contas fixas, orçamentos e “Posso comprar?”"],["🍎","Saúde completa: alimentação, água, peso e exercícios"],["🧘","Meditações e respirações guiadas"],["🗓️","Agenda, tarefas e projetos"],["👥","Equipes, vaquinhas e desafios em grupo"]]}
 function plusPlanBtn(id){const p=(PLUS.prods||{})[id];const price=p&&p.price||PLUS_PRICE[id];const per=id==="anual"?"por ano":"por mês";
- const extra=id==="anual"?`<span class="pill good" style="position:absolute;top:-10px;right:12px">Economize 33%</span>`:"";const sub=id==="anual"?"Sai por menos de R$ 6,70 por mês":"Cancele quando quiser";
+ const P=PLUS.prods||{},m=P.mensal,a=P.anual;let save=33,perMo="R$ 6,66";
+ if(m&&a&&m.value>0&&a.value>0){save=Math.round((1-a.value/(m.value*12))*100);const cur=String(a.price).replace(/[\d\s.,\u00a0]+$/,"").trim()||"R$";perMo=cur+" "+(Math.floor(a.value/12*100)/100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}
+ const extra=id==="anual"&&save>0?`<span class="pill good" style="position:absolute;top:-10px;right:12px">Economize ${save}%</span>`:"";const sub=id==="anual"?`Sai por ${perMo} por mês`:"Cancele quando quiser";
  return `<button class="card stack plus-plan ${UI.plusPick===id?"on":""}" data-act="plusPick" data-v="${id}" style="position:relative;gap:2px;text-align:left;cursor:pointer;border:2px solid ${UI.plusPick===id?"var(--pig-deep)":"var(--line)"};padding:14px 16px">${extra}<b>${id==="anual"?"Anual":"Mensal"}</b><span><b class="num" style="font-size:22px">${esc(price)}</b> <span class="small muted">${per}</span></span><span class="tiny muted">${sub}</span></button>`}
 function plusTrialNote(){const t=plusTier();const p=PLUS.plan||{};
  if(t==="trial")return `Seu teste grátis vai até <b>${ddmm(String(p.until).slice(0,10))}</b>.`;
@@ -7094,7 +7096,7 @@ A.plusBack=el=>{const t=el.dataset.v;if(t==="fin")UI.fin="mes";else if(t==="ex")
 function plusModal(what){UI.plusWhat=what||"";openModal("Prumo Plus",paywallBody(what))}
 async function plusProducts(){const P=IAP();if(!P||PLUS.prodLoading)return;PLUS.prodLoading=1;try{const r=await P.products({ids:Object.values(PLUS_IDS)});const m={};(r.products||[]).forEach(p=>{const k=Object.keys(PLUS_IDS).find(x=>PLUS_IDS[x]===p.id);if(k)m[k]=p});PLUS.prods=m;render();if($("#modal").innerHTML&&$("#modal").textContent.includes("Prumo Plus"))plusRefreshModal()}catch(e){console.warn(e)}PLUS.prodLoading=0}
 function plusRefreshModal(){const b=document.querySelector("#modal #plusBody");if(b)b.outerHTML=paywallBody(UI.plusWhat)}
-async function plusSend(jws){if(!jws||!jws.length)return null;try{const {data}=await sb.functions.invoke("iap",{body:{jws}});if(data&&data.plan){PLUS.plan=data.plan;PLUS.at=Date.now();render()}return data}catch(e){console.warn(e);return null}}
+async function plusSend(jws){jws=(jws||[]).filter(Boolean);if(!jws.length)return null;try{const {data}=await sb.functions.invoke("iap",{body:{jws}});if(data&&data.plan){PLUS.plan=data.plan;PLUS.at=Date.now();render()}return data}catch(e){console.warn(e);return null}}
 Object.assign(A,{
  plusOpen:el=>{UI.plusWhat=el&&el.dataset.v||"";plusModal(UI.plusWhat)},
  plusPick:el=>{UI.plusPick=el.dataset.v;document.querySelectorAll('[data-act="plusPick"]').forEach(b=>{const on=b.dataset.v===UI.plusPick;b.classList.toggle("on",on);b.style.borderColor=on?"var(--pig-deep)":"var(--line)"})},

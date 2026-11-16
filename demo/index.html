@@ -3265,7 +3265,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.10</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.11</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -5350,6 +5350,15 @@ const fail2=e=>({code:"unavailable",message:e&&e.message});
 /* tela de entrar / criar conta */
 const AUTH={mode:"entrar",msg:"",busy:false};
 function viewAuth(){const m=AUTH.mode;
+ if(m==="codigo")return `<div class="onb" style="max-width:420px;margin:0 auto">
+ <div style="text-align:center" class="stack-s">${logoHTML(52)}<p class="label" style="color:var(--money);font-size:13px">Vida em ordem</p></div>
+ <div class="stack-s" style="text-align:center"><h2>Confirme seu e-mail 💌</h2><p class="small muted">Enviamos um e-mail para <b>${esc(AUTH.email||"")}</b>. Digite o código de 6 dígitos que está nele, ou toque no botão do e-mail.</p></div>
+ <label class="field"><span>Código</span><input id="a_code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="000000" style="font-size:28px;letter-spacing:8px;text-align:center"></label>
+ ${AUTH.msg?`<div class="banner ${AUTH.ok?"info":"bad"}">${esc(AUTH.msg)}</div>`:""}
+ <button class="btn block" data-act="authCode" ${AUTH.busy?"disabled":""}>Confirmar</button>
+ <p class="tiny muted" style="text-align:center">Não chegou? Olhe no spam ou na aba Promoções.</p>
+ <button class="btn ghost sm" data-act="authResend" style="align-self:center">Reenviar o e-mail</button>
+ <button class="btn ghost sm" data-act="authMode" data-v="entrar" style="align-self:center">Voltar</button></div>`;
  return `<div class="onb" style="max-width:420px;margin:0 auto">
  <div style="text-align:center" class="stack-s">${logoHTML(52)}<p class="label" style="color:var(--money);font-size:13px">Vida em ordem</p></div>
  <div class="subtabs">${[["entrar","Entrar"],["criar","Criar conta"]].map(([id,n])=>`<button class="${m===id?"on":""}" data-act="authMode" data-v="${id}">${n}</button>`).join("")}</div>
@@ -5364,6 +5373,10 @@ function viewAuth(){const m=AUTH.mode;
  <button class="btn ghost sm" data-act="about" style="align-self:center">Sobre o Prumo</button></div>`}
 Object.assign(A,{
  authMode:el=>{AUTH.mode=el.dataset.v;AUTH.msg="";render()},
+ authCode:async()=>{const code=(v("a_code")||"").replace(/\D/g,"");if(code.length<6){AUTH.ok=false;AUTH.msg="Digite os 6 números do código.";render();return}
+  AUTH.busy=true;render();let r;try{r=await sb.auth.verifyOtp({email:AUTH.email,token:code,type:"signup"});if(r.error)r=await sb.auth.verifyOtp({email:AUTH.email,token:code,type:"email"})}catch(e){r={error:e}}
+  AUTH.busy=false;if(r.error){AUTH.ok=false;AUTH.msg="Código inválido ou vencido. Confira ou peça um novo.";render();return}AUTH.msg="";AUTH.mode="entrar"},
+ authResend:async()=>{if(!AUTH.email)return;try{const r=await sb.auth.resend({type:"signup",email:AUTH.email,options:{emailRedirectTo:location.href.split("#")[0]}});AUTH.ok=!r.error;AUTH.msg=r.error?(/seconds|rate/i.test(String(r.error.message))?"Espere um minutinho antes de pedir outro e-mail.":"Não deu certo agora. Tente de novo."):"Enviamos de novo. Olhe também no spam."}catch(e){AUTH.ok=false;AUTH.msg="Sem conexão agora."}render()},
  howVideo:()=>openModal("Como o Prumo funciona",`<div class="stack"><video src="como-funciona.mp4?v=2" poster="como-funciona.jpg" controls playsinline preload="auto" style="width:100%;max-height:68vh;border-radius:16px;background:#000;object-fit:contain"></video>
   ${Store.cloud||Store.demo?`<button class="btn ghost block" data-act="closeModal">Fechar</button>`:`<p class="tiny muted" style="text-align:center">Gostou? Crie sua conta: leva menos de 1 minuto e é gratuito.</p><button class="btn block" data-act="howCreate">Criar minha conta</button>`}</div>`,()=>{const vd=document.querySelector(".sheet video");if(vd){vd.volume=.7;vd.addEventListener("ended",()=>{if(Store.cloud&&S.profile.created&&!S.profile.videoSeen){S.profile.videoSeen=today();saveApp()}});const p=vd.play();if(p&&p.catch)p.catch(()=>{vd.muted=true;vd.play().catch(()=>{})})}}),
  howCreate:()=>{closeModal();AUTH.mode="criar";AUTH.msg="";render();setTimeout(()=>{const e=document.getElementById("a_email");if(e)e.focus()},50)},
@@ -5378,9 +5391,9 @@ Object.assign(A,{
    else r=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href.split("#")[0]});
   }catch(e){r={error:e}}
   AUTH.busy=false;
-  if(r.error){const t=String(r.error.message||"");AUTH.ok=false;AUTH.msg=/Invalid login/i.test(t)?"E-mail ou senha incorretos.":/already registered/i.test(t)?"Esse e-mail já tem conta. Use Entrar.":/Email not confirmed/i.test(t)?"Confirme seu e-mail pelo link que enviamos antes de entrar.":"Não deu certo agora. Confira a internet e tente de novo.";render();return}
+  if(r.error){const t=String(r.error.message||"");AUTH.ok=false;if(/Email not confirmed/i.test(t)){AUTH.email=email;AUTH.mode="codigo";AUTH.ok=true;AUTH.msg="Falta confirmar seu e-mail. Digite o código ou toque no botão do e-mail que enviamos.";render();return}AUTH.msg=/Invalid login/i.test(t)?"E-mail ou senha incorretos.":/already registered/i.test(t)?"Esse e-mail já tem conta. Use Entrar.":"Não deu certo agora. Confira a internet e tente de novo.";render();return}
   if(m==="esqueci"){AUTH.ok=true;AUTH.msg="Se esse e-mail tiver conta, enviamos um link para trocar a senha.";render();return}
-  if(m==="criar"&&!(r.data&&r.data.session)){AUTH.ok=true;AUTH.msg="Conta criada! Abra o link que enviamos para o seu e-mail e depois entre aqui.";AUTH.mode="entrar";render();return}
+  if(m==="criar"&&!(r.data&&r.data.session)){AUTH.ok=true;AUTH.msg="";AUTH.email=email;AUTH.mode="codigo";render();setTimeout(()=>{const e=document.getElementById("a_code");if(e)e.focus()},60);return}
   AUTH.msg="";},
  signOut:async()=>{try{const tk=localStorage.getItem("prumo.apns");if(tk)await sb.rpc("drop_native_push",{p_token:tk})}catch(e){}try{await sb.auth.signOut()}catch(e){}try{localStorage.removeItem(LSK);localStorage.removeItem("prumo.localMode")}catch(e){}location.reload()},
  enableNotif:async()=>{if(!("Notification" in window)){toast("Este navegador não permite notificações.");return}const p=await Notification.requestPermission();toast(p==="granted"?"Notificações ativadas.":"As notificações foram bloqueadas. Você pode liberar nas configurações do navegador.");render()},
@@ -5466,6 +5479,7 @@ function viewAdmin(){if(!UI.isAdmin)return `<div class="card empty">Acesso restr
   const q=ADM.q.trim().toLowerCase();const us=(ADM.users||[]).filter(u=>!q||String(u.email).toLowerCase().includes(q));const list=ADM.all?us:us.slice(0,30);
   body=`<div class="grid2">${kpi("Contas",s.users,`${s.confirmed} confirmadas`)}${kpi("Terminaram o cadastro",s.onboarded,`${pct(s.onboarded,s.users)}% das contas`)}${kpi("Novas em 7 dias",s.new7,`${s.new30} em 30 dias`)}${kpi("Usaram hoje",s.active1,`${s.active7} na semana · ${s.active30} no mês`)}</div>
   ${typeof admPlusCard==="function"?admPlusCard():""}
+  ${typeof admOnbCard==="function"?admOnbCard():""}
   ${admBannerCard()}
   ${admApnsCard()}
   ${admAccCard()}
@@ -7218,6 +7232,26 @@ function wxPigLine(){const w=wxState();if(!w)return"";const n=S.pet&&S.pet.name?
  if(w.k==="rain")return w.now?`${n} abriu o guarda-chuva: está chovendo! ☔`:w.at?`${n} avisa: vai chover às ${w.at} ☔`:`${n} avisa: tem chuva no caminho hoje ☔`;
  if(w.k==="hot")return`${n} está derretendo: dia quente! 🥵`;if(w.k==="cold")return`${n} pegou o casaco: vai esfriar 🧣`;return""}
 function wxPigSub(){const w=wxState();const c=S.profile.city;if(!w)return"";return w.k==="rain"?`Leve o guarda-chuva e recolha a roupa do varal. ${esc(c.name)}`:w.k==="hot"?`Beba bastante água e passe protetor. ${esc(c.name)}`:`Leve um casaco se for sair à noite. ${esc(c.name)}`}
+
+/* ---------- Cadastro: retomar de onde parou + saber (só em números) em qual passo as pessoas param ---------- */
+const ONB_STEPS={"-2":"Nem começou","-1":"Boas-vindas","0":"Nome","0.5":"Objetivos","1":"Renda","2":"Saúde","3":"Mascote","3.5":"Nome do mascote","4":"Último passo"};
+let onbLastSent=null,onbResumed=false;
+const onbKey=()=>SESSION&&SESSION.user?"prumo.onb."+SESSION.user.id:null;
+const _renderOnb=render;
+render=function(){
+ try{const k=onbKey();
+  if(k&&Store.cloud&&!S.profile.created&&typeof UI.onb==="number"){
+   if(!onbResumed){onbResumed=true;let sv=null;try{sv=JSON.parse(localStorage.getItem(k)||"null")}catch(e){}
+    if(sv&&typeof sv.step==="number"&&sv.step>UI.onb&&Date.now()-sv.at<30*864e5){Object.assign(ONB,sv.onb||{});UI.focusSel=sv.focus||UI.focusSel;UI.onb=sv.step;setTimeout(()=>toast("Continuando de onde você parou. 🐷"),400)}}
+   if(UI.onb>=-1){try{localStorage.setItem(k,JSON.stringify({step:UI.onb,onb:ONB,focus:UI.focusSel||[],at:Date.now()}))}catch(e){}
+    if(onbLastSent!==UI.onb){onbLastSent=UI.onb;sb.rpc("onb_step",{p_step:UI.onb}).then(()=>{},()=>{})}}}
+  if(k&&S.profile.created&&onbLastSent!=="done"){onbLastSent="done";try{localStorage.removeItem(k)}catch(e){}}
+ }catch(e){}
+ return _renderOnb.apply(this,arguments)};
+function admOnbCard(){if(!ADM.onb&&!ADM.onbLoading){ADM.onbLoading=1;sb.rpc("admin_onb_funnel").then(r=>{ADM.onb=r.data||[];ADM.onbLoading=0;render()},()=>{ADM.onbLoading=0})}
+ const rows=ADM.onb||[];const tot=rows.reduce((a,r)=>a+ +r.people,0);
+ return `<div class="card stack"><h3>Onde as pessoas param no cadastro</h3><p class="small muted">Só números: contas confirmadas que ainda não terminaram as perguntas iniciais.</p>
+ ${!ADM.onb?'<span class="small muted">Carregando…</span>':!tot?'<span class="small muted">Ninguém parado no cadastro. 🎉</span>':rows.map(r=>{const pc=Math.round(r.people/tot*100);return `<div class="stack-s" style="gap:4px"><div class="row between small"><span>${ONB_STEPS[String(+r.step)]||("Passo "+r.step)}</span><b>${r.people}</b></div><div class="meter"><i style="width:${pc}%;background:var(--pig-deep)"></i></div></div>`}).join("")}</div>`}
 
 /* início */
 (function boot(){

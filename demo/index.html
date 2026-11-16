@@ -2830,7 +2830,7 @@ function viewHome(){
  return `<div class="stack">
  <div class="stack-s" style="margin-top:4px"><h1>${hi}${first?", "+esc(first):""}</h1><p class="muted">${dayLabel(today())==="Hoje"?new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"}):""}</p></div>
  ${whyCard()}
- ${typeof bannerCard==="function"?bannerCard():""}${newsMedCard()}${letterHomeCard()}${prumoCard()}${msgCard()}${missionsCard()}${shareCard()}
+ ${typeof bannerCard==="function"?bannerCard():""}${typeof weatherCard==="function"?weatherCard():""}${newsMedCard()}${letterHomeCard()}${prumoCard()}${msgCard()}${missionsCard()}${shareCard()}
  ${pigCard}
  ${envWarning()}${studyWarning()}${taskWarning()}${vocabCard(true)}${stkHomeCard()}
  <div class="card"><div class="label" style="margin-bottom:12px">Metas de hoje</div>
@@ -3254,12 +3254,13 @@ function viewProfile(){const p=S.profile;
   ${pRow(I.book,"Sobre o Prumo","","about")}
   ${pRow(I.check,"Seus dados","Backup, restaurar e apagar","dataModal")}
  </div></div>
+ ${typeof weatherCard==="function"&&!Store.demo?`<button class="btn line" data-act="wxCity">🌤️ Previsão do tempo${S.profile.city&&!S.profile.wxOff?" · "+esc(S.profile.city.name):""}</button>`:""}
  ${(checkAdmin(),UI.isAdmin)?`<button class="btn line" data-act="goAdmin">Painel do administrador</button>`:""}
  ${SB_ON?(Store.cloud?`<button class="btn line" data-act="signOut">Sair da conta</button>`:`<button class="btn line" data-act="goLogin">Entrar ou criar conta</button>`):""}
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.07</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.08</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -3542,16 +3543,35 @@ function incomeForm(e,month){e=e||{};const isEdit=!!e.id;
  <label class="field"><span>Data</span><input id="f_date" type="date" value="${e.date||(month&&month!==mkey()?month+"-05":today())}"></label>
  <button class="btn money block" data-act="saveIncome" data-v="${e.id||""}">${isEdit?"Salvar":"Lançar renda"}</button>
  ${isEdit?`<button class="btn danger" data-act="askDel">Apagar renda</button>${confirmBox("delInc","Apagar esta renda?")}`:""}</div>`)}
-function studyForm(l){l=l||{};const isEdit=!!l.id;const books=vals(S.study.books).filter(b=>b.status==="lendo"||b.id===l.bookId);
+// cada tipo de estudo pede só o que faz sentido; o último usado de cada tipo já vem preenchido
+const STUDY_CFG={
+ livro:{min:20,a:null,b:null},
+ podcast:{min:30,a:["Podcast","Ex.: Me Poupe!"],b:["Episódio","Ex.: Como sair das dívidas"]},
+ curso:{min:30,a:["Curso","Ex.: Excel do básico ao avançado"],b:["Módulo ou aula","Ex.: Aula 3 · Fórmulas"]},
+ video:{min:20,a:["Título","Ex.: Como montar uma reserva"],link:1},
+ artigo:{min:10,a:["Título","Ex.: 5 hábitos de quem organiza o dinheiro"],link:1},
+ estudo:{min:40,a:["Matéria ou assunto","Ex.: Matemática, concurso, faculdade"],b:["O que estudou (opcional)","Ex.: Juros compostos"]},
+ idioma:{min:20,lang:1,how:["App","Aula","Conversa","Série ou filme","Música","Leitura"]},
+ outro:{min:20,a:["Descrição","Ex.: oficina de fotografia"]}};
+const STUDY_LANGS=["Inglês","Espanhol","Francês","Italiano","Alemão","Japonês","Libras","Outro"];
+function studyLast(type){return vals(S.study.logs).filter(x=>x.type===type).sort((a,b)=>(b.t||0)-(a.t||0))[0]||{}}
+function studyFields(type,l){const c=STUDY_CFG[type]||STUDY_CFG.outro;const last=l.id?l:studyLast(type);const books=vals(S.study.books).filter(b=>b.status==="lendo"||b.id===l.bookId);
+ const f=(id,lab,ph,val)=>`<label class="field"><span>${lab}</span><input id="${id}" value="${esc(val||"")}" placeholder="${esc(ph)}"></label>`;let h="";
+ if(type==="livro"){h+=books.length?`<label class="field"><span>Livro</span><select id="s_book"><option value="">Escolha</option>${books.map(b=>`<option value="${b.id}" ${b.id===(l.bookId||last.bookId)?"selected":""}>${esc(b.title)}${b.pages?` · pág. ${+b.page||0} de ${b.pages}`:""}</option>`).join("")}</select></label>`:`<div class="note"><span class="small">Cadastre o livro para acompanhar as páginas e ver quanto falta.</span></div>`;
+  h+=`<button class="btn ghost sm" data-act="addBook" style="align-self:flex-start">+ Cadastrar um livro</button>`}
+ if(c.a)h+=f("s_a",c.a[0],c.a[1],l.id?(l.a||l.desc):last.a);
+ if(c.b)h+=f("s_b",c.b[0],c.b[1],l.id?l.b:"");
+ if(c.link)h+=f("s_link","Link (opcional)","https://",l.link);
+ if(c.lang){const cur=l.a||last.a||"Inglês";h+=`<label class="field"><span>Idioma</span><select id="s_a">${STUDY_LANGS.map(x=>`<option ${x===cur?"selected":""}>${x}</option>`).join("")}</select></label><label class="field"><span>Como estudou</span><select id="s_b">${c.how.map(x=>`<option ${x===(l.b||last.b)?"selected":""}>${x}</option>`).join("")}</select></label>`}
+ h+=`<div class="${type==="livro"?"grid2":""}"><label class="field"><span>Minutos</span><input id="s_min" type="number" inputmode="numeric" min="1" value="${l.min||""}" placeholder="${c.min}"></label>${type==="livro"?`<label class="field"><span>Páginas lidas</span><input id="s_pages" type="number" inputmode="numeric" min="0" value="${l.pages||""}" placeholder="0"></label>`:""}</div>`;
+ return h}
+function studyForm(l){l=l||{};const isEdit=!!l.id;const type=l.type||UI.stype||"livro";
  openModal(isEdit?"Editar estudo":"Registrar estudo",`<div class="stack">
- <div class="chips" style="flex-wrap:wrap">${Object.entries(STUDY_TYPES).map(([k,n])=>`<button type="button" class="chip ${(l.type||"livro")===k?"on":""}" data-act="pickStype" data-v="${k}">${n}</button>`).join("")}</div><input type="hidden" id="s_type" value="${l.type||"livro"}">
- <label class="field ${(l.type||"livro")==="livro"?"":"hide"}" id="s_bookf"><span>Livro</span><select id="s_book"><option value="">Escolha</option>${books.map(b=>`<option value="${b.id}" ${b.id===l.bookId?"selected":""}>${esc(b.title)}</option>`).join("")}</select></label>
- <label class="field"><span>Título ou descrição</span><input id="s_desc" value="${esc(l.desc||"")}" placeholder="Ex.: episódio sobre investimentos"></label>
- <div class="grid2"><label class="field"><span>Minutos</span><input id="s_min" type="number" inputmode="numeric" min="1" value="${l.min||""}" placeholder="20"></label><label class="field"><span>Páginas lidas</span><input id="s_pages" type="number" inputmode="numeric" min="0" value="${l.pages||""}" placeholder="0"></label></div>
+ <div class="chips" style="flex-wrap:wrap">${Object.entries(STUDY_TYPES).map(([k,n])=>`<button type="button" class="chip ${type===k?"on":""}" data-act="pickStype" data-v="${k}">${n}</button>`).join("")}</div><input type="hidden" id="s_type" value="${type}"><input type="hidden" id="s_id" value="${l.id||""}">
+ <div class="stack" id="s_fields">${studyFields(type,l)}</div>
  <label class="field"><span>Data</span><input id="s_date" type="date" value="${l.date||today()}"></label>
  <button class="btn block" data-act="saveStudy" data-v="${l.id||""}">${isEdit?"Salvar":"Registrar"}</button>
- ${isEdit?`<button class="btn danger" data-act="askDel">Apagar registro</button>${confirmBox("delStudy","Apagar este registro?")}`:""}
- ${!isEdit&&!books.length?`<button class="btn ghost sm" data-act="addBook" style="align-self:flex-start">Cadastrar um livro</button>`:""}</div>`)}
+ ${isEdit?`<button class="btn danger" data-act="askDel">Apagar registro</button>${confirmBox("delStudy","Apagar este registro?")}`:""}</div>`)}
 function bookDatesUI(){const st=v("b_status");const sw=$("#b_sw"),ew=$("#b_ew"),box=$("#b_dates"),h=$("#b_dh");if(!box)return;
  box.style.display=st==="quero"?"none":"";if(h)h.style.display=st==="quero"?"none":"";if(ew)ew.style.display=st==="lido"?"":"none";
  if(st==="lido"&&ew&&!$("#b_end").value)$("#b_end").value=today()}
@@ -3852,10 +3872,11 @@ const A={
  // estudos
  addStudy:()=>studyForm(),
  editStudy:el=>{const l=S.study.logs[el.dataset.v];if(l)studyForm(l)},
- pickStype:el=>{document.querySelectorAll('[data-act="pickStype"]').forEach(b=>b.classList.toggle("on",b===el));$("#s_type").value=el.dataset.v;$("#s_bookf").classList.toggle("hide",el.dataset.v!=="livro")},
- saveStudy:el=>{const lostBefore=studyDecay().lost;const min=+v("s_min")||0;const pages=+v("s_pages")||0;if(!min&&!pages){toast("Informe os minutos ou as páginas.");return}const id=el.dataset.v||rid();const old=S.study.logs[id];const type=v("s_type");const bookId=type==="livro"?(v("s_book")||null):null;
-  const desc=v("s_desc").trim()||(bookId&&S.study.books[bookId]?S.study.books[bookId].title:"");
-  S.study.logs[id]={id,date:v("s_date")||today(),t:old?old.t:Date.now(),type,bookId,min:min||Math.round(pages*1.5),pages,desc};
+ pickStype:el=>{const t=el.dataset.v;document.querySelectorAll('[data-act="pickStype"]').forEach(b=>b.classList.toggle("on",b===el));$("#s_type").value=t;if(!$("#s_id").value)UI.stype=t;const id=$("#s_id").value;$("#s_fields").innerHTML=studyFields(t,id&&S.study.logs[id]&&S.study.logs[id].type===t?S.study.logs[id]:{})},
+ saveStudy:el=>{const lostBefore=studyDecay().lost;const min=+v("s_min")||(+($("#s_min")||{}).placeholder||0);const pages=$("#s_pages")?(+v("s_pages")||0):0;if(!min&&!pages){toast("Informe os minutos ou as páginas.");return}const id=el.dataset.v||rid();const old=S.study.logs[id];const type=v("s_type");const bookId=type==="livro"&&$("#s_book")?(v("s_book")||null):null;
+  const fa=$("#s_a")?v("s_a").trim():"",fb=$("#s_b")?v("s_b").trim():"",link=$("#s_link")?v("s_link").trim():"";
+  const desc=type==="livro"?(bookId&&S.study.books[bookId]?S.study.books[bookId].title:"Leitura"):type==="idioma"?`${fa} · ${fb}`:[fa,fb].filter(Boolean).join(" · ");
+  S.study.logs[id]={id,date:v("s_date")||today(),t:old?old.t:Date.now(),type,bookId,min:min||Math.round(pages*1.5),pages,desc,a:fa||null,b:fb||null,link:link||null};
   if(bookId&&pages&&!old){const b=S.study.books[bookId];b.page=Math.min(b.pages||Infinity,(+b.page||0)+pages);if(b.pages&&b.page>=b.pages)finishBook(b)}
   markActive(v("s_date")||today());commit();closeModal();toast(studyDecay().lost<lostBefore&&S.profile.pet?"Estudo registrado. O porquinho recuperou um acessório!":"Estudo registrado.")},
  delStudyYes:()=>{const id=document.querySelector('[data-act="saveStudy"]').dataset.v;delete S.study.logs[id];commit();closeModal();toast("Registro apagado.")},
@@ -7143,6 +7164,38 @@ Object.assign(A,{
  plusStartOff:async()=>{const {error}=await sb.rpc("set_billing_start",{p_start:null});if(error){toast("Não consegui: "+error.message);return}ADM.plus=null;plusLoad(true);toast("Cobrança desligada. Tudo liberado para todos.")},
  plusMpSave:async()=>{const t=v("plus_mp").trim();if(!/^APP_USR-/.test(t)){toast("Cole o Access Token de produção (começa com APP_USR-).");return}const {error}=await sb.rpc("set_mp_secret",{p_token:t});if(error){toast("Não consegui salvar: "+error.message);return}$("#plus_mp").value="";ADM.plus=null;render();toast("Token do Mercado Pago salvo.")}
 });
+
+/* ---------- Previsão do tempo (dados MET Norway, via função "tempo" do servidor; sem GPS: a pessoa escolhe a cidade) ---------- */
+const WX={data:null,at:0,busy:false,res:null};
+const WX_URL=()=>(CFG.supabaseUrl||"")+"/functions/v1/tempo";
+const WX_ICO=s=>{s=String(s||"");return /thunder/.test(s)?"⛈️":/snow|sleet/.test(s)?"🌨️":/heavyrain/.test(s)?"🌧️":/rain/.test(s)?"🌦️":/fog/.test(s)?"🌫️":/partlycloudy/.test(s)?"⛅":/fair/.test(s)?"🌤️":/clearsky/.test(s)?(/night/.test(s)?"🌙":"☀️"):"☁️"};
+const WX_TXT=s=>{s=String(s||"").replace(/_(day|night|polartwilight)$/,"");return({clearsky:"Céu limpo",fair:"Poucas nuvens",partlycloudy:"Parcialmente nublado",cloudy:"Nublado",fog:"Neblina",lightrain:"Chuva fraca",rain:"Chuva",heavyrain:"Chuva forte",lightrainshowers:"Pancadas fracas",rainshowers:"Pancadas de chuva",heavyrainshowers:"Pancadas fortes"})[s]||(/thunder/.test(s)?"Trovoadas":/rain/.test(s)?"Chuva":"Nublado")};
+function wxLoad(force){const c=S.profile.city;if(!c||WX.busy||Store.demo)return;let cached=null;try{cached=JSON.parse(localStorage.getItem("prumo.wx")||"null")}catch(e){}
+ if(!force&&cached&&cached.k===c.lat+","+c.lon&&Date.now()-cached.at<30*60000){if(!WX.data){WX.data=cached.v;WX.at=cached.at}return}
+ if(!force&&WX.data&&Date.now()-WX.at<30*60000)return;WX.busy=true;
+ fetch(`${WX_URL()}?lat=${c.lat}&lon=${c.lon}`).then(r=>r.json()).then(j=>{if(j&&j.daily){WX.data=j;WX.at=Date.now();try{localStorage.setItem("prumo.wx",JSON.stringify({k:c.lat+","+c.lon,at:WX.at,v:j}))}catch(e){}render()}}).catch(()=>{}).finally(()=>{WX.busy=false})}
+function weatherCard(){if(Store.demo||S.profile.wxOff)return"";const c=S.profile.city;
+ if(!c)return `<button class="card row" data-act="wxCity" style="gap:12px;text-align:left;width:100%;border:1px dashed var(--line)"><span style="font-size:28px">🌤️</span><div class="grow stack-s" style="gap:1px"><b>Previsão do tempo</b><span class="tiny muted">Escolha sua cidade para ver o tempo aqui no início.</span></div><span class="tiny muted">›</span></button>`;
+ wxLoad();const d=WX.data;if(!d)return `<div class="card row" style="gap:12px"><span style="font-size:28px">🌤️</span><span class="small muted">Carregando a previsão de ${esc(c.name)}…</span></div>`;
+ const t=d.daily[0]||{};const tip=t.rain>=5?"☔ Leve o guarda-chuva hoje.":t.rain>=1?"🌂 Pode chover um pouco.":t.max>=32?"🥤 Dia quente: beba bastante água.":t.min<=12?"🧥 Vai esfriar, leve um casaco.":"";
+ const wd=k=>["dom","seg","ter","qua","qui","sex","sáb"][new Date(k+"T12:00:00").getDay()];
+ return `<div class="card stack" style="gap:10px"><div class="row" style="gap:12px"><span style="font-size:44px;line-height:1">${WX_ICO(d.now.sym)}</span>
+ <div class="grow stack-s" style="gap:0"><div class="row" style="gap:8px;align-items:baseline"><b class="num" style="font-size:30px">${d.now.t}°</b><span class="small muted">${WX_TXT(d.now.sym)}</span></div><span class="tiny muted">${esc(c.name)}${c.sub?" · "+esc(c.sub):""} · máx ${t.max}° mín ${t.min}°</span></div>
+ <button class="iconbtn" data-act="wxCity" aria-label="Trocar cidade" style="width:34px;height:34px">✎</button></div>
+ ${tip?`<div class="note"><span class="small">${tip}</span></div>`:""}
+ <div class="row between" style="gap:4px;align-items:flex-start">${d.daily.slice(1,5).map(x=>`<div class="stack-s" style="gap:2px;align-items:center;justify-content:flex-start;flex:1"><span class="tiny muted">${wd(x.d)}</span><span style="font-size:22px">${WX_ICO(x.sym)}</span><span class="tiny"><b>${x.max}°</b> <span class="muted">${x.min}°</span></span>${x.rain>=1?`<span class="tiny" style="color:#3b6fd9">${Math.round(x.rain)} mm</span>`:""}</div>`).join("")}</div>
+ <span class="tiny muted" style="text-align:right">Dados: MET Norway</span></div>`}
+function wxCityModal(){openModal("Previsão do tempo",`<div class="stack"><p class="small muted">Digite sua cidade. O Prumo não usa a sua localização, só a cidade que você escolher.</p>
+ <div class="row" style="gap:8px"><input id="wx_q" class="grow" placeholder="Ex.: Maringá" value="" style="flex:1;min-width:0"><button class="btn" data-act="wxSearch">Buscar</button></div>
+ <div class="stack-s" id="wx_res"></div>
+ ${S.profile.city?`<button class="btn ghost sm" data-act="wxOff" style="align-self:flex-start">Não mostrar a previsão no início</button>`:""}</div>`);setTimeout(()=>{const i=$("#wx_q");if(i){i.focus();i.addEventListener("keydown",e=>{if(e.key==="Enter")A.wxSearch()})}},100)}
+A.wxCity=()=>wxCityModal();
+A.wxSearch=async()=>{const q=v("wx_q").trim();const box=$("#wx_res");if(q.length<2||!box)return;box.innerHTML='<span class="small muted">Procurando…</span>';
+ try{const r=await (await fetch(`${WX_URL()}?q=${encodeURIComponent(q)}`)).json();WX.res=r||[];
+  box.innerHTML=WX.res.length?WX.res.map((c,i)=>`<button class="item" data-act="wxPick" data-v="${i}" style="width:100%;background:none;border:0;border-bottom:1px solid var(--line);text-align:left;padding:10px 0"><b>${esc(c.name)}</b> <span class="small muted">${esc(c.sub||"")}</span></button>`).join(""):'<span class="small muted">Não encontrei. Tente escrever só o nome da cidade.</span>'}
+ catch(e){box.innerHTML='<span class="small muted">Sem conexão agora. Tente de novo.</span>'}};
+A.wxPick=el=>{const c=(WX.res||[])[+el.dataset.v];if(!c)return;S.profile.city={name:c.name,sub:c.sub,lat:c.lat,lon:c.lon};delete S.profile.wxOff;WX.data=null;WX.at=0;saveApp();closeModal();wxLoad(true);render();toast("Previsão do tempo de "+c.name+" no início. 🌤️")};
+A.wxOff=()=>{S.profile.wxOff=1;saveApp();closeModal();render();toast("Previsão escondida. Para voltar, vá em Perfil.")};
 
 /* início */
 (function boot(){

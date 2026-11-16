@@ -388,6 +388,7 @@ body.team-env .envbtn.cur{border-color:var(--money);background:color-mix(in srgb
 @keyframes wdGive{0%,30%{transform:translate(var(--wx),var(--wy)) scale(.45);opacity:0}33%{transform:translate(var(--wx),var(--wy)) scale(.5);opacity:1}42%{transform:translate(var(--qx),var(--py)) scale(1);opacity:1}46%{transform:translate(var(--qx),var(--py)) scale(1);opacity:1}66%,97%{transform:translate(var(--px),var(--py)) scale(1);opacity:1}100%{transform:translate(var(--px),var(--py)) scale(1);opacity:0}}
 @keyframes wdStore{0%,12%{transform:translate(var(--px),var(--py)) scale(1);opacity:1}30%{transform:translate(var(--qx),var(--py)) scale(1);opacity:1}34%{transform:translate(var(--qx),var(--py)) scale(1);opacity:1}43%{transform:translate(var(--wx),var(--wy)) scale(.45);opacity:1}46%,100%{transform:translate(var(--wx),var(--wy)) scale(.35);opacity:0}}
 @media (prefers-reduced-motion: reduce){.wd-go .pig-walk,.wd-go .leg{animation:none!important}}
+@keyframes wxfall{from{transform:translate(0,-40px)}to{transform:translate(-14px,250px)}}.wx-rain line{animation:wxfall .9s linear infinite}@keyframes wxspin{to{transform:rotate(360deg)}}.wx-sun{transform-origin:272px 40px;animation:wxspin 18s linear infinite}@media (prefers-reduced-motion:reduce){.wx-rain line,.wx-sun{animation:none}}
 </style>
 
 </head>
@@ -1133,7 +1134,7 @@ function doveFly(hy,walking){const w=walking;const xl=134+(w?30.18:0),xt=134+(w?
 const dovePerch=hy=>`<g transform="translate(134 ${hy})"><g class="dvperch"><g transform="scale(1.15)">${DOVE_PERCH}</g></g></g>`;
 const doveGround=()=>`<g class="dvground"><g class="dvgwalk"><g transform="scale(1.25)"><g class="dvgstep">${DOVE_FRONT}</g></g></g></g>`;
 function pigSVG(o){
- const {score=60,mood="ok",equip={},env=0,mini=false,dry=false,peace=0,zen=0,wet=false}=o;const pz=Math.max(peace,zen);
+ const {score=60,mood="ok",equip={},env=0,mini=false,dry=false,peace=0,zen=0,wet=false,wx=null}=o;const pz=Math.max(peace,zen);
  const s=score/100;const sx=.74+s*.42, sy=.86+s*.18;
  const cx=160, cy=150, rx=74*sx, ry=62*sy;
  const body="#F7A8BE", shade="#EC8CA8", snout="#F48CAA", dark="#2B1E24";
@@ -1193,7 +1194,11 @@ function pigSVG(o){
  const vb=mini?"60 60 200 170":"0 0 320 240";
  const hy=Math.round(cy-ry-29-(equip.head?({laco:6,fone:2,lapis:4}[equip.head]??26):0));const dv=!mini&&peace>=1;
  const walk=!mini&&(mood==="feliz"||mood==="ok");
- return `<svg viewBox="${vb}" role="img" aria-label="Porquinho ${mood}" class="m-${mood} ${walk?"walking":""}" style="${dvDelay()}">${mini?"":envSVG(env,dry,pz,wet)}<g class="pig-walk">${coins}${pz>=7&&!mini?`<ellipse class="glow" cx="${cx}" cy="${cy+6}" rx="${rx+34}" ry="${ry+30}" fill="#FFF3B0"/>`:""}<g class="pig-bob"><g class="pig-breathe">${p}</g>${dv?dovePerch(hy):""}</g>${heart}</g>${dv?doveGround()+doveFly(hy,walk):""}</svg>`}
+ const wxSky=mini||!wx?"":wx==="rain"?`<rect x="0" y="0" width="320" height="240" fill="#36465c" opacity=".38"/>`:wx==="hot"?`<g class="wx-sun"><circle cx="272" cy="40" r="20" fill="#FFD23F"/>${[0,45,90,135,180,225,270,315].map(a=>`<line x1="${272+Math.cos(a*Math.PI/180)*27}" y1="${40+Math.sin(a*Math.PI/180)*27}" x2="${272+Math.cos(a*Math.PI/180)*36}" y2="${40+Math.sin(a*Math.PI/180)*36}" stroke="#FFB800" stroke-width="4" stroke-linecap="round"/>`).join("")}</g>`:"";
+ const wxDrops=mini||wx!=="rain"?"":`<g class="wx-rain">${Array.from({length:26},(_,k)=>`<line x1="${(k*37)%320}" y1="${(k*53)%240-30}" x2="${(k*37)%320-5}" y2="${(k*53)%240-14}" stroke="#9fd0ff" stroke-width="2.5" stroke-linecap="round" style="animation-delay:${(k%7)*.13}s"/>`).join("")}</g>`;
+ const ur=rx*.95+10,ux=cx+rx*.3,uy=hy+16,hx=ux+ur*.62;
+ const umb=mini||wx!=="rain"?"":`<g class="wx-umb" transform="rotate(14 ${ux} ${uy})"><path d="M${ux} ${uy-ur*.5} L${hx} ${cy+ry*.2} q2 13 -9 15 q-9 1 -10 -8" fill="none" stroke="#5a3b2e" stroke-width="5" stroke-linecap="round"/><path d="M${ux-ur} ${uy+8} Q${ux-ur} ${uy-ur*.72} ${ux} ${uy-ur*.72} Q${ux+ur} ${uy-ur*.72} ${ux+ur} ${uy+8} q-${ur/4} -14 -${ur/2} 0 q-${ur/4} -14 -${ur/2} 0 q-${ur/4} -14 -${ur/2} 0 q-${ur/4} -14 -${ur/2} 0 Z" fill="#D9547F" stroke="#B23A62" stroke-width="3"/><path d="M${ux} ${uy-ur*.72} Q${ux-ur*.25} ${uy-ur*.3} ${ux-ur*.5} ${uy+2} M${ux} ${uy-ur*.72} Q${ux+ur*.25} ${uy-ur*.3} ${ux+ur*.5} ${uy+2}" fill="none" stroke="#B23A62" stroke-width="2.5"/><circle cx="${ux}" cy="${uy-ur*.72-5}" r="5" fill="#B23A62"/></g>`;
+ return `<svg viewBox="${vb}" role="img" aria-label="Porquinho ${mood}" class="m-${mood} ${walk?"walking":""}" style="${dvDelay()}">${mini?"":envSVG(env,dry,pz,wet)}${wxSky}<g class="pig-walk">${coins}${pz>=7&&!mini?`<ellipse class="glow" cx="${cx}" cy="${cy+6}" rx="${rx+34}" ry="${ry+30}" fill="#FFF3B0"/>`:""}<g class="pig-bob"><g class="pig-breathe">${p}</g>${dv?dovePerch(hy):""}</g>${umb}${heart}</g>${dv?doveGround()+doveFly(hy,walk):""}${wxDrops}</svg>`}
 function bodySVG(id,cx,cy,rx,ry){const cid="cl"+Math.random().toString(36).slice(2,7);const top=cy+ry*.5,nb=cy+48;const L=cx-rx-4,W=rx*2+8,B=cy+ry+4,H=B-top;
  const neck=`M${L} ${top} L${cx-26} ${top} Q${cx} ${nb+6} ${cx+26} ${top} L${L+W} ${top} L${L+W} ${B} L${L} ${B} Z`;
  const clip=`<clipPath id="${cid}a"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/></clipPath><clipPath id="${cid}b"><path d="${neck}"/></clipPath>`;
@@ -2780,7 +2785,7 @@ function tourPopup(){if(typeof quietOn==="function"&&quietOn())return;const p=S.
   ["agenda","🗓️","Agenda","Tarefas, compromissos e projetos num lugar só, com lembretes."]];
  if(p.pet)A_.push(["pig","🐷","Seu porquinho","Cada área que você cuida deixa ele mais feliz e rende moedas para roupinhas e acessórios."]);
  openModal("Tem muito mais aqui",`<div class="stack" style="gap:12px">
- <div class="stack-s" style="align-items:center;text-align:center;gap:6px">${p.pet?`<div style="width:110px;border-radius:18px;overflow:hidden">${(()=>{try{return pigSVG({score:100,mood:"feliz",equip:effectiveEquip(),env:Math.max(2,envLevel()),dry:false,peace:prayerPeace(),zen:zenPeace(),wet:waterHit(today())})}catch(e){return'<div style="font-size:56px">🐷</div>'}})()}</div>`:`<div style="font-size:52px;line-height:1">🐷</div>`}
+ <div class="stack-s" style="align-items:center;text-align:center;gap:6px">${p.pet?`<div style="width:110px;border-radius:18px;overflow:hidden">${(()=>{try{return pigSVG({score:100,mood:"feliz",equip:effectiveEquip(),env:Math.max(2,envLevel()),dry:false,peace:prayerPeace(),zen:zenPeace(),wet:waterHit(today()),wx:typeof wxPig==="function"?wxPig():null})}catch(e){return'<div style="font-size:56px">🐷</div>'}})()}</div>`:`<div style="font-size:52px;line-height:1">🐷</div>`}
  <h2 style="margin:0">${first?esc(first)+", o":"O"} Prumo é muito mais ${inCh?"que o desafio":"do que você já viu"}</h2>
  <p class="small">Você já está cuidando ${inCh?"de um hábito":"de uma parte da sua vida"}. Que tal colocar o resto da vida em ordem também? Leva 1 minuto por dia.</p></div>
  <div class="stack-s">${A_.map(([id,e,t,d])=>`<button class="card row" style="text-align:left;gap:12px;padding:12px;align-items:center;width:100%" data-act="tourGo" data-v="${id}"><span style="font-size:28px;flex:none">${e}</span><span class="grow stack-s" style="gap:2px"><b>${t}${used[id]?' <span class="pill good">você já usa</span>':""}</b><span class="tiny muted">${d}</span></span><span style="flex:none;color:var(--muted)">›</span></button>`).join("")}</div>
@@ -2823,8 +2828,8 @@ function viewHome(){
  /* sigilo: na tela inicial o porquinho nunca mostra preocupação nem a nota; isso só aparece ao tocar nele */
  const homeHappy=h.mood==="feliz";const moodTxt=homeHappy?"está gordinho e feliz":"está te esperando";
  const pigCard=S.profile.pet?`<button class="card" data-act="tab" data-v="pig" style="padding:0;text-align:left;border:0;overflow:hidden">
-   <div class="pigstage">${pigVoiceBtn(true)}${pigSVG({score:homeHappy?h.score:Math.max(h.score,62),mood:homeHappy?"feliz":"ok",equip:effectiveEquip(),env:envLevel(),dry:envDry(),peace:prayerPeace(),zen:zenPeace(),wet:waterHit(today())})}</div>
-   <div style="padding:14px 16px" class="row between"><div class="stack-s"><h3>${S.pet.name?esc(S.pet.name):"Seu porquinho"} ${moodTxt}</h3><p class="small muted">Toque para ver como ele está e as dicas.</p></div>${I.right.replace('<svg','<svg width="22" height="22"')}</div></button>`
+   <div class="pigstage">${pigVoiceBtn(true)}${pigSVG({score:homeHappy?h.score:Math.max(h.score,62),mood:homeHappy?"feliz":"ok",equip:effectiveEquip(),env:envLevel(),dry:envDry(),peace:prayerPeace(),zen:zenPeace(),wet:waterHit(today()),wx:typeof wxPig==="function"?wxPig():null})}</div>
+   <div style="padding:14px 16px" class="row between"><div class="stack-s">${typeof wxPigLine==="function"&&wxPigLine()?`<h3>${wxPigLine()}</h3><p class="small muted">${typeof wxPigSub==="function"?wxPigSub():""}</p>`:`<h3>${S.pet.name?esc(S.pet.name):"Seu porquinho"} ${moodTxt}</h3><p class="small muted">Toque para ver como ele está e as dicas.</p>`}</div>${I.right.replace('<svg','<svg width="22" height="22"')}</div></button>`
   :`<button class="card row between" data-act="tab" data-v="pig" style="text-align:left"><div class="stack-s"><h3>Saúde financeira</h3><p class="small muted">Toque para ver sua nota, os motivos e as dicas.</p></div>${I.right.replace('<svg','<svg width="22" height="22"')}</button>`;
  const ring=(pct,color,label,val)=>{const r=26,c=2*Math.PI*r;return `<div class="stack-s" style="align-items:center;text-align:center"><svg width="70" height="70" viewBox="0 0 70 70"><circle cx="35" cy="35" r="${r}" fill="none" stroke="var(--surface2)" stroke-width="8"/><circle cx="35" cy="35" r="${r}" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-clamp(pct,0,1))}" transform="rotate(-90 35 35)"/>${pct>=1?`<g transform="translate(23 23)" color="${color}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></g>`:""}</svg><b class="small">${label}</b><span class="tiny muted num">${val}</span></div>`};
  return `<div class="stack">
@@ -2894,7 +2899,7 @@ function viewPig(){
  const plainTitle={feliz:"Finanças saudáveis",ok:"Finanças estáveis",preocupado:"Finanças pedem atenção",triste:"Finanças em alerta"}[h.mood];
  return `<div class="stack">
  <div class="row"><button class="iconbtn" data-act="tab" data-v="home" aria-label="Voltar">${I.left}</button><h2 class="grow">${pet?(S.pet.name?esc(S.pet.name):"Seu porquinho"):"Saúde financeira"}</h2>${pet?`<button class="btn ghost sm" data-act="petName">${S.pet.name?"Renomear":"Dar um nome"}</button>`:""}</div>
- ${pet?`<div class="pigstage card" style="padding:0" data-act="pigPoke" role="button" aria-label="Fazer carinho em ${S.pet.name?esc(S.pet.name):"seu porquinho"}" tabindex="0">${pigVoiceBtn()}${pigSVG({score:h.score,mood:h.mood,equip:effectiveEquip(),env:lv,dry:envDry(),peace:prayerPeace(),zen:zenPeace(),wet:waterHit(today())})}</div>`:""}
+ ${pet?`<div class="pigstage card" style="padding:0" data-act="pigPoke" role="button" aria-label="Fazer carinho em ${S.pet.name?esc(S.pet.name):"seu porquinho"}" tabindex="0">${pigVoiceBtn()}${pigSVG({score:h.score,mood:h.mood,equip:effectiveEquip(),env:lv,dry:envDry(),peace:prayerPeace(),zen:zenPeace(),wet:waterHit(today()),wx:typeof wxPig==="function"?wxPig():null})}</div>`:""}
  <div class="card stack"><div class="row between"><h3>${pet?moodTitle:plainTitle}</h3><span class="pill ${h.score>=70?"good":h.score>=45?"warn":"bad"} num">${h.score}/100</span></div>
   <div class="meter"><i style="width:${h.score}%;background:${h.score>=70?"var(--good)":h.score>=45?"var(--warn)":"var(--bad)"}"></i></div>
   <p class="small muted">${pet?"A saúde do porquinho":"Esta nota"} depende só do dinheiro: quanto você gastou da renda, quanto separou para o futuro, como estão os desejos, as dívidas e se você registra todo dia.</p></div>
@@ -3260,7 +3265,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.08</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.09</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -7174,20 +7179,27 @@ function wxLoad(force){const c=S.profile.city;if(!c||WX.busy||Store.demo)return;
  if(!force&&cached&&cached.k===c.lat+","+c.lon&&Date.now()-cached.at<30*60000){if(!WX.data){WX.data=cached.v;WX.at=cached.at}return}
  if(!force&&WX.data&&Date.now()-WX.at<30*60000)return;WX.busy=true;
  fetch(`${WX_URL()}?lat=${c.lat}&lon=${c.lon}`).then(r=>r.json()).then(j=>{if(j&&j.daily){WX.data=j;WX.at=Date.now();try{localStorage.setItem("prumo.wx",JSON.stringify({k:c.lat+","+c.lon,at:WX.at,v:j}))}catch(e){}render()}}).catch(()=>{}).finally(()=>{WX.busy=false})}
+function wxDays(d){const wd=k=>["dom","seg","ter","qua","qui","sex","sáb"][new Date(k+"T12:00:00").getDay()];return `<div class="row between" style="gap:4px;align-items:flex-start">${d.daily.slice(1,5).map(x=>`<div class="stack-s" style="gap:2px;align-items:center;flex:1"><span class="tiny muted">${wd(x.d)}</span><span style="font-size:22px">${WX_ICO(x.sym)}</span><span class="tiny"><b>${x.max}°</b> <span class="muted">${x.min}°</span></span>${x.rain>=1?`<span class="tiny" style="color:#3b6fd9">${Math.round(x.rain)} mm</span>`:""}</div>`).join("")}</div>`}
 function weatherCard(){if(Store.demo||S.profile.wxOff)return"";const c=S.profile.city;
  if(!c)return `<button class="card row" data-act="wxCity" style="gap:12px;text-align:left;width:100%;border:1px dashed var(--line)"><span style="font-size:28px">🌤️</span><div class="grow stack-s" style="gap:1px"><b>Previsão do tempo</b><span class="tiny muted">Escolha sua cidade para ver o tempo aqui no início.</span></div><span class="tiny muted">›</span></button>`;
  wxLoad();const d=WX.data;if(!d)return `<div class="card row" style="gap:12px"><span style="font-size:28px">🌤️</span><span class="small muted">Carregando a previsão de ${esc(c.name)}…</span></div>`;
- const t=d.daily[0]||{};const tip=t.rain>=5?"☔ Leve o guarda-chuva hoje.":t.rain>=1?"🌂 Pode chover um pouco.":t.max>=32?"🥤 Dia quente: beba bastante água.":t.min<=12?"🧥 Vai esfriar, leve um casaco.":"";
+ const t=d.daily[0]||{};const pet=!!S.profile.pet;const w=wxState();const sky=w&&w.k==='rain'?'linear-gradient(160deg,#5b6b84,#8ea3c0)':w&&w.k==='hot'?'linear-gradient(160deg,#FFB547,#FFD87A)':w&&w.k==='cold'?'linear-gradient(160deg,#8fb4dd,#cfe3f7)':'linear-gradient(160deg,#7cc4f2,#bfe6ff)';const tip=t.rain>=5?"☔ Leve o guarda-chuva hoje.":t.rain>=1?"🌂 Pode chover um pouco.":t.max>=32?"🥤 Dia quente: beba bastante água.":t.min<=12?"🧥 Vai esfriar, leve um casaco.":"";
  const wd=k=>["dom","seg","ter","qua","qui","sex","sáb"][new Date(k+"T12:00:00").getDay()];
+ const rainTxt=d.rainNow?"Está chovendo agora.":d.rainAt?`Chuva prevista para as ${d.rainAt}.`:"";
+ if(!pet)return `<div class="card stack" style="gap:10px;padding:0;overflow:hidden"><div style="position:relative;background:${sky};color:#fff;padding:16px 16px 14px;overflow:hidden">${w&&w.k==="rain"?`<svg viewBox="0 0 320 120" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;opacity:.7"><g class="wx-rain">${Array.from({length:22},(_,k)=>`<line x1="${(k*29)%330}" y1="${(k*41)%120-20}" x2="${(k*29)%330-5}" y2="${(k*41)%120-6}" stroke="#e6f3ff" stroke-width="2" stroke-linecap="round" style="animation-delay:${(k%7)*.13}s"/>`).join("")}</g></svg>`:""}
+  <div class="row" style="gap:12px;position:relative"><span style="font-size:52px;line-height:1">${w&&w.k==="rain"?"☔":WX_ICO(d.now.sym)}</span><div class="grow stack-s" style="gap:0"><div class="row" style="gap:8px;align-items:baseline"><b class="num" style="font-size:34px;color:#fff">${d.now.t}°</b><span class="small" style="opacity:.9">${WX_TXT(d.now.sym)}</span></div><span class="tiny" style="opacity:.9">${esc(c.name)}${c.sub?" · "+esc(c.sub):""} · máx ${t.max}° mín ${t.min}°</span></div><button class="iconbtn" data-act="wxCity" aria-label="Trocar cidade" style="width:34px;height:34px;background:rgba(255,255,255,.3);color:#fff">✎</button></div>
+  ${rainTxt||tip?`<div style="position:relative;margin-top:10px;background:rgba(255,255,255,.22);border-radius:12px;padding:8px 12px" class="small">${rainTxt?rainTxt+" ":""}${tip}</div>`:""}</div>
+  <div style="padding:0 16px 14px" class="stack-s">${wxDays(d)}<span class="tiny muted" style="text-align:right">Dados: MET Norway</span></div></div>`;
  return `<div class="card stack" style="gap:10px"><div class="row" style="gap:12px"><span style="font-size:44px;line-height:1">${WX_ICO(d.now.sym)}</span>
  <div class="grow stack-s" style="gap:0"><div class="row" style="gap:8px;align-items:baseline"><b class="num" style="font-size:30px">${d.now.t}°</b><span class="small muted">${WX_TXT(d.now.sym)}</span></div><span class="tiny muted">${esc(c.name)}${c.sub?" · "+esc(c.sub):""} · máx ${t.max}° mín ${t.min}°</span></div>
  <button class="iconbtn" data-act="wxCity" aria-label="Trocar cidade" style="width:34px;height:34px">✎</button></div>
- ${tip?`<div class="note"><span class="small">${tip}</span></div>`:""}
- <div class="row between" style="gap:4px;align-items:flex-start">${d.daily.slice(1,5).map(x=>`<div class="stack-s" style="gap:2px;align-items:center;justify-content:flex-start;flex:1"><span class="tiny muted">${wd(x.d)}</span><span style="font-size:22px">${WX_ICO(x.sym)}</span><span class="tiny"><b>${x.max}°</b> <span class="muted">${x.min}°</span></span>${x.rain>=1?`<span class="tiny" style="color:#3b6fd9">${Math.round(x.rain)} mm</span>`:""}</div>`).join("")}</div>
+ ${!w&&tip?`<div class="note"><span class="small">${tip}</span></div>`:""}
+ ${wxDays(d)}
  <span class="tiny muted" style="text-align:right">Dados: MET Norway</span></div>`}
 function wxCityModal(){openModal("Previsão do tempo",`<div class="stack"><p class="small muted">Digite sua cidade. O Prumo não usa a sua localização, só a cidade que você escolher.</p>
  <div class="row" style="gap:8px"><input id="wx_q" class="grow" placeholder="Ex.: Maringá" value="" style="flex:1;min-width:0"><button class="btn" data-act="wxSearch">Buscar</button></div>
  <div class="stack-s" id="wx_res"></div>
+ ${S.profile.city?`<label class="check"><input type="checkbox" id="wx_al" ${S.profile.wxAlerts===false?"":"checked"} onchange="S.profile.wxAlerts=this.checked;saveApp()"><span><b>Avisar quando for chover</b><br><span class="tiny muted">Uma notificação quando a chuva estiver chegando na sua cidade (das 7h às 22h).</span></span></label>`:""}
  ${S.profile.city?`<button class="btn ghost sm" data-act="wxOff" style="align-self:flex-start">Não mostrar a previsão no início</button>`:""}</div>`);setTimeout(()=>{const i=$("#wx_q");if(i){i.focus();i.addEventListener("keydown",e=>{if(e.key==="Enter")A.wxSearch()})}},100)}
 A.wxCity=()=>wxCityModal();
 A.wxSearch=async()=>{const q=v("wx_q").trim();const box=$("#wx_res");if(q.length<2||!box)return;box.innerHTML='<span class="small muted">Procurando…</span>';
@@ -7196,6 +7208,15 @@ A.wxSearch=async()=>{const q=v("wx_q").trim();const box=$("#wx_res");if(q.length
  catch(e){box.innerHTML='<span class="small muted">Sem conexão agora. Tente de novo.</span>'}};
 A.wxPick=el=>{const c=(WX.res||[])[+el.dataset.v];if(!c)return;S.profile.city={name:c.name,sub:c.sub,lat:c.lat,lon:c.lon};delete S.profile.wxOff;WX.data=null;WX.at=0;saveApp();closeModal();wxLoad(true);render();toast("Previsão do tempo de "+c.name+" no início. 🌤️")};
 A.wxOff=()=>{S.profile.wxOff=1;saveApp();closeModal();render();toast("Previsão escondida. Para voltar, vá em Perfil.")};
+
+/* ---------- o porquinho e o tempo ---------- */
+function wxState(){const d=WX.data;if(!d||!S.profile.city||S.profile.wxOff)return null;const t=d.daily[0]||{};const h=new Date().getHours();
+ if(d.rainNow)return{k:"rain",now:true};if(d.rainAt)return{k:"rain",at:d.rainAt};if(t.rain>=2&&h<20)return{k:"rain"};if(t.max>=32)return{k:"hot"};if(t.min<=12)return{k:"cold"};return null}
+function wxPig(){const w=wxState();return w&&(w.k==="rain"||w.k==="hot")?w.k:null}
+function wxPigLine(){const w=wxState();if(!w)return"";const n=S.pet&&S.pet.name?esc(S.pet.name):"Seu porquinho";
+ if(w.k==="rain")return w.now?`${n} abriu o guarda-chuva: está chovendo! ☔`:w.at?`${n} avisa: vai chover às ${w.at} ☔`:`${n} avisa: tem chuva no caminho hoje ☔`;
+ if(w.k==="hot")return`${n} está derretendo: dia quente! 🥵`;if(w.k==="cold")return`${n} pegou o casaco: vai esfriar 🧣`;return""}
+function wxPigSub(){const w=wxState();const c=S.profile.city;if(!w)return"";return w.k==="rain"?`Leve o guarda-chuva e recolha a roupa do varal. ${esc(c.name)}`:w.k==="hot"?`Beba bastante água e passe protetor. ${esc(c.name)}`:`Leve um casaco se for sair à noite. ${esc(c.name)}`}
 
 /* início */
 (function boot(){

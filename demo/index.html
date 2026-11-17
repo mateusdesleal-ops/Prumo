@@ -1127,9 +1127,9 @@ const DOVE_FRONT=`<g class="dvgbody"><path d="M-3 -5 L-3.5 0 M3 -5 L3.5 0 M-5.5 
 /* pombinha (ciclo de 2 min): pousa no chão de frente e passeia; some; às vezes pousa na cabeça do porquinho; às vezes só passa voando.
    Quando está pousada, a pombinha voadora some e aparece uma cópia parada (no chão, ou dentro do desenho do porquinho). */
 /* na chuva: a pombinha chega andando, fica um tempo com o guarda-chuvinha na asa levantada e vai embora andando */
-const dvRainUmb=`<g transform="rotate(-30 11 -22)"><line x1="12" y1="-22" x2="12" y2="-44" stroke="#5a3b2e" stroke-width="1.5" stroke-linecap="round"/><path d="M0 -42 Q0 -51 12 -51 Q24 -51 24 -42 q-2 -3 -4 0 q-2 -3 -4 0 q-2 -3 -4 0 q-2 -3 -4 0 q-2 -3 -4 0 q-2 -3 -4 0 Z" fill="#7FB8E8" stroke="#3B82C4" stroke-width="1.1" stroke-linejoin="round"/><circle cx="12" cy="-52.5" r="1.6" fill="#3B82C4"/></g>`;
+const dvRainUmb=`<line x1="11" y1="-23" x2="3" y2="-41" stroke="#5a3b2e" stroke-width="1.5" stroke-linecap="round"/><g transform="rotate(-12 3 -41)"><path d="M-10 -38 Q-10 -48 3 -48 Q16 -48 16 -38 q-2.2 -3 -4.3 0 q-2.2 -3 -4.3 0 q-2.2 -3 -4.3 0 q-2.2 -3 -4.3 0 q-2.2 -3 -4.3 0 q-2.2 -3 -4.3 0 Z" fill="#7FB8E8" stroke="#3B82C4" stroke-width="1.1" stroke-linejoin="round"/><path d="M3 -48 Q-1 -43 -3.5 -38.5 M3 -48 Q7 -43 9.5 -38.5" fill="none" stroke="#3B82C4" stroke-width=".8"/><circle cx="3" cy="-49.5" r="1.6" fill="#3B82C4"/></g>`;
 function doveRain(){const f=DOVE_FRONT.replace(`<ellipse cx="8.2" cy="-12" rx="3.8" ry="8" transform="rotate(-14 8.2 -12)" fill="#EEF3F8" stroke="#B9C7D4" stroke-width=".9"/>`,"");
- return `<g class="dvrain"><g transform="scale(1.4)"><g class="dvrstep">${f}${dvRainUmb}<ellipse cx="10.5" cy="-19" rx="3.4" ry="7.5" transform="rotate(28 10.5 -19)" fill="#EEF3F8" stroke="#B9C7D4" stroke-width=".9"/></g></g></g>`}
+ return `<g class="dvrain"><g transform="scale(1.4)"><g class="dvrstep">${f}${dvRainUmb}<ellipse cx="9.6" cy="-18" rx="2.6" ry="6.8" transform="rotate(18 9.6 -18)" fill="#EEF3F8" stroke="#B9C7D4" stroke-width=".9"/></g></g></g>`}
 const DV_GX=268,DV_GY=233;
 const DV_T0=Date.now()-Math.random()*180000; /* cada abertura do app começa num ponto diferente do passeio */
 function dvDelay(){return `--dvd:-${(((Date.now()-DV_T0)/1000)%180).toFixed(2)}s`}
@@ -3328,7 +3328,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.21</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.22</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -7328,12 +7328,15 @@ A.wxOff=()=>{S.profile.wxOff=1;saveApp();closeModal();render();toast("Previsão 
 
 /* ---------- o porquinho e o tempo ---------- */
 function wxState(){const d=WX.data;if(!d||!S.profile.city||S.profile.wxOff)return null;const t=d.daily[0]||{};const h=new Date().getHours();
- if(d.rainNow)return{k:"rain",now:true};if(d.rainAt)return{k:"rain",at:d.rainAt};if(t.rain>=2&&h<20)return{k:"rain"};if(t.max>=32)return{k:"hot"};if(t.min<=12)return{k:"cold"};return null}
+ const noRain=Date.now()-(+S.profile.wxNoRain||0)<4*3600e3; // a pessoa disse que aí não está chovendo
+ if(!noRain){if(d.rainNow)return{k:"rain",now:true};if(d.rainAt)return{k:"rain",at:d.rainAt};if(t.rain>=2&&h<20)return{k:"rain"}}if(t.max>=32)return{k:"hot"};if(t.min<=12)return{k:"cold"};return null}
 function wxPig(){const w=wxState();return w&&(w.k==="rain"||w.k==="hot")?w.k:null}
 function wxPigLine(){const w=wxState();if(!w)return"";const n=S.pet&&S.pet.name?esc(S.pet.name):"Seu porquinho";
- if(w.k==="rain")return w.now?`${n} abriu o guarda-chuva: está chovendo! ☔`:w.at?`${n} avisa: vai chover às ${w.at} ☔`:`${n} avisa: tem chuva no caminho hoje ☔`;
+ if(w.k==="rain")return w.now?`${n} abriu o guarda-chuva: a previsão é de chuva agora ☔`:w.at?`${n} avisa: vai chover às ${w.at} ☔`:`${n} avisa: tem chuva no caminho hoje ☔`;
  if(w.k==="hot")return`${n} está derretendo: dia quente! 🥵`;if(w.k==="cold")return`${n} pegou o casaco: vai esfriar 🧣`;return""}
-function wxPigSub(){const w=wxState();const c=S.profile.city;if(!w)return"";return w.k==="rain"?`Leve o guarda-chuva e recolha a roupa do varal. ${esc(c.name)}`:w.k==="hot"?`Beba bastante água e passe protetor. ${esc(c.name)}`:`Leve um casaco se for sair à noite. ${esc(c.name)}`}
+function wxPigSub(){const w=wxState();const c=S.profile.city;if(!w)return"";return w.k==="rain"?`Leve o guarda-chuva e recolha a roupa do varal. ${esc(c.name)} · <button class="linkbtn" data-act="wxNoRain" style="background:none;border:0;padding:0;color:inherit;text-decoration:underline;font:inherit;cursor:pointer">Aqui não está chovendo</button>`:w.k==="hot"?`Beba bastante água e passe protetor. ${esc(c.name)}`:`Leve um casaco se for sair à noite. ${esc(c.name)}`}
+
+A.wxNoRain=()=>{S.profile.wxNoRain=Date.now();saveApp();render();toast("Obrigado! Guardei o guarda-chuva por algumas horas. A previsão às vezes erra. ☀️",3500)};
 
 /* ---------- Cadastro: retomar de onde parou + saber (só em números) em qual passo as pessoas param ---------- */
 const ONB_STEPS={"-2":"Nem começou","-1":"Boas-vindas","0":"Nome","0.5":"Objetivos","1":"Renda","2":"Saúde","3":"Mascote","3.5":"Nome do mascote","4":"Último passo"};

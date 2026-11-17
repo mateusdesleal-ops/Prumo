@@ -2642,6 +2642,26 @@ function dayMissions(){const td=today();const focus=(S.profile.focus&&S.profile.
   rotina:{t:"Cuidar da rotina",d:"Conclua uma tarefa ou anote o que precisa fazer.",done:taskList().some(t=>(t.doneAt&&ymd(new Date(t.doneAt))===td)||(t.created&&ymd(new Date(t.created))===td)),acts:[["addTask","Anotar tarefa"],["goTasks","Ver tarefas"]]},
   fe:{t:"Um momento de pausa",d:S.profile.prayer?"Faça uma oração do seu checklist.":"Um minuto de silêncio, respiração ou gratidão.",done:S.profile.prayer?!!(S.prayer.log[td]&&Object.values(S.prayer.log[td]).some(Boolean)):!!S.checkins["pausa_"+td],acts:S.profile.prayer?[["tab","Ir para Oração","prayer"]]:[["pauseDone","Fiz minha pausa"],["lesson","Como respirar","s4"]]}};
  return pick.map(k=>({k,...M[k]}))}
+/* ---------- Primeira semana: 7 missões para criar o hábito; o porquinho comemora cada uma ---------- */
+function fwMissions(){const anyExp=Object.keys(PFIN).some(k=>/^m\d{6}$/.test(k)&&monthData(k.slice(1,5)+"-"+k.slice(5)).expenses.length)||vals(S.checkins).length>0;
+ const L=[
+  {k:"gasto",t:"Lance seu primeiro gasto",d:"Pode ser o café de hoje. É assim que o Prumo aprende com você.",done:anyExp,a:["addExpense","Lançar gasto"]},
+  {k:"renda",t:"Conte quanto você recebe",d:"Com a renda, o Prumo mostra quanto cabe em cada parte do mês.",done:(+S.profile.income||0)>0,a:["fwIncome","Informar renda"]},
+  {k:"tarefa",t:"Anote uma tarefa ou compromisso",d:"Tire da cabeça e deixe o Prumo lembrar por você.",done:taskList().length>0||vals(S.agenda.events||{}).length>0,a:["addTask","Anotar tarefa"]},
+  {k:"agua",t:"Beba um copo de água",d:"Um cuidado pequeno também conta.",done:Object.keys(S.food.water||{}).length>0,a:["water","+1 copo de água"]},
+  {k:"estudo",t:"Registre algo que você aprendeu",d:"Um vídeo, um podcast, 10 minutos de leitura.",done:vals(S.study.logs).length>0,a:["addStudy","Registrar estudo"]},
+  {k:"licao",t:"Leia uma lição do Prumo",d:"Lições curtas sobre dinheiro e hábitos.",done:Object.keys(S.learn.read||{}).length>0,a:["lesson","Lição do dia",typeof nextLessonId==="function"?nextLessonId():""]}];
+ if(typeof wxCityModal==="function")L.push({k:"cidade",t:"Escolha sua cidade",d:"Para ver a previsão do tempo e saber quando vai chover.",done:!!S.profile.city,a:["wxCity","Escolher cidade"]});
+ else L.push(S.profile.pet?{k:"pet",t:"Dê um nome ao seu porquinho",d:"Ele vai te acompanhar todos os dias.",done:!!S.pet.name,a:["petName","Dar um nome"]}:{k:"pausa",t:"Faça uma pausa de 1 minuto",d:"Respire fundo. Isso também é cuidar da vida.",done:Object.keys(S.checkins).some(k=>/^pausa_/.test(k)),a:["pauseDone","Fiz minha pausa"]});
+ return L}
+function firstWeekCard(){const c=S.profile.created;if(!c||S.profile.fwOff)return"";const days=Math.floor((new Date(today()+"T12:00:00")-new Date(c+"T12:00:00"))/864e5);if(days>9)return"";
+ const L=fwMissions(),n=L.filter(m=>m.done).length;S.profile.fw=S.profile.fw||{};
+ const fresh=L.filter(m=>m.done&&!S.profile.fw[m.k]);if(fresh.length){fresh.forEach(m=>S.profile.fw[m.k]=today());saveApp();if(days>0||Object.keys(S.profile.fw).length>fresh.length)setTimeout(()=>{toast(n===L.length?(S.profile.pet?`🎉 Semana completa! ${petCap()} está muito orgulhoso de você!`:"🎉 Primeira semana completa! Você criou um hábito."):(S.profile.pet?`✨ Missão cumprida! ${petCap()} comemorou. Faltam ${L.length-n}.`:`✨ Missão cumprida! Faltam ${L.length-n}.`),4500);const st=document.querySelector('.pigstage');const sv=st&&st.querySelector("svg");if(sv){sv.classList.add("poke");setTimeout(()=>sv.classList.remove("poke"),950)}},500)}
+ if(n===L.length&&days>1)return"";const next=L.find(m=>!m.done);
+ return `<div class="card stack"><div class="row between"><div class="stack-s" style="gap:1px"><div class="label" style="color:var(--pig-deep)">Sua primeira semana · dia ${Math.min(days+1,7)}</div><b>${n===L.length?"Tudo feito! 🎉":`${n} de ${L.length} missões`}</b></div><button class="iconbtn" data-act="fwHide" aria-label="Esconder" style="width:30px;height:30px">×</button></div>
+ <div class="meter"><i style="width:${Math.round(n/L.length*100)}%;background:var(--good)"></i></div>
+ ${next?`<div class="note stack-s" style="gap:6px"><b>${next.t}</b><span class="small">${next.d}</span><button class="btn sm" data-act="${next.a[0]}" ${next.a[2]?`data-v="${next.a[2]}"`:""} style="align-self:flex-start">${next.a[1]}</button></div>`:""}
+ <div class="stack-s" style="gap:4px">${L.map(m=>`<div class="row small" style="gap:8px;${m.done?"color:var(--muted);text-decoration:line-through":""}"><span style="width:20px;text-align:center">${m.done?"✅":"○"}</span><span>${m.t}</span></div>`).join("")}</div></div>`}
 function missionsCard(){const ms=dayMissions();const n=ms.filter(m=>m.done).length;const all=n===ms.length;const td=today();
  if(all&&!(S.missionDays||{})[td]){S.missionDays=S.missionDays||{};S.missionDays[td]=1;markActive();saveApp();setTimeout(()=>{toast(S.profile.pet?`Dia cumprido! ${petCap()} está orgulhoso de você. +5 pontos.`:"Dia cumprido! Volte amanhã.",4500);const st=document.querySelector('.pigstage');const sv=st&&st.querySelector("svg");if(sv){sv.classList.add("poke");setTimeout(()=>sv.classList.remove("poke"),950)}},400)}
  return `<div class="card stack" style="${all?"border:2px solid var(--good)":""}"><div class="row between"><div class="stack-s" style="gap:1px"><div class="label" style="color:${all?"var(--good)":"var(--pig-deep)"}">Seu dia em 2 minutos</div>${all?`<b>Dia cumprido! Volte amanhã.</b>`:`<span class="small muted">${ms.length===3?"Três":ms.length===4?"Quatro":"Cinco"} missões rápidas. Só isso.</span>`}</div><span class="pill ${all?"good":"info"} num">${n}/${ms.length}</span></div>
@@ -2758,6 +2778,41 @@ async function stkArt(k){const a=STK_AREAS.find(x=>x.k===k);const n=stkCount(k);
 async function storyOpen(k){const a=STK_AREAS.find(x=>x.k===k);const n=stkCount(k);if(n<2){toast("Com 2 dias seguidos você já pode compartilhar.");return}
  openModal("Compartilhar nos stories",`<div class="tiny muted" style="padding:40px 0;text-align:center">Montando a arte…</div>`);
  const b=await stkArt(k);UI.stkArea=k;stkShareModal("Compartilhar nos stories",b,`Arte da sequência de ${n} dias ${a.t}`)}
+/* ---------- Resumo do mês (retrospectiva do mês anterior, com arte para compartilhar sem valores em R$) ---------- */
+const MES_N=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+function recapData(k){k=k||shiftMonth(mkey(),-1);const {incomes,expenses}=monthData(k);const inc=sum(incomes),exp=sum(expenses);
+ const byCat={};expenses.forEach(e=>{byCat[e.cat]=(byCat[e.cat]||0)+(+e.v||0)});const top=Object.entries(byCat).sort((a,b)=>b[1]-a[1])[0];const topCat=top?((CATS.find(c=>c.id===top[0])||{}).n||"Outros"):null;
+ const inMo=d=>String(d||"").slice(0,7)===k;const missions=Object.keys(S.missionDays||{}).filter(inMo).length;
+ const study=vals(S.study.logs).filter(l=>inMo(l.date)).reduce((a,l)=>a+(+l.min||0),0);const ex=vals(S.ex.logs||{}).filter(l=>inMo(l.date)).length;
+ const water=Object.keys(S.food.water||{}).filter(inMo).length;const noSpend=Object.keys(S.checkins||{}).filter(d=>/^\d{4}-/.test(d)&&inMo(d)).length;
+ const [y,m]=k.split("-");return{k,name:MES_N[+m-1],year:y,inc,exp,saved:inc-exp,pct:inc>0?Math.round((inc-exp)/inc*100):null,topCat,topV:top?top[1]:0,topPct:exp>0&&top?Math.round(top[1]/exp*100):0,n:expenses.length,missions,study,ex,water,noSpend}}
+function recapCard(){if(!S.profile.created)return"";const d=+today().slice(8,10);if(d>7)return"";const r=recapData();if(!r.n&&!r.inc&&!r.missions&&!r.study)return"";if((S.profile.recapSeen||{})[r.k])return"";
+ return `<button class="card row" data-act="recapOpen" style="gap:12px;text-align:left;width:100%;background:linear-gradient(135deg,#FFE3EB,#FFF4EE)"><span style="font-size:34px">📊</span><div class="grow stack-s" style="gap:1px"><b>Seu resumo de ${r.name} chegou!</b><span class="small muted">${S.profile.pet?petCap()+" preparou a retrospectiva do seu mês.":"Veja como foi o seu mês."}</span></div><span class="tiny muted">›</span></button>`}
+function recapModal(k){const r=recapData(k);S.profile.recapSeen=Object.assign({},S.profile.recapSeen,{[r.k]:1});saveApp();
+ const row=(i,t,v)=>`<div class="row between" style="padding:8px 0;border-bottom:1px solid var(--line)"><span>${i} ${t}</span><b>${v}</b></div>`;
+ openModal(`Seu ${r.name} em resumo`,`<div class="stack" style="gap:6px">
+ ${S.profile.pet?`<div style="max-width:160px;margin:0 auto">${pigSVG({score:80,mood:"feliz",equip:S.pet.equip||{},env:0,mini:true})}</div>`:""}
+ ${r.inc||r.exp?`${row("💰","Entrou",brl(r.inc))}${row("💸","Saiu",brl(r.exp))}${row(r.saved>=0?"🐷":"⚠️",r.saved>=0?"Sobrou":"Faltou",brl(Math.abs(r.saved))+(r.pct!==null?` (${Math.abs(r.pct)}%)`:""))}${r.topCat?row("🏷️","Onde mais gastou",`${esc(r.topCat)} · ${r.topPct}%`):""}`:""}
+ ${r.missions?row("✅","Dias com as missões cumpridas",r.missions):""}${r.noSpend?row("🙌","Dias sem gastar",r.noSpend):""}${r.study?row("📚","Estudo",`${r.study} min`):""}${r.ex?row("🏃","Exercícios",r.ex):""}${r.water?row("💧","Dias bebendo água",r.water):""}
+ <p class="small muted" style="margin-top:8px">${r.saved>0&&r.pct>=10?"Que mês! Você guardou parte da renda. Continue assim. 💗":r.saved>0?"Sobrou dinheiro no mês. Cada real guardado conta!":r.inc?"Esse mês apertou, e tudo bem. O importante é saber para onde o dinheiro foi. Bora ajustar juntos em "+MES_N[(+r.k.slice(5)%12)]+".":"Comece lançando sua renda e seus gastos para ver o resumo completo no mês que vem."}</p>
+ ${recapItems(r).length?`<div class="stack-s" style="gap:4px;margin-top:6px"><b class="small">O que aparece na imagem dos stories?</b>${recapItems(r).map(([i,t,k])=>`<label class="check"><input type="checkbox" class="rc_pick" value="${k}" ${k==="top"?"":"checked"}><span>${i} ${esc(t)}</span></label>`).join("")}</div>`:""}
+ <button class="btn block" data-act="recapShare" data-v="${r.k}">Criar imagem para os stories</button><p class="tiny muted" style="text-align:center">A imagem nunca mostra valores em reais.</p></div>`)}
+function recapItems(r){const it=[];if(r.pct!==null&&r.pct>0)it.push(["🐷",`Guardei ${r.pct}% da renda`,"pct"]);if(r.topCat)it.push(["🏷️",`Maior gasto: ${r.topCat}`,"top"]);if(r.missions)it.push(["✅",`${r.missions} dias de missões cumpridas`,"mis"]);if(r.noSpend)it.push(["🙌",`${r.noSpend} dias sem gastar`,"nosp"]);if(r.study)it.push(["📚",`${r.study} minutos de estudo`,"st"]);if(r.ex)it.push(["🏃",`${r.ex} treinos`,"ex"]);if(r.water)it.push(["💧",`${r.water} dias bebendo água`,"wa"]);return it}
+async function recapArt(k,pick){const r=recapData(k);const W=1080,H=1920;const cv=document.createElement("canvas");cv.width=W;cv.height=H;const x=cv.getContext("2d");
+ try{await document.fonts.load('700 100px Fredoka');await document.fonts.load('600 40px Fredoka')}catch(e){}
+ const F='"Fredoka","Baloo 2","Trebuchet MS",system-ui,sans-serif';const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,"#F28AA8");g.addColorStop(1,"#B23A62");x.fillStyle=g;x.fillRect(0,0,W,H);
+ x.fillStyle="rgba(255,255,255,.07)";[[140,420,180],[960,300,240],[900,1500,200],[120,1650,150]].forEach(([cx,cy,rr])=>{x.beginPath();x.arc(cx,cy,rr,0,7);x.fill()});
+ x.textAlign="center";x.fillStyle="#fff";stkBrand(x,W,200);x.font=`600 66px ${F}`;x.fillText(`Meu ${r.name} no Prumo`,W/2,425);
+ const rr=(X,Y,w,h,ra)=>{x.beginPath();x.moveTo(X+ra,Y);x.arcTo(X+w,Y,X+w,Y+h,ra);x.arcTo(X+w,Y+h,X,Y+h,ra);x.arcTo(X,Y+h,X,Y,ra);x.arcTo(X,Y,X+w,Y,ra);x.closePath()};
+ x.fillStyle="rgba(255,255,255,.96)";rr(110,480,860,1080,56);x.fill();
+ const pig=await stkPigImg();if(pig)x.drawImage(pig,W/2-210,510,420,357);
+ const items=recapItems(r).filter(x=>!pick||pick.includes(x[2])).map(x=>[x[0],x[1]]);
+ x.textAlign="left";items.slice(0,5).forEach(([i,t],n)=>{const y=950+n*118;x.font=`64px system-ui,"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;x.fillText(i,190,y);x.fillStyle="#2B1E24";x.font=`600 46px ${F}`;x.fillText(t,280,y-6,640);x.fillStyle="#2B1E24"});
+ if(!items.length){x.textAlign="center";x.fillStyle="#2B1E24";x.font=`600 52px ${F}`;x.fillText("Comecei a colocar a vida em ordem!",W/2,1050)}
+ x.textAlign="center";x.fillStyle="#fff";x.font=`600 44px ${F}`;x.fillText("Organize a sua vida também",W/2,1640);
+ x.fillStyle="rgba(255,255,255,.22)";rr(220,1680,640,92,46);x.fill();x.fillStyle="#fff";x.font=`600 40px ${F}`;x.fillText("prumovidaemordem.com.br",W/2,1740);
+ return await new Promise(res=>cv.toBlob(res,"image/png"))}
+{let tries=0;const go=()=>{if(!/[?&]resumo=1/.test(location.search))return;if(typeof S!=="undefined"&&S.profile&&S.profile.created&&!UI.needAuth){try{history.replaceState(null,"",location.pathname)}catch(e){}recapModal();return}if(++tries<20)setTimeout(go,700)};setTimeout(go,1500)}
 function storyAskPopup(){if(typeof quietOn==="function"&&quietOn())return;if(newsPending()||S.profile.storyAsk===false||!S.profile.created||UI.needAuth||UI.onb>=0&&UI.onb<3)return;const asked=S.profile.storyAsked||{};
  const hit=stkList().find(a=>a.today&&a.n>=10&&a.n%10===0&&asked[a.k]!==a.n);if(!hit)return;
  if($("#modal").innerHTML){setTimeout(storyAskPopup,4000);return}
@@ -2835,7 +2890,7 @@ function viewHome(){
  return `<div class="stack">
  <div class="stack-s" style="margin-top:4px"><h1>${hi}${first?", "+esc(first):""}</h1><p class="muted">${dayLabel(today())==="Hoje"?new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"}):""}</p></div>
  ${whyCard()}
- ${typeof bannerCard==="function"?bannerCard():""}${typeof weatherCard==="function"?weatherCard():""}${newsMedCard()}${letterHomeCard()}${prumoCard()}${msgCard()}${missionsCard()}${shareCard()}
+ ${typeof bannerCard==="function"?bannerCard():""}${typeof weatherCard==="function"?weatherCard():""}${newsMedCard()}${letterHomeCard()}${prumoCard()}${recapCard()}${firstWeekCard()}${msgCard()}${missionsCard()}${shareCard()}
  ${pigCard}
  ${envWarning()}${studyWarning()}${taskWarning()}${vocabCard(true)}${stkHomeCard()}
  <div class="card"><div class="label" style="margin-bottom:12px">Metas de hoje</div>
@@ -3265,7 +3320,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.11</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.12</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -3339,7 +3394,7 @@ function viewOnboarding(){const s=UI.onb;
  if(s===0.5)return `<div class="onb">${steps}<div class="stack-s"><h1>Você não precisa ser organizado para começar</h1><p class="muted">O Prumo foi feito para quem acha difícil se organizar. Ele te ajuda aos poucos.</p></div>
   ${habitPrinciples()}${habitForm(ONB.focus||[],ONB.why,ONB.time)}
   <p class="tiny muted">Baseado em pesquisas sobre formação de hábitos: começar pequeno e ligar o hábito a um horário fixo aumenta a chance de ele durar.</p>
-  <div class="grid2"><button class="btn ghost" data-act="onbBack">Voltar</button><button class="btn" data-act="onbNext">Continuar</button></div></div>`;
+  <div class="grid2"><button class="btn ghost" data-act="onbBack">Voltar</button><button class="btn" data-act="onbNext">Continuar</button></div><button class="btn ghost sm" data-act="onbNext" style="align-self:center">Pular por agora</button></div>`;
  if(s===0)return `<div class="onb">${steps}
   <div class="stack-s" style="text-align:center"><div style="text-align:center;margin-bottom:4px">${logoHTML(64)}</div><p class="label" style="color:var(--money);font-size:14px">Vida em ordem</p><h1 style="font-size:22px;margin-top:10px">Bem-vindo</h1><p class="muted prose" style="margin:0 auto">Um app para organizar o dinheiro, cuidar dos estudos e da saúde e lembrar dos compromissos. Leva menos de um minuto para começar.</p></div>
   <label class="field"><span>Como você quer ser chamado?</span><input id="o_name" autocomplete="given-name" value="${esc(ONB.name)}" placeholder="Seu nome"></label>
@@ -3348,11 +3403,11 @@ function viewOnboarding(){const s=UI.onb;
  if(s===1)return `<div class="onb">${steps}<div class="stack-s"><h1>Quanto você recebe por mês?</h1><p class="muted">Use o valor líquido, que cai na conta depois dos descontos. Se a renda varia, use a média dos últimos 3 meses.</p></div>
   <label class="field"><span>Renda líquida mensal</span><input id="o_income" inputmode="decimal" value="${esc(ONB.income)}" placeholder="Ex.: 2.000,00"></label>
   <div id="o_plan"></div>
-  <div class="grid2"><button class="btn ghost" data-act="onbBack">Voltar</button><button class="btn" data-act="onbNext">Continuar</button></div></div>`;
+  <div class="grid2"><button class="btn ghost" data-act="onbBack">Voltar</button><button class="btn" data-act="onbNext">Continuar</button></div><button class="btn ghost sm" data-act="onbNext" style="align-self:center">Pular por agora · respondo depois</button></div>`;
  if(s===2)return `<div class="onb">${steps}<div class="stack-s"><h1>Sua saúde</h1><p class="muted">Usamos esses dados para sugerir exercícios na medida certa. Você pode pular e preencher depois.</p></div>
   <div class="grid3"><label class="field"><span>Idade</span><input id="o_age" type="number" inputmode="numeric" value="${esc(ONB.age)}"></label><label class="field"><span>Peso (kg)</span><input id="o_weight" inputmode="decimal" value="${esc(ONB.weight)}"></label><label class="field"><span>Altura (cm)</span><input id="o_height" type="number" inputmode="numeric" value="${esc(ONB.height)}"></label></div>
   <label class="field"><span>Como está sua rotina de exercícios hoje?</span><select id="o_level">${levelOpts(ONB.level)}</select></label>
-  <div class="grid2"><button class="btn ghost" data-act="onbBack">Voltar</button><button class="btn" data-act="onbNext">Continuar</button></div></div>`;
+  <div class="grid2"><button class="btn ghost" data-act="onbBack">Voltar</button><button class="btn" data-act="onbNext">Continuar</button></div><button class="btn ghost sm" data-act="onbNext" style="align-self:center">Pular por agora</button></div>`;
  return `<div class="onb">${steps}<div class="stack-s"><h1>Como prefere acompanhar?</h1><p class="muted">O app funciona igual nas duas opções. Você pode trocar depois em Perfil.</p></div>
   <button class="card stack" style="text-align:left" data-act="onbPet" data-v="1"><div style="max-width:240px;margin:0 auto;width:100%" class="pigstage">${pigSVG({score:70,mood:"feliz",equip:{head:"laco"},env:3})}</div><b>Com o mascote</b><span class="small muted">Um porquinho que engorda quando as finanças vão bem, ganha roupas quando você estuda e um lugar mais bonito quando você se exercita.</span></button>
   <button class="card stack" style="text-align:left" data-act="onbPet" data-v="0"><div class="row" style="gap:12px"><span class="ico" style="background:var(--money-soft);color:var(--money);font-size:14px">78</span><div class="grow"><div class="meter"><i style="width:78%;background:var(--good)"></i></div></div></div><b>Sem mascote</b><span class="small muted">Visual mais simples, com uma nota de saúde financeira de 0 a 100, os motivos e as dicas.</span></button>
@@ -3680,6 +3735,11 @@ const A={
  petName:()=>openModal("Nome do porquinho",`<div class="stack"><label class="field"><span>Como ele vai se chamar?</span><input id="pn_name" maxlength="20" value="${esc(S.pet.name||"")}" placeholder="Ex.: Toicinho"></label><div class="chips" style="flex-wrap:wrap">${PET_NAMES.map(n=>`<button type="button" class="chip" data-act="pnPick" data-v="${n}">${n}</button>`).join("")}</div><button class="btn block" data-act="savePetName">Salvar</button></div>`),
  pnPick:el=>{const i=$("#pn_name")||$("#o_petname");i.value=el.dataset.v;i.focus()},
  savePetName:()=>{S.pet.name=v("pn_name").trim().slice(0,20)||null;commit();closeModal();if(S.pet.name){toast(`Agora o porquinho se chama ${S.pet.name}!`);setTimeout(()=>{const st=document.querySelector('.pigstage[data-act="pigPoke"]');if(st)A.pigPoke(st)},300)}},
+ recapOpen:()=>recapModal(),
+ recapShare:async el=>{const pick=[...document.querySelectorAll(".rc_pick")].filter(c=>c.checked).map(c=>c.value);openModal("Compartilhar nos stories",`<div class="tiny muted" style="padding:40px 0;text-align:center">Montando a arte…</div>`);const b=await recapArt(el.dataset.v,pick);stkShareModal("Compartilhar nos stories",b,"Arte com o resumo do mês")},
+ fwHide:()=>{S.profile.fwOff=1;saveApp();render();toast("Missões escondidas. Bom começo!")},
+ fwIncome:()=>openModal("Quanto você recebe por mês?",`<div class="stack"><p class="small muted">Use o valor líquido, que cai na conta. Se varia, use a média dos últimos 3 meses.</p><label class="field"><span>Renda líquida mensal</span><input id="fw_inc" inputmode="decimal" placeholder="Ex.: 2.000,00" value="${S.profile.income?String(S.profile.income).replace(".",","):""}"></label><button class="btn block" data-act="fwIncomeSave">Salvar</button></div>`),
+ fwIncomeSave:()=>{const v_=parseMoney(v("fw_inc"));if(!v_){toast("Informe um valor.");return}S.profile.income=v_;closeModal();commit();toast("Renda salva! Veja em Finanças quanto cabe em cada parte.")},
  onbPrayer:el=>{ONB.prayer=el.dataset.v||null;A.onbFinish()},
  onbFinish:()=>{onbSave();const p=S.profile;p.name=ONB.name;p.income=parseMoney(ONB.income);p.pet=!!ONB.pet;p.age=+ONB.age||null;p.weight=parseMoney(ONB.weight)||null;p.height=+ONB.height||null;p.level=ONB.level||"iniciante";p.prayer=!!ONB.prayer;applyHabit(ONB.focus||[],ONB.why||"",ONB.time||"21:00",!!ONB.rem);if(ONB.petName)S.pet.name=ONB.petName;if(ONB.prayer){S.prayer.trad=ONB.prayer;S.prayer.daily=null}p.created=today();markActive();UI.tab="home";commit();toast(`Bem-vindo, ${p.name.split(" ")[0]}!`)},
  checkin:()=>{S.checkins[today()]=1;markActive();commit();toast(S.profile.pet?"Dia sem gastos registrado. O porquinho agradece.":"Dia sem gastos registrado.")},
@@ -7155,13 +7215,23 @@ Object.assign(A,{
 });
 /* status no perfil */
 function plusRow(){if(Store.demo||!Store.cloud)return"";const t=plusTier(),p=PLUS.plan||{};const d=x=>x?ddmm(String(x).slice(0,10)):"";
- const txt={open:p.start?`A assinatura começa em ${d(p.start)}`+(p.ent==="founder"?" · você é fundador: 3 meses grátis":p.ent==="free_forever"?" · sua conta é gratuita para sempre":""):"Todos os recursos liberados",free_forever:"Gratuito para sempre 💛",plus:`Assinante${p.until?" · renova ou vence em "+d(p.until):""}`,founder:`Fundador · grátis até ${d(p.until)}`,trial:`Teste grátis até ${d(p.until)}`,free:"Plano gratuito · toque para assinar"}[t]||"";
- const act=t==="plus"?"plusManage":(t==="free"||t==="trial"||t==="founder")?"plusOpen":"";
- return `<div class="card stack" style="gap:6px"><div class="row between" style="gap:8px"><div class="stack-s" style="gap:1px"><b>✨ Prumo Plus</b><span class="small muted">${txt}</span></div>${act?`<button class="btn ${t==="free"?"":"ghost "}sm" data-act="${act}">${t==="plus"?"Gerenciar":"Assinar"}</button>`:""}</div></div>`}
+ const txt={open:p.start?`A assinatura começa em ${d(p.start)}`+(p.ent==="founder"?" · você é fundador: 3 meses grátis":p.ent==="free_forever"?" · sua conta é gratuita para sempre":""):"Todos os recursos liberados",free_forever:"Gratuito para sempre 💛",plus:p.source==="indicacao"?`Mês grátis por indicação até ${d(p.until)} 🎁`:`Assinante${p.until?" · renova ou vence em "+d(p.until):""}`,founder:`Fundador · grátis até ${d(p.until)}`,trial:`Teste grátis até ${d(p.until)}`,free:"Plano gratuito · toque para assinar"}[t]||"";
+ const act=t==="plus"&&p.source==="indicacao"?"plusOpen":t==="plus"?"plusManage":(t==="free"||t==="trial"||t==="founder")?"plusOpen":"";
+ return `<div class="card stack" style="gap:6px"><div class="row between" style="gap:8px"><div class="stack-s" style="gap:1px"><b>✨ Prumo Plus</b><span class="small muted">${txt}</span></div>${act?`<button class="btn ${t==="free"?"":"ghost "}sm" data-act="${act}">${t==="plus"&&p.source!=="indicacao"?"Gerenciar":"Assinar"}</button>`:""}</div>${refRow()}</div>`}
 {const _vp=viewProfile;viewProfile=function(){const h=_vp();const row=plusRow();if(!row)return h;const i=h.indexOf('<div class="section">');return i>0?h.slice(0,i)+row+h.slice(i):row+h}}
 /* aviso quando o teste ou o período de fundador está acabando */
+function plusUsage(){const out=[];try{let ex=0;Object.keys(PFIN).forEach(k=>{if(/^m\d{6}$/.test(k))ex+=monthData(k.slice(1,5)+"-"+k.slice(5)).expenses.length});if(ex)out.push(["💸",ex,ex===1?"gasto lançado":"gastos lançados"]);
+ const cards=Object.keys((typeof meta==="function"&&meta().cards)||{}).length;if(cards)out.push(["💳",cards,cards===1?"cartão":"cartões"]);
+ const tk=typeof taskList==="function"?taskList().length:0;if(tk)out.push(["✅",tk,tk===1?"tarefa":"tarefas"]);
+ const st=vals(S.study.logs||{}).reduce((a,l)=>a+(+l.min||0),0);if(st)out.push(["📚",st,"min de estudo"]);
+ const ag=vals((S.agenda&&S.agenda.events)||{}).length;if(ag)out.push(["🗓️",ag,ag===1?"compromisso":"compromissos"]);}catch(e){}return out}
 function plusEndingCard(){const t=plusTier(),p=PLUS.plan||{};if(!(t==="trial"||t==="founder")||!p.until)return"";const left=Math.ceil((new Date(p.until)-Date.now())/864e5);if(left>3)return"";
- return `<div class="card stack" style="gap:8px;border:2px solid var(--pig-soft)"><b>${t==="trial"?"Seu teste grátis":"Seu acesso de fundador"} termina ${left<=1?"amanhã":`em ${left} dias`}</b><span class="small muted">Assine para continuar com cartões, dívidas, saúde, agenda, equipes e todo o resto.</span><button class="btn sm" data-act="plusOpen" style="align-self:flex-start">Ver planos</button></div>`}
+ const u=plusUsage();const last=left<=1;const P=PLUS.prods||{};const perMo=P.anual&&P.anual.value>0?String(P.anual.price).replace(/[\d\s., ]+$/,"").trim()+" "+(Math.floor(P.anual.value/12*100)/100).toLocaleString("pt-BR",{minimumFractionDigits:2}):"R$ 6,65";
+ return `<div class="card stack" style="gap:10px;border:2px solid var(--pig-soft)"><b>${t==="trial"?"Seu teste grátis":"Seu acesso de fundador"} termina ${last?"hoje":left===2?"amanhã":`em ${left} dias`}</b>
+ ${u.length?`<span class="small muted">Olha o que você já organizou com o Prumo:</span><div class="row" style="gap:6px;flex-wrap:wrap">${u.map(([i,n,l])=>`<span class="pill" style="padding:4px 10px">${i} <b>${n}</b> ${l}</span>`).join("")}</div>`:""}
+ <span class="small muted">Assine para continuar com cartões, dívidas, saúde, agenda, equipes e todo o resto. Nada do que você guardou se perde.</span>
+ ${last?`<div class="note"><span class="small">⭐ <b>No plano anual sai por ${perMo} por mês</b>, o melhor preço.</span></div><button class="btn sm" data-act="plusAnnual" style="align-self:flex-start">Assinar o anual</button>`:`<button class="btn sm" data-act="plusOpen" style="align-self:flex-start">Ver planos</button>`}</div>`}
+A.plusAnnual=()=>{UI.plusPick="anual";A.plusOpen()};
 {const _vh=viewHome;viewHome=function(){const h=_vh();const c=plusEndingCard();if(!c)return h;const i=h.indexOf('<div class="card');return i>0?h.slice(0,i)+c+h.slice(i):c+h}}
 /* volta do Mercado Pago */
 {const q=new URLSearchParams(location.search).get("plus");if(q){history.replaceState(null,"",location.pathname);setTimeout(()=>{toast(q==="ok"?"Pagamento recebido! Liberando o Prumo Plus… 🐷":q==="pend"?"Pagamento em análise. Assim que for aprovado, o Plus é liberado.":"O pagamento não foi concluído.",6000);plusLoad(true);setTimeout(()=>plusLoad(true),8000)},2500)}}
@@ -7183,6 +7253,21 @@ Object.assign(A,{
  plusStartOff:async()=>{const {error}=await sb.rpc("set_billing_start",{p_start:null});if(error){toast("Não consegui: "+error.message);return}ADM.plus=null;plusLoad(true);toast("Cobrança desligada. Tudo liberado para todos.")},
  plusMpSave:async()=>{const t=v("plus_mp").trim();if(!/^APP_USR-/.test(t)){toast("Cole o Access Token de produção (começa com APP_USR-).");return}const {error}=await sb.rpc("set_mp_secret",{p_token:t});if(error){toast("Não consegui salvar: "+error.message);return}$("#plus_mp").value="";ADM.plus=null;render();toast("Token do Mercado Pago salvo.")}
 });
+
+/* ---------- Indique e ganhe: quem convida ganha 30 dias de Plus quando o amigo assina ---------- */
+const REF={d:null,busy:false};
+function refLoad(){if(REF.d||REF.busy||!Store.cloud||Store.demo)return;REF.busy=true;sb.rpc("my_ref").then(r=>{REF.d=r.data||null;REF.busy=false;render()},()=>{REF.busy=false})}
+const refLink=()=>REF.d?`https://prumovidaemordem.com.br/?c=${REF.d.code}`:"";
+function refRow(){if(Store.demo||!Store.cloud||plusTier()==="free_forever")return"";refLoad();const r=REF.d;
+ return `<div class="note stack-s" style="gap:6px;margin-top:4px"><b>🎁 Indique e ganhe</b><span class="small">Convide um amigo. Quando ele assinar o Prumo Plus, você ganha <b>1 mês grátis</b>${r&&r.rewarded?` · você já ganhou ${r.rewarded} ${r.rewarded===1?"mês":"meses"}!`:""}.</span>
+ ${r?`<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" data-act="refShare">Convidar amigos</button><span class="tiny muted">Seu código: <b>${esc(r.code)}</b>${r.invited?` · ${r.invited} ${r.invited===1?"amigo entrou":"amigos entraram"}`:""}</span></div>`:`<span class="tiny muted">Carregando seu convite…</span>`}
+ <span class="tiny muted">O mês grátis vale para quem não está pagando uma assinatura; se você já assina, ele fica guardado para quando a assinatura acabar.</span></div>`}
+A.refShare=async()=>{const url=refLink();if(!url)return;const text=`Estou usando o Prumo para organizar dinheiro, saúde, estudos e rotina, e tem um porquinho que te acompanha 🐷 Começar é grátis: ${url}`;
+ try{if(navigator.share){await navigator.share({title:"Prumo: Vida em ordem",text,url});return}}catch(e){if(e&&e.name==="AbortError")return}
+ try{await navigator.clipboard.writeText(text);toast("Convite copiado! Cole no WhatsApp ou onde quiser.")}catch(e){openModal("Seu convite",`<div class="stack"><textarea readonly style="min-height:120px">${esc(text)}</textarea><p class="tiny muted">Copie e envie para seus amigos.</p></div>`)}};
+/* quem chega por um convite: guarda o código e registra depois do primeiro acesso */
+try{const c=new URLSearchParams(location.search).get("c");if(c&&/^[A-Za-z0-9]{4,10}$/.test(c)){localStorage.setItem("prumo.ref",c.toUpperCase());history.replaceState(null,"",location.pathname)}}catch(e){}
+{let refTried=false;const _r=render;render=function(){const out=_r.apply(this,arguments);try{if(!refTried&&Store.cloud&&SESSION&&SESSION.user){refTried=true;const c=localStorage.getItem("prumo.ref");if(c)sb.rpc("claim_ref",{p_code:c}).then(()=>{try{localStorage.removeItem("prumo.ref")}catch(e){}},()=>{})}}catch(e){}return out}}
 
 /* ---------- Previsão do tempo (dados MET Norway, via função "tempo" do servidor; sem GPS: a pessoa escolhe a cidade) ---------- */
 const WX={data:null,at:0,busy:false,res:null};

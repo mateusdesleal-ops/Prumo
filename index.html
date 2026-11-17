@@ -3319,7 +3319,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.14</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.15</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -6449,14 +6449,15 @@ function chPendPopup(cid,d){if(typeof quietOn==="function"&&quietOn())return;con
 const chPigOf=u=>{const pg=u===ME.uid?myPigSig():((teamMembers().find(x=>x.uid===u)||{}).pig);return pg&&pg.pet?{equip:pg.equip||{},mood:"feliz",score:90}:{equip:{},mood:"feliz",score:80}};
 const chEnded=c=>today()>chEnd(c);
 function chWinners(c){const r=chRank(c);const top=r.length?r[0].p:0;return top>0?r.filter(x=>x.p===top):[]}
+function chMode(c){return chEnded(c)?"end":today()>c.start?"mid":"start"}
 async function chStoryArt(c,mode){const W=1080,H=1920,F=STK_F;const cv=document.createElement("canvas");cv.width=W;cv.height=H;const x=cv.getContext("2d");
  try{await document.fonts.load('700 100px Fredoka');await document.fonts.load('600 40px Fredoka')}catch(e){}
- const end=mode==="end";const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,end?"#F2B53A":"#E5739A");g.addColorStop(1,end?"#C9761B":"#8E5CF6");x.fillStyle=g;x.fillRect(0,0,W,H);
+ const end=mode==="end",mid=mode==="mid";const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,end?"#F2B53A":mid?"#3FB58A":"#E5739A");g.addColorStop(1,end?"#C9761B":mid?"#2D6FD6":"#8E5CF6");x.fillStyle=g;x.fillRect(0,0,W,H);
  x.fillStyle="rgba(255,255,255,.08)";[[140,420,180],[960,300,240],[900,1500,200],[120,1650,150]].forEach(([cx,cy,r])=>{x.beginPath();x.arc(cx,cy,r,0,7);x.fill()});
  stkBrand(x,W,225);
  x.fillStyle="rgba(255,255,255,.96)";stkRR(x,90,360,900,1220,56);x.fill();x.textAlign="center";
  const fit=(t,max,size,weight)=>{let sz=size;do{x.font=`${weight} ${sz}px ${F}`;sz-=4}while(x.measureText(t).width>max&&sz>28);return t};
- x.fillStyle=end?"#B5650F":"#B8436E";x.font=`700 46px ${F}`;x.fillText(end?"🏆  DESAFIO CONCLUÍDO":"🔥  COMEÇOU O DESAFIO",W/2,450);
+ const dayN=Math.min(c.days||30,Math.round((parseDate(today())-parseDate(c.start))/864e5)+1);x.fillStyle=end?"#B5650F":mid?"#1F7A5A":"#B8436E";x.font=`700 46px ${F}`;x.fillText(end?"🏆  DESAFIO CONCLUÍDO":mid?`📊  RANKING PARCIAL · DIA ${dayN}`:"🔥  COMEÇOU O DESAFIO",W/2,450);
  x.fillStyle="#2B1E24";fit(c.name,780,76,"700");x.fillText(c.name,W/2,545);
  x.fillStyle="#7A6A72";x.font=`500 36px ${F}`;x.fillText(`${c.days||30} dias · ${ddmm(c.start)} a ${ddmm(chEnd(c))}`,W/2,600);
  if(TEAM&&TEAM.name){x.font=`600 34px ${F}`;x.fillStyle="#9A8A92";x.fillText(`Equipe ${TEAM.name}`,W/2,648)}
@@ -6471,6 +6472,14 @@ async function chStoryArt(c,mode){const W=1080,H=1920,F=STK_F;const cv=document.
    x.textAlign="left";x.fillStyle="#2B1E24";fit(nmS(z.u),230,40,"600");x.fillText(nmS(z.u),cx-40,cy+5);x.fillStyle="#7A6A72";x.font=`500 30px ${F}`;x.fillText(`${chPos(r,z)}º · ${z.p} pt${z.p===1?"":"s"}`,cx-40,cy+45);x.textAlign="center"}
   const more=r.length-win.length-rest.length;if(more>0){x.fillStyle="#7A6A72";x.font=`500 32px ${F}`;x.fillText(`+ ${more} participante${more===1?"":"s"}`,W/2,1555)}
   if(!win.length){x.fillStyle="#7A6A72";x.font=`500 40px ${F}`;x.fillText("Desafio encerrado",W/2,900)}}
+ else if(mid){const r=chRank(c);const top3=r.slice(0,3);const med=["🥇","🥈","🥉"];
+  const pct=Math.max(0,Math.min(1,dayN/(c.days||30)));x.fillStyle="#E7E2E5";stkRR(x,190,680,700,22,11);x.fill();x.fillStyle="#3FB58A";stkRR(x,190,680,Math.max(22,700*pct),22,11);x.fill();x.fillStyle="#7A6A72";x.font=`500 30px ${F}`;x.fillText(`${dayN} de ${c.days||30} dias · faltam ${Math.max(0,(c.days||30)-dayN)}`,W/2,745);
+  const pos=[[W/2,930,250],[W/2-290,980,200],[W/2+290,980,200]];
+  for(let i=0;i<top3.length;i++){const z=top3[i];const [cx,cy,sz]=pos[i];await draw(z.u,cx,cy,sz,nmS(z.u),`${z.p} pt${z.p===1?"":"s"}`,false);x.font=`${Math.round(sz*.3)}px system-ui,"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;x.fillText(med[chPos(r,z)-1]||"",cx+sz*.42,cy-sz*.25)}
+  const rest=r.slice(3,11);let y=1250;for(let i=0;i<rest.length;i++){const z=rest[i];const col=i%2,row=Math.floor(i/2);const cx=300+col*480,cy=y+row*82;const im=await stkPigImg(chPigOf(z.u));if(im)x.drawImage(im,cx-160,cy-40,86,73);
+   x.textAlign="left";x.fillStyle="#2B1E24";fit(nmS(z.u),250,34,"600");x.fillText(nmS(z.u),cx-60,cy);x.fillStyle="#7A6A72";x.font=`500 26px ${F}`;x.fillText(`${chPos(r,z)}º · ${z.p} pt${z.p===1?"":"s"}`,cx-60,cy+32);x.textAlign="center"}
+  const more=r.length-3-rest.length;if(more>0){x.fillStyle="#7A6A72";x.font=`500 30px ${F}`;x.fillText(`+ ${more} participante${more===1?"":"s"}`,W/2,1565)}
+  const rule=(c.desc||"").split("\n")[0].trim();if(rule&&rest.length<=4){x.fillStyle="#5A4B52";x.font=`500 34px ${F}`;const t="“"+(rule.length>46?rule.slice(0,44)+"…":rule)+"”";x.fillText(t,W/2,rest.length?1250+Math.ceil(rest.length/2)*82+90:1330,800)}}
  else{const MAX=20;const ps=people.slice(0,MAX);const n=ps.length;const cols=n<=2?n:n<=4?2:n<=9?3:n<=16?4:5;const rows=Math.ceil(n/cols);
   const rule=(c.desc||"").split("\n")[0].trim();let ruleLines=[];
   if(rule){x.font=`500 36px ${F}`;const t="“"+(rule.length>110?rule.slice(0,108)+"…":rule)+"”";let ln="";t.split(" ").forEach(w=>{const tt=ln?ln+" "+w:w;if(x.measureText(tt).width>780){ruleLines.push(ln);ln=w}else ln=tt});ruleLines.push(ln);ruleLines=ruleLines.slice(0,3)}
@@ -6479,10 +6488,10 @@ async function chStoryArt(c,mode){const W=1080,H=1920,F=STK_F;const cv=document.
   for(let i=0;i<n;i++){const col=i%cols,row=Math.floor(i/cols);const inRow=Math.min(cols,n-row*cols);const cx=W/2+(col-(inRow-1)/2)*(840/cols);const cy=y0+row*sz*1.32;await draw(ps[i],cx,cy,sz,nmS(ps[i]),"",false)}
   let yb=bottom+10;if(extra){x.fillStyle="#7A6A72";x.font=`500 34px ${F}`;x.fillText(`+ ${people.length-MAX} participantes`,W/2,yb+30);yb+=60}
   if(ruleLines.length){x.fillStyle="#5A4B52";x.font=`500 36px ${F}`;ruleLines.forEach((l,i)=>x.fillText(l,W/2,yb+40+i*46))}}
- stkFooter(x,W,1690,end?"Desafios em grupo no Prumo":"Bora junto? Crie o seu desafio");
+ stkFooter(x,W,1690,end?"Desafios em grupo no Prumo":mid?"Quem vai levar? Acompanhe no Prumo":"Bora junto? Crie o seu desafio");
  return await new Promise(r=>cv.toBlob(r,"image/png"))}
 async function chStory(cid,mode){const c=CHP().items[cid];if(!c)return;openModal("Compartilhar nos stories",`<div class="tiny muted" style="padding:40px 0;text-align:center">Montando a arte…</div>`);
- const b=await chStoryArt(c,mode||(chEnded(c)?"end":"start"));stkShareModal("Compartilhar nos stories",b,`Arte do desafio ${c.name}`)}
+ const b=await chStoryArt(c,mode||chMode(c));stkShareModal("Compartilhar nos stories",b,`Arte do desafio ${c.name}`)}
 function chAskKey(cid,m){return `prumo-chask-${m}-${cid}`}
 function chAsked(cid,m){try{return localStorage.getItem(chAskKey(cid,m))==="1"}catch(e){return false}}
 function chSetAsked(cid,m){try{localStorage.setItem(chAskKey(cid,m),"1")}catch(e){}}
@@ -6561,7 +6570,7 @@ function chDetail(c){const r=chRank(c);const me=r.find(x=>x.u===ME.uid)||{};cons
   ${c.desc?`<p class="small" style="white-space:pre-line">${esc(c.desc)}</p>`:""}
   <span class="tiny muted">${ddmm(c.start)} a ${ddmm(chEnd(c))} · ${c.auto&&c.auto!=="none"?`check-in automático: ${(CH_AUTO.find(x=>x[0]===c.auto)||["",""])[1].toLowerCase()}`:"cada um marca o seu check-in"}</span>
   ${chLive(c)?`<span class="small">📸 Só vale foto tirada na hora, pela câmera do Prumo</span>`:c.photo==="req"?`<span class="small">📸 Check-in só com foto</span>`:""}
-  <button class="btn line sm" data-act="chStory" data-v="${c.id}" data-m="${chEnded(c)?"end":"start"}" style="align-self:flex-start">📲 ${chEnded(c)?"Postar o resultado nos stories":"Postar nos stories"}</button>
+  <button class="btn line sm" data-act="chStory" data-v="${c.id}" data-m="${chMode(c)}" style="align-self:flex-start">📲 ${chEnded(c)?"Postar o resultado nos stories":chMode(c)==="mid"?"Postar o ranking nos stories":"Postar nos stories"}</button>
   ${c.prize?`<span class="small">🏆 Prêmio: <b>${esc(c.prize)}</b></span>`:""}
   ${act?(me.today?`<div class="banner info"><div class="stack-s" style="gap:6px"><span>✅ Check-in de hoje feito${(((c.checkins||{})[ME.uid]||{})[today()]||{}).auto?" automaticamente":""}! ${me.s>1?`Sequência de ${me.s} dias.`:""}</span><button class="btn line sm" data-act="chalEdit2" data-c="${c.id}" data-d="${today()}" style="align-self:flex-start">${ckPics(((c.checkins||{})[ME.uid]||{})[today()]).length?"Editar check-in":"📸 Pôr fotos ou comentário"}</button></div></div>`:`${chPend(c,today())?`<div class="banner warn"><span>${chPendText(c)}</span></div>`:""}<button class="btn block" data-act="chalCheckin">📸 ${chPend(c,today())?(chLive(c)?"Tirar a foto e validar o check-in":"Mandar a foto e validar o check-in"):"Fazer meu check-in de hoje"}</button>`):today()<c.start?`<div class="banner info"><span>O desafio começa em ${dayLabel(c.start)}.</span></div>`:`<div class="banner info"><span>Desafio encerrado. ${r[0]&&r[0].p?`Campeão: <b>${esc(nm(r[0].u))}</b> com ${r[0].p} pontos!`:""}</span></div>`}
  </div>

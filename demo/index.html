@@ -3328,7 +3328,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.28</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.29</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -7507,6 +7507,51 @@ A.tkWa=el=>{const t=S.tasks.items[el.dataset.v];if(t)waShare(tkWaText(t))};
 A.tkCm=el=>{const id=el.dataset.v;const t=S.tasks.items[id];const i=document.getElementById("cm_tkCm_in");const x=(i&&i.value||"").trim();if(!t||!x)return;
  t.cm=t.cm||{};t.cm["c"+Date.now().toString(36)+rid().slice(0,3)]={u:ME.uid,t:Date.now(),x};saveApp();i.value="";const l=document.getElementById("cm_tkCm");if(l)l.innerHTML=cmList(t.cm,"tkCm",id)};
 A.tkCmDel=el=>{const id=el.dataset.v,k=el.dataset.k;const t=S.tasks.items[id];if(!t||!t.cm||!t.cm[k]||t.cm[k].u!==ME.uid)return;delete t.cm[k];saveApp();const l=document.getElementById("cm_tkCm");if(l)l.innerHTML=cmList(t.cm,"tkCm",id)};
+
+/* ---------- 1. pedir a notificação na hora certa (depois de algo que vale um lembrete) ---------- */
+const PMK="prumo.pushMoment";
+function pushMomentAsk(kind){try{if(Store.demo||!Store.cloud||UI.needAuth||!S.profile.created)return;if(typeof quietOn==="function"&&quietOn())return;
+ const last=+localStorage.getItem(PMK)||0;if(Date.now()-last<7*864e5)return;
+ pushState().then(st=>{if(st!=="off")return;try{localStorage.setItem(PMK,String(Date.now()))}catch(e){}
+  const txt={conta:["Quer que eu te avise antes de vencer?","Te mando um lembrete 1 dia antes da conta vencer, para nada passar batido."],
+   tarefa:["Quer um lembrete na hora certa?","Te aviso quando chegar a hora dessa tarefa, mesmo com o app fechado."],
+   gasto:["Quer um empurrãozinho no fim do dia?","Te lembro de anotar os gastos à noite, quando você esquecer. Só um aviso por dia."]}[kind]||["Quer receber lembretes?","Contas vencendo, tarefas e as suas missões do dia."];
+  setTimeout(()=>{if($("#modal").innerHTML)return;openModal(txt[0],`<div class="stack"><p>${txt[1]}</p><p class="tiny muted">Você escolhe o que recebe em Perfil › Sons e avisos, e pode desligar quando quiser.</p>
+  <div class="grid2"><button class="btn ghost" data-act="closeModal">Agora não</button><button class="btn" data-act="pushMomentYes">Quero os avisos</button></div></div>`)},700)})}catch(e){}}
+A.pushMomentYes=async()=>{closeModal();if(NATIVE_PN())return A.nativePushOn();return A.notifTurnOn()};
+{const wrap=(k,kind,cond)=>{const f=A[k];if(typeof f!=="function")return;A[k]=function(el){const r=f.apply(this,arguments);try{if(!cond||cond())setTimeout(()=>pushMomentAsk(kind),400)}catch(e){}return r}};
+ wrap("saveBill","conta");wrap("saveDebt","conta");wrap("saveTask","tarefa",()=>vals(S.tasks.items).some(t=>t.date&&t.created>Date.now()-5000||t.date));wrap("saveExpense","gasto",()=>vals(S.activity||{}).length>=2)}
+
+/* ---------- 4. dia de folga: avisar quando ele salvou a sequência ---------- */
+function graceNote(){try{if(!S.profile.created||TEAM)return;const td=today(),y=addDays(td,-1),y2=addDays(td,-2);
+ if(S.activity[td]||S.activity[y]||!S.activity[y2])return;if(S.profile.graceSeen===td)return;const n=streak();if(n<3)return;
+ S.profile.graceSeen=td;saveApp();setTimeout(()=>toast(`🛟 Ontem ficou sem registro, mas usei seu dia de folga: sua sequência de ${n} dias continua. Registre algo hoje para não perder!`,6000),2500)}catch(e){}}
+setTimeout(graceNote,3500);
+
+/* ---------- 6. o que as pessoas usam (só contagens, sem dado pessoal) ---------- */
+function trackOnce(ev){try{if(Store.demo||!sb||!Store.cloud||!S.profile.created)return;const k="prumo.ev."+today();const seen=JSON.parse(localStorage.getItem(k)||"{}");if(seen[ev])return;seen[ev]=1;localStorage.setItem(k,JSON.stringify(seen));
+ Object.keys(localStorage).filter(x=>x.startsWith("prumo.ev.")&&x!==k).forEach(x=>localStorage.removeItem(x));sb.rpc("track_event",{p_ev:String(ev).slice(0,40)}).then(()=>{},()=>{})}catch(e){}}
+{const _r=render;let lastTab="";render=function(){const x=_r.apply(this,arguments);try{const t=(TEAM?"equipe:":"")+UI.tab+(UI.tab==="ex"&&UI.ex?"/"+UI.ex:"")+(UI.tab==="fin"&&UI.fin?"/"+UI.fin:"");if(t!==lastTab){lastTab=t;trackOnce("tela:"+t)}}catch(e){}return x}}
+const EV_NAMES={"tela:home":"Início","tela:fin":"Finanças","tela:ex":"Saúde","tela:study":"Estudos","tela:agenda":"Agenda","tela:prayer":"Oração","tela:profile":"Perfil"};
+function admUseCard(){if(!ADM.use&&!ADM.useLoading){ADM.useLoading=1;sb.rpc("admin_events",{p_days:7}).then(r=>{ADM.use=r.data||[];ADM.useLoading=0;render()},()=>{ADM.useLoading=0})}
+ const L=(ADM.use||[]).filter(x=>/^tela:/.test(x.ev)).sort((a,b)=>b.n-a.n).slice(0,14);const max=Math.max(1,...L.map(x=>x.n));
+ return `<div class="card stack"><div class="label">O que as pessoas usam (7 dias)</div>${!ADM.use?`<p class="small muted">Carregando…</p>`:L.length?L.map(x=>`<div class="stack-s" style="gap:3px"><div class="row between"><span class="small">${esc(EV_NAMES[x.ev]||x.ev.replace(/^tela:/,"").replace("equipe:","Equipe › "))}</span><b class="small num">${x.n}</b></div><div class="meter"><i style="width:${Math.round(x.n/max*100)}%"></i></div></div>`).join(""):`<p class="small muted">Ainda sem dados. Os números aparecem conforme as pessoas usam o app.</p>`}
+ <span class="tiny muted">Pessoas por dia que abriram cada tela, somadas na semana. Só contagens: ninguém é identificado.</span></div>`}
+{const _ab=typeof admBannerCard==="function"?admBannerCard:null;if(_ab)admBannerCard=function(){return admUseCard()+_ab.apply(this,arguments)}}
+
+/* ---------- 2. resumo semanal por e-mail: liga e desliga no Perfil ---------- */
+{const _vp=typeof viewProfile==="function"?viewProfile:null;if(_vp)viewProfile=function(){const h=_vp.apply(this,arguments);if(Store.demo||!Store.cloud)return h;const on=S.profile.weeklyMail!==false;
+ const row=pSw("weeklyMailT","Resumo da semana por e-mail","Toda segunda de manhã: sua semana no Prumo em 1 minuto.",on);
+ return h.replace('<div class="section"><div class="label">Sons e avisos</div>\n <div class="card plist">','<div class="section"><div class="label">Sons e avisos</div>\n <div class="card plist">'+row)}}
+document.addEventListener("change",e=>{if(e.target&&e.target.id==="weeklyMailT"){S.profile.weeklyMail=e.target.checked;commit();if(sb&&Store.cloud&&!Store.demo)sb.rpc("set_weekly_mail",{p_on:e.target.checked}).then(()=>{},()=>{});toast(e.target.checked?"Combinado: toda segunda chega o resumo.":"Pronto, não mando mais o resumo semanal.")}});
+
+/* ---------- 3. atalhos de fora do app: widget "+ Gasto" e Siri abrem direto o lançamento ---------- */
+function quickAction(a){if(!a)return;if(a==="gasto"){UI.tab="fin";render();setTimeout(()=>{try{if(typeof A.addExpense==="function")A.addExpense();else if(typeof expenseForm==="function")expenseForm()}catch(e){}},250)}else if(a==="agua"){try{A.water({dataset:{v:"1"}})}catch(e){}}}
+function quickFromUrl(u){try{const m=String(u||"").match(/^prumo:\/\/([a-z]+)/);if(m&&m[1]!=="inicio")quickAction(m[1])}catch(e){}}
+(function(){const C=window.Capacitor;if(!C||!C.getPlatform||C.getPlatform()!=="ios")return;
+ const W=C.Plugins&&C.Plugins.PrumoWidget;const take=()=>{if(W&&W.takeAction)W.takeAction().then(r=>{if(r&&r.action)quickAction(r.action)}).catch(()=>{})};
+ if(W&&W.addListener)W.addListener("acao",()=>setTimeout(take,300));
+ setTimeout(take,2500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(take,600)})})();
 
 /* início */
 (function boot(){

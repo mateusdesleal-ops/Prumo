@@ -3328,7 +3328,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.24</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.25</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -7386,6 +7386,40 @@ function widgetData(){const td=today();let ms=[];try{ms=dayMissions()}catch(e){}
 function widgetSync(){const W=WIDGET();if(!W||!S.profile.created)return;clearTimeout(widgetTimer);widgetTimer=setTimeout(()=>{try{const d=widgetData();const j=JSON.stringify({...d,at:0});if(j===widgetLast)return;widgetLast=j;W.set({json:JSON.stringify(d)}).catch(()=>{})}catch(e){}},1200)}
 (function(){const s=saveApp;saveApp=function(){const r=s.apply(this,arguments);widgetSync();return r};
  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")widgetSync()});setTimeout(widgetSync,4000)})();
+
+/* App Saúde do iPhone: os treinos e os passos entram sozinhos no Prumo (só no app do iPhone; só leitura) */
+const HK=()=>window.Capacitor&&window.Capacitor.getPlatform&&window.Capacitor.getPlatform()==="ios"&&window.Capacitor.Plugins&&window.Capacitor.Plugins.PrumoHealth;
+// tipo de treino do app Saúde (HKWorkoutActivityType) → tipo de exercício do Prumo
+const HK_MAP={52:"caminhada",70:"caminhada",37:"corrida",71:"corrida",13:"bike",74:"bike",46:"natacao",24:"trilha",50:"forca",20:"forca",63:"hiit",30:"hiit",73:"hiit",11:"crossfit",16:"eliptico",57:"alongamento",62:"alongamento",29:"alongamento",72:"alongamento",80:"alongamento",66:"pilates",58:"pilates",14:"danca",15:"danca",77:"danca",78:"danca",41:"futebol",1:"futebol",36:"futebol",23:"futebol",25:"futebol",48:"tenis",47:"tenis",79:"tenis",34:"tenis",43:"tenis",4:"tenis",51:"volei",6:"basquete",28:"lutas",8:"lutas",65:"lutas",56:"lutas",18:"lutas",44:"escada",68:"escada",69:"escada",64:"corda",39:"patins",53:"hidro",59:"flexao"};
+let hkBusy=false;
+async function hkSync(manual){const H=HK();if(!H||!S.profile.hk||hkBusy)return;if(!manual&&Date.now()-(+S.profile.hkAt||0)<10*60e3)return;hkBusy=true;
+ try{S.ex=S.ex||{};S.ex.logs=S.ex.logs||{};
+  const since=Math.max(+S.profile.hkFrom||0,Date.now()-14*864e5,(+S.profile.hkAt||0)-2*864e5);
+  const r=await H.workouts({since});const L=(r&&r.workouts)||[];
+  const all=vals(S.ex.logs);const have=new Set(all.map(l=>l.hk).filter(Boolean));let n=0;
+  for(const w of L){if(have.has(w.id))continue;const min=Math.round(+w.min||0);if(min<1)continue;
+   const type=HK_MAP[w.type]||"outro";const date=ymd(new Date(w.start));
+   // já anotado à mão no mesmo dia, mesmo tipo e duração parecida? não duplica
+   if(all.some(l=>!l.hk&&l.date===date&&l.type===type&&Math.abs((+l.min||0)-min)<=Math.max(5,min*.25)))continue;
+   const t=EXT[type]||{};const q=t.q;const nq=w.km&&q&&q.u==="km"?Math.round(w.km*10)/10:0;
+   const id="hk"+String(w.id).replace(/-/g,"").slice(0,14);
+   S.ex.logs[id]={id,type,min,int:t.int||"moderada",desc:"App Saúde"+(w.source?" · "+String(w.source).slice(0,30):""),date,t:+w.start,hk:w.id,...(nq>0?{n:nq}:{})};markActive(date);n++}
+  try{const sr=await H.steps({days:7});S.ex.steps=S.ex.steps||{};((sr&&sr.days)||[]).forEach(x=>{if(x&&x.date)S.ex.steps[x.date]=+x.steps||0})}catch(e){}
+  S.profile.hkAt=Date.now();commit();
+  if(n)toast(n===1?"🏃 1 treino novo veio do app Saúde!":`🏃 ${n} treinos novos vieram do app Saúde!`,3500);
+  else if(manual)toast("Tudo em dia: nenhum treino novo no app Saúde.")
+ }catch(e){if(manual)toast("Não consegui ler o app Saúde: "+((e&&e.message)||"erro"),5000)}
+ hkBusy=false}
+function hkCard(){if(!HK())return "";const p=S.profile;const st=(S.ex&&S.ex.steps||{})[today()];
+ if(!p.hk)return `<div class="card stack"><div class="row" style="gap:12px;align-items:center"><span style="font-size:34px">❤️</span><div class="stack-s grow" style="gap:2px"><b>Puxar treinos do app Saúde</b><span class="small muted">Treinos do Apple Watch, Strava, Garmin e de outros apps entram sozinhos no Prumo, e a missão de exercício se marca sozinha.</span></div></div><button class="btn" data-act="hkConnect">Conectar com o app Saúde</button><span class="tiny muted">O Prumo só lê treinos e passos. Nada é compartilhado com outras pessoas.</span></div>`;
+ const at=p.hkAt?new Date(p.hkAt):null;const quando=at?(ymd(at)===today()?"hoje às ":ddmm(ymd(at))+" às ")+at.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"";
+ return `<div class="card stack"><div class="row between" style="gap:10px"><div class="stack-s" style="gap:2px"><b>❤️ App Saúde conectado</b><span class="tiny muted">${quando?"Atualizado "+quando:"Atualizando…"}${st!=null?` · ${(+st).toLocaleString("pt-BR")} passos hoje`:""}</span></div><button class="btn ghost sm" data-act="hkSync">Atualizar</button></div>
+ <p class="tiny muted" style="margin:0">Algum treino não apareceu? Confira em Ajustes › Saúde › Acesso a Dados e Dispositivos › Prumo. <button data-act="hkOff" style="background:none;border:0;padding:0;color:inherit;text-decoration:underline;font:inherit;cursor:pointer">Desconectar</button></p></div>`}
+A.hkConnect=async()=>{const H=HK();if(!H)return;try{await H.request();S.profile.hk=true;S.profile.hkFrom=Date.now()-14*864e5;S.profile.hkAt=0;saveApp();await hkSync(true)}catch(e){toast("Não consegui conectar: "+((e&&e.message)||"erro"),5000)}};
+A.hkSync=()=>hkSync(true);
+A.hkOff=()=>{S.profile.hk=false;commit();toast("Desconectado. Os treinos que já vieram continuam no histórico.",4000)};
+{const _ep=exPlanView;exPlanView=function(){return hkCard()+_ep.apply(this,arguments)}}
+setTimeout(()=>hkSync(),5000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)hkSync()});
 
 /* início */
 (function boot(){

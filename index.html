@@ -3294,11 +3294,11 @@ function viewProfile(){const p=S.profile;
   ${pRow(I.bell,"Modo silencioso",quietOn()?"🔕 Ligado "+quietLabel()+". Toque para desligar.":"Pausa os lembretes quando for apresentar ou compartilhar a tela","quietMenu")}
   ${hh?"":pRow(I.people,"Dividir finanças com alguém","Cônjuge, namorado(a) ou quem divide as contas com você","hhInfo")}
  </div></div>
- <div class="section"><div class="label">Abas e mascote</div>
+ <div class="section"><div class="label">Estilo e abas</div>
  <div class="card plist">
+  <div class="field" style="padding:10px 0;border-bottom:1px solid var(--line);gap:8px"><span>Estilo do Prumo</span><div class="chips"><button class="chip ${p.pet?"on":""}" data-act="setMode" data-v="porquinho">🐷 Modo Porquinho</button><button class="chip ${!p.pet?"on":""}" data-act="setMode" data-v="foco">◼︎ Modo Foco</button></div><span class="tiny muted">${p.pet?"Divertido: com o porquinho, sons e comemorações.":"Sério e direto: sem mascote e sem sons, visual mais sóbrio. Tudo continua funcionando igual."}</span></div>
   ${pSw("prayerToggle","Aba de Oração","Checklist diário de orações da sua tradição.",p.prayer)}
   ${p.prayer?`<label class="field" style="padding:10px 0;border-bottom:1px solid var(--line)"><span>Tradição</span><select id="prayerTradSel">${Object.entries(PRAYER_TRADS).map(([id,t])=>`<option value="${id}" ${S.prayer.trad===id?"selected":""}>${t.n}</option>`).join("")}</select></label>`:""}
-  ${pSw("petToggle","Porquinho","O mascote que cresce com a sua vida em ordem.",p.pet)}
   ${p.pet?`<label class="field" style="padding:10px 0;border-bottom:1px solid var(--line)"><span>Nome do porquinho</span><input id="petNameInp" maxlength="20" value="${esc(S.pet.name||"")}" placeholder="Ex.: Toicinho"></label>`:""}
   ${p.pet?pSw("buddyToggle","Mascote nas abas","Um porquinho pequeno no canto de cada aba. Toque nele para uma dica.",p.buddy!==false):""}
  </div></div>
@@ -3327,7 +3327,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.25</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.26</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -3415,9 +3415,9 @@ function viewOnboarding(){const s=UI.onb;
   <div class="grid3"><label class="field"><span>Idade</span><input id="o_age" type="number" inputmode="numeric" value="${esc(ONB.age)}"></label><label class="field"><span>Peso (kg)</span><input id="o_weight" inputmode="decimal" value="${esc(ONB.weight)}"></label><label class="field"><span>Altura (cm)</span><input id="o_height" type="number" inputmode="numeric" value="${esc(ONB.height)}"></label></div>
   <label class="field"><span>Como está sua rotina de exercícios hoje?</span><select id="o_level">${levelOpts(ONB.level)}</select></label>
   <div class="grid2"><button class="btn ghost" data-act="onbBack">Voltar</button><button class="btn" data-act="onbNext">Continuar</button></div><button class="btn ghost sm" data-act="onbNext" style="align-self:center">Pular por agora</button></div>`;
- return `<div class="onb">${steps}<div class="stack-s"><h1>Como prefere acompanhar?</h1><p class="muted">O app funciona igual nas duas opções. Você pode trocar depois em Perfil.</p></div>
-  <button class="card stack" style="text-align:left" data-act="onbPet" data-v="1"><div style="max-width:240px;margin:0 auto;width:100%" class="pigstage">${pigSVG({score:70,mood:"feliz",equip:{head:"laco"},env:3})}</div><b>Com o mascote</b><span class="small muted">Um porquinho que engorda quando as finanças vão bem, ganha roupas quando você estuda e um lugar mais bonito quando você se exercita.</span></button>
-  <button class="card stack" style="text-align:left" data-act="onbPet" data-v="0"><div class="row" style="gap:12px"><span class="ico" style="background:var(--money-soft);color:var(--money);font-size:14px">78</span><div class="grow"><div class="meter"><i style="width:78%;background:var(--good)"></i></div></div></div><b>Sem mascote</b><span class="small muted">Visual mais simples, com uma nota de saúde financeira de 0 a 100, os motivos e as dicas.</span></button>
+ return `<div class="onb">${steps}<div class="stack-s"><h1>Qual estilo combina com você?</h1><p class="muted">O app funciona igual nos dois. Dá para trocar quando quiser em Perfil.</p></div>
+  <button class="card stack" style="text-align:left" data-act="onbPet" data-v="1"><div style="max-width:240px;margin:0 auto;width:100%" class="pigstage">${pigSVG({score:70,mood:"feliz",equip:{head:"laco"},env:3})}</div><b>🐷 Modo Porquinho</b><span class="small muted">Divertido: um porquinho que engorda quando as finanças vão bem, ganha roupas quando você estuda e comemora cada passo com você.</span></button>
+  <button class="card stack" style="text-align:left" data-act="onbPet" data-v="0"><div class="row" style="gap:12px"><span class="ico" style="background:var(--money-soft);color:var(--money);font-size:14px">78</span><div class="grow"><div class="meter"><i style="width:78%;background:var(--good)"></i></div></div></div><b>◼︎ Modo Foco</b><span class="small muted">Sério e direto: sem mascote e sem sons, visual mais sóbrio, com a nota de saúde financeira de 0 a 100, os motivos e as dicas.</span></button>
   <button class="btn ghost" data-act="onbBack">Voltar</button></div>`}
 const levelOpts=v=>[["sedentario","Não faço exercícios"],["iniciante","Faço às vezes, sem regularidade"],["intermediario","Faço de 2 a 4 vezes por semana"],["avancado","Treino 5 vezes ou mais por semana"]].map(([k,n])=>`<option value="${k}" ${v===k?"selected":""}>${n}</option>`).join("");
 function bindOnb(){const inc=$("#o_income");if(inc){const up=()=>{const v=parseMoney(inc.value);const pl=planFor(v);$("#o_plan").innerHTML=v?`<div class="card stack"><div class="label">Sugestão do Prumo</div>${["N","D","F"].map(k=>`<div class="row between"><span class="row" style="gap:8px"><i class="dot" style="background:${BUCKETS[k].color}"></i>${BUCKETS[k].name} <span class="muted small">${pl[k]}%</span></span><b class="num">${brl0(v*pl[k]/100)}</b></div>`).join("")}<p class="tiny muted">Baseado na regra 50/30/20, ajustada para ${pl.label}.</p></div>`:""};inc.addEventListener("input",up);up()}
@@ -4035,6 +4035,7 @@ const A={
  donDone:el=>{S.profile.supporter={plan:el.dataset.v,since:today()};markActive();commit();closeModal();toast("Obrigado por apoiar o Prumo! Seu selo e os acessórios de apoiador já estão liberados.",5000)},
  saveProfile:()=>{const p=S.profile;const has=id=>!!document.getElementById(id);if(has("p_name"))p.name=v("p_name").trim()||p.name;if(has("p_income"))p.income=parseMoney(v("p_income"));if(has("p_goal"))p.studyGoal=clamp(+v("p_goal")||20,5,600);if(has("p_lim"))p.limit48=parseMoney(v("p_lim"));commit();closeModal();if(p.household&&HH&&Store.cloud)Store.db.doc(`households/${p.household}`).update({members:{[ME.uid]:{nick:p.name.split(" ")[0],income:p.income}}}).catch(()=>{});toast("Salvo.")},
  petToggle:el=>{S.profile.pet=el.checked;commit()},
+ setMode:el=>{const p=el.dataset.v==="porquinho";if(!!S.profile.pet===p)return;S.profile.pet=p;commit();toast(p?"🐷 Modo Porquinho ligado. Oinc!":"Modo Foco ligado: sem mascote e sem sons.",3000);if(p)setTimeout(()=>{try{oinc()}catch(e){}},200)},
  createHH:async()=>{if(!Store.cloud)return;const code=Array.from({length:6},()=>"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random()*32)]).join("");
   try{await hhJoin(code);await Store.db.doc(`households/${code}`).set({created:today(),members:{[ME.uid]:{nick:S.profile.name.split(" ")[0],income:+S.profile.income||0}}});
    await copyPersonalTo(code);S.profile.household=code;commit();subscribeHousehold();toast("Finanças compartilhadas criadas. Envie o código.")}catch(e){toast("Não foi possível criar agora. Tente de novo.")}},
@@ -7419,6 +7420,16 @@ A.hkSync=()=>hkSync(true);
 A.hkOff=()=>{S.profile.hk=false;commit();toast("Desconectado. Os treinos que já vieram continuam no histórico.",4000)};
 {const _ep=exPlanView;exPlanView=function(){return hkCard()+_ep.apply(this,arguments)}}
 setTimeout(()=>hkSync(),5000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)hkSync()});
+
+/* Modo Foco (sem mascote): sem sons, sem chuva de moedas e cores mais sóbrias (grafite no lugar do rosa no tema claro) */
+(function(){const st=document.createElement("style");st.textContent=`
+@media (prefers-color-scheme: light){html.foco:not([data-theme="dark"]){--pig-deep:#2B1E24;--pig:#7A6A72;--pig-soft:#F1ECEE}}
+html.foco[data-theme="light"]{--pig-deep:#2B1E24;--pig:#7A6A72;--pig-soft:#F1ECEE}
+html.foco .coin-rain,html.foco .coinfx,html.foco .confetti{display:none!important}`;document.head.appendChild(st)})();
+let FOCO_LAST=false;
+function focoOn(){try{if(typeof TEAM!=="undefined"&&TEAM)return FOCO_LAST;FOCO_LAST=!!(S&&S.profile&&S.profile.created&&!S.profile.pet);return FOCO_LAST}catch(e){return FOCO_LAST}}
+{const _r=render;render=function(){const x=_r.apply(this,arguments);document.documentElement.classList.toggle("foco",focoOn());return x}}
+{const _o=oinc;oinc=function(){if(focoOn())return;return _o.apply(this,arguments)}}
 
 /* início */
 (function boot(){

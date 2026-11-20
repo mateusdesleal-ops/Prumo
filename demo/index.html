@@ -3328,7 +3328,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.29</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.30</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -7552,6 +7552,67 @@ function quickFromUrl(u){try{const m=String(u||"").match(/^prumo:\/\/([a-z]+)/);
  const W=C.Plugins&&C.Plugins.PrumoWidget;const take=()=>{if(W&&W.takeAction)W.takeAction().then(r=>{if(r&&r.action)quickAction(r.action)}).catch(()=>{})};
  if(W&&W.addListener)W.addListener("acao",()=>setTimeout(take,300));
  setTimeout(take,2500);document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(take,600)})})();
+
+/* ---------- Bloqueio de foco (só no app do iPhone): bloqueia apps que a pessoa escolher ----------
+   Três jeitos: agora por um tempo, horário fixo todo dia, ou até cumprir as missões do dia.
+   O Prumo não sabe quais apps foram escolhidos: a Apple só entrega um código fechado. */
+const BLOCK=()=>window.Capacitor&&window.Capacitor.getPlatform&&window.Capacitor.getPlatform()==="ios"&&window.Capacitor.Plugins&&window.Capacitor.Plugins.PrumoBlock;
+const LOCK_IC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+let BLK={st:null};
+const blkHM=t=>{const d=new Date(t);return `${pad(d.getHours())}:${pad(d.getMinutes())}`};
+function blkMissions(){let ms=[];try{ms=dayMissions()}catch(e){}return{done:ms.filter(m=>m.done).length,all:ms.length}}
+function blkState(){const W=BLOCK();if(!W)return Promise.resolve(null);return W.status().then(s=>{BLK.st=s;return s}).catch(()=>null)}
+function blkSync(){const W=BLOCK();if(!W||!S.profile||!S.profile.created)return;
+ const m=blkMissions();const done=m.all>0&&m.done>=m.all;
+ W.refresh({pet:!!S.profile.pet,petNome:S.profile.pet?(S.pet.name||"Porquinho"):"",missoesFeitas:done,mDone:m.done,mAll:m.all}).then(s=>{if(s)BLK.st=s}).catch(()=>{})}
+function blkBody(s){
+ if(!s)return`<p class="small">Não consegui falar com o bloqueio agora. Feche e abra o app de novo.</p>`;
+ if(!s.authorized)return`<div class="stack"><p style="margin:0">Escolha os apps que mais te distraem, como Instagram, TikTok ou jogos, e o Prumo bloqueia na hora que você quiser.</p>
+  <div class="card stack-s" style="background:var(--pig-soft)"><b class="small">🔒 Sua privacidade</b><span class="tiny">O Prumo não fica sabendo quais apps você escolheu nem quanto tempo usa. Tudo fica no seu iPhone.</span></div>
+  <p class="tiny muted" style="margin:0">O iPhone vai pedir permissão de Tempo de Uso. É só tocar em Continuar.</p>
+  <button class="btn" data-act="blkAuth">Permitir</button></div>`;
+ const now=Date.now(),ate=s.ate*1000;const ativo=s.blocking;
+ const why=ate>now?`até ${blkHM(ate)}`:s.horarioAtivo?`até ${s.horFim} (horário de foco)`:s.missoes&&!s.missoesFeitas?"até você cumprir as missões do dia":"";
+ const m=blkMissions();
+ const chip=(min,t)=>`<button class="chip" data-act="blkNow" data-v="${min}">${t}</button>`;
+ return`<div class="stack">
+ <div class="card row between" style="gap:10px;${ativo?"background:var(--pig-soft)":""}"><div class="stack-s" style="gap:2px"><b>${ativo?"🔒 Bloqueado "+why:"🔓 Nada bloqueado agora"}</b><span class="tiny muted">${s.count>0?`${s.count} ${s.count>1?"itens escolhidos":"item escolhido"}`:"Nenhum app escolhido ainda"}</span></div>
+  <button class="btn ghost sm" data-act="blkPick">${s.count>0?"Trocar apps":"Escolher apps"}</button></div>
+ ${s.count>0?`
+ <div class="stack-s"><b class="small">Bloquear agora</b>
+  ${ate>now?`<div class="row between"><span class="small">Libera às <b>${blkHM(ate)}</b></span><button class="btn ghost sm" data-act="blkStop">Desbloquear</button></div>`:`<div class="chips">${chip(30,"30 min")}${chip(60,"1 hora")}${chip(120,"2 horas")}${chip(240,"4 horas")}</div>`}</div>
+ <div class="stack-s" style="border-top:1px solid var(--line);padding-top:12px">
+  ${pSw("blkHorT","Horário de foco todo dia","Bloqueia sozinho no mesmo horário, como à noite ou na hora de estudar.",!!s.horario)}
+  <div class="grid2" style="${s.horario?"":"opacity:.5"}"><label class="field"><span>Das</span><input type="time" id="blkIni" value="${s.horIni||"22:00"}"></label><label class="field"><span>Até</span><input type="time" id="blkFim" value="${s.horFim||"07:00"}"></label></div>
+ </div>
+ <div class="stack-s" style="border-top:1px solid var(--line);padding-top:12px">
+  ${pSw("blkMisT","Só liberar depois das missões",`Primeiro o que importa, depois a diversão. Hoje: ${m.done} de ${m.all} missões.`,!!s.missoes)}
+ </div>`:""}
+ <p class="tiny muted" style="margin:0">Você sempre pode mudar ou desligar aqui. O Prumo não sabe quais apps você escolheu.</p></div>`}
+A.blockMenu=async()=>{const s=await blkState();openModal("Bloqueio de foco",`<div id="blkBox">${blkBody(s)}</div>`)};
+const blkRedraw=s=>{const b=document.getElementById("blkBox");if(b)b.innerHTML=blkBody(s);try{render()}catch(e){}};
+A.blkAuth=async()=>{const W=BLOCK();if(!W)return;try{const r=await W.authorize();if(!r||!r.authorized)toast("Sem a permissão de Tempo de Uso não dá para bloquear.")}catch(e){toast("Não deu para pedir a permissão agora.")}blkRedraw(await blkState())};
+A.blkPick=async()=>{const W=BLOCK();if(!W)return;try{await W.pick()}catch(e){}blkSync();blkRedraw(await blkState())};
+A.blkNow=async el=>{const W=BLOCK();if(!W)return;const min=+el.dataset.v;try{await W.agora({min});toast(`🔒 Bloqueado até ${blkHM(Date.now()+min*6e4)}. Bom foco!`);try{trackOnce("bloqueio:agora")}catch(e){}}catch(e){toast("Não deu para bloquear agora.")}blkRedraw(await blkState())};
+A.blkStop=async()=>{const W=BLOCK();if(!W)return;try{await W.parar()}catch(e){}blkRedraw(await blkState())};
+document.addEventListener("change",async e=>{const id=e.target&&e.target.id;const W=BLOCK();if(!W||!["blkHorT","blkIni","blkFim","blkMisT"].includes(id))return;
+ try{if(id==="blkMisT"){await W.missoes({on:e.target.checked});blkSync();if(e.target.checked){toast("Combinado: as redes liberam quando você cumprir as missões do dia.");try{trackOnce("bloqueio:missoes")}catch(e){}}}
+  else{const on=document.getElementById("blkHorT").checked,ini=document.getElementById("blkIni").value||"22:00",fim=document.getElementById("blkFim").value||"07:00";
+   if(ini===fim){toast("O começo e o fim precisam ser diferentes.");return}
+   await W.horario({on,ini,fim});if(id==="blkHorT"&&on){toast(`Horário de foco: todo dia das ${ini} às ${fim}.`);try{trackOnce("bloqueio:horario")}catch(e){}}}}
+ catch(err){toast("O iPhone pede pelo menos 15 minutos de bloqueio.")}
+ blkRedraw(await blkState())});
+/* linha no Perfil › Seu jeito */
+{const _vp=typeof viewProfile==="function"?viewProfile:null;if(_vp)viewProfile=function(){const h=_vp.apply(this,arguments);if(!BLOCK())return h;const s=BLK.st;
+ const sub=s&&s.blocking?"🔒 Bloqueado agora. Toque para ver.":"Bloqueie Instagram, TikTok e outros apps na hora de focar";
+ return h.replace(/(<button class="prow" data-act="quietMenu">[\s\S]*?<\/button>)/,m=>m+pRow(LOCK_IC,"Bloqueio de foco",sub,"blockMenu"))}}
+/* aviso no Início quando as redes esperam as missões */
+{const _vh=typeof viewHome==="function"?viewHome:null;if(_vh)viewHome=function(){const h=_vh.apply(this,arguments);const s=BLK.st;if(!BLOCK()||!s||!s.missoes||!s.blocking||s.missoesFeitas||!s.count)return h;const m=blkMissions();
+ const card=`<button class="card row" data-act="blockMenu" style="gap:10px;text-align:left;width:100%;border:1px solid var(--pig);margin-bottom:12px"><span style="font-size:22px">🔒</span><span class="grow stack-s" style="gap:2px"><b class="small">Seus apps liberam quando as missões acabarem</b><span class="tiny muted">Faltam ${Math.max(0,m.all-m.done)} de ${m.all}. Bora?</span></span></button>`;
+ const i=h.indexOf('<div class="section">');return i>0?h.slice(0,i)+card+h.slice(i):card+h}}
+/* avisa o bloqueio quando as missões mudam e quando o app volta para a tela */
+(function(){if(!BLOCK())return;const s=saveApp;saveApp=function(){const r=s.apply(this,arguments);clearTimeout(BLK.t);BLK.t=setTimeout(blkSync,800);return r};
+ document.addEventListener("visibilitychange",()=>{if(!document.hidden)setTimeout(blkSync,700)});setTimeout(blkSync,3000)})();
 
 /* início */
 (function boot(){

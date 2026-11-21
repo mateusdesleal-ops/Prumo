@@ -1,0 +1,28 @@
+name: Renderizar artes do Instagram
+on:
+  push:
+    branches: [ig-render]
+    paths: ['_render/**', '.github/workflows/ig-render.yml']
+permissions:
+  contents: write
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar Playwright e fontes de emoji
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-color-emoji
+          cd _render && npm init -y >/dev/null && npm i playwright@1.47.2 && npx playwright install --with-deps chromium
+      - name: Renderizar
+        run: cd _render && node render.js ../_out
+      - name: Salvar resultado no branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898183+github-actions[bot]@users.noreply.github.com"
+          git add _out
+          git commit -m "Artes renderizadas" || echo "nada novo"
+          git push

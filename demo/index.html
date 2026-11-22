@@ -3328,7 +3328,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.32</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.33</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -5596,22 +5596,28 @@ if(PN())setInterval(nativePushInit,4000);
 
 /* ---------- Avisos para todos (banners vindos do servidor: aparecem na hora no site e no app) ---------- */
 const BAN={list:null,at:0};
-const BAN_GO=[["","Sem botão de destino"],["ex:medit","Saúde → Meditação"],["ex:remed","Saúde → Remédios"],["ex:comida","Saúde → Alimentação"],["fin:mes","Finanças → Mês"],["fin:contas","Finanças → Meu dinheiro"],["fin:cartoes","Finanças → Cartões"],["fin:dividas","Finanças → Dívidas"],["study:hoje","Estudos"],["agenda:cal","Agenda"],["agenda:tasks","Tarefas"],["pig:","Porquinho"],["profile:","Perfil"],["profile:city","Escolher a cidade (abre a busca de cidade)"]];
+const BAN_GO=[["","Sem botão de destino"],["ex:medit","Saúde → Meditação"],["ex:remed","Saúde → Remédios"],["ex:comida","Saúde → Alimentação"],["fin:mes","Finanças → Mês"],["fin:contas","Finanças → Meu dinheiro"],["fin:cartoes","Finanças → Cartões"],["fin:dividas","Finanças → Dívidas"],["study:hoje","Estudos"],["agenda:cal","Agenda"],["agenda:tasks","Tarefas"],["pig:","Porquinho"],["profile:","Perfil"],["profile:city","Escolher a cidade (abre a busca de cidade)"],["profile:review","Avaliar na App Store (só aparece no iPhone)"]];
 async function banLoad(force){if(!sb||!Store.cloud||Store.demo)return;if(!force&&BAN.list&&Date.now()-BAN.at<10*60000)return;BAN.at=Date.now();
- try{const {data}=await sb.from("banners").select("id,title,body,btn,go,ends,img,created_at,aud").order("created_at",{ascending:false}).limit(5);BAN.list=(data||[]).filter(b=>!(b.aud==="sem_cidade"&&S.profile.city&&S.profile.city.name));render();setTimeout(banPopup,1500)}catch(e){}}
+ try{const {data}=await sb.from("banners").select("id,title,body,btn,go,ends,img,created_at,aud").order("created_at",{ascending:false}).limit(5);BAN.list=(data||[]).filter(banOk).reverse();render();setTimeout(banPopup,1500)}catch(e){}}
 const banSeen=()=>(S.profile.banSeen=S.profile.banSeen||{});
-const banOk=b=>!(b.aud==="sem_cidade"&&S.profile.city&&S.profile.city.name);
-function bannerPending(){return !!(BAN.list||[]).find(b=>banOk(b)&&!banSeen()[b.id])}
+const BAN_REVIEW="https://apps.apple.com/br/app/prumo-vida-em-ordem/id6832061965?action=write-review";
+const banApple=()=>(window.Capacitor&&window.Capacitor.getPlatform&&window.Capacitor.getPlatform()==="ios")||/iPhone|iPad|iPod/.test(navigator.userAgent);
+const banOk=b=>!(b.aud==="sem_cidade"&&S.profile.city&&S.profile.city.name)&&!(b.go==="profile:review"&&(!banApple()||S.profile.reviewed));
+/* fila: um aviso por vez. O primeiro que a pessoa ainda não dispensou é o da vez (cartão e janela). */
+const banHead=()=>{const off=S.profile.banOff||{};return (BAN.list||[]).find(x=>banOk(x)&&!off[x.id])};
+function bannerPending(){const b=banHead();return !!(b&&!banSeen()[b.id])}
 function banHTML(b,inModal){const btn=b.btn||(b.go?"Ver agora":"");
  return `${b.img?`<img src="${esc(b.img)}" alt="${esc(b.title||"Aviso do Prumo")}" style="width:100%;display:block;border-radius:${inModal?"18px":"14px"};${inModal?"":"max-height:220px;object-fit:cover"}">`:""}
  ${b.title&&!(b.img&&b.title==="Novidade")&&!(inModal&&!b.img)?`<b style="font-size:${inModal?"19px":"16px"};line-height:1.25">${esc(b.title)}</b>`:""}${b.body?`<p class="small" style="margin:0;white-space:pre-line">${esc(b.body)}</p>`:""}
  ${btn?`<button class="btn ${inModal?"block":"sm"}" data-act="banGo" data-v="${b.id}" ${inModal?"":'style="align-self:flex-start"'}>${esc(btn)}</button>`:""}`}
 function banPopup(){if(typeof quietOn==="function"&&quietOn())return;if(Store.demo||UI.needAuth||(UI.onb>=0&&UI.onb<3)||UI.popShown||$("#modal").innerHTML||document.getElementById("medP"))return;if(typeof TEAM!=="undefined"&&TEAM)return;
- const b=(BAN.list||[]).find(x=>banOk(x)&&!banSeen()[x.id]);if(!b)return;banSeen()[b.id]=today();saveApp();UI.popShown=1;
+ const b=banHead();if(!b||banSeen()[b.id])return;banSeen()[b.id]=today();saveApp();UI.popShown=1;
  openModal(b.title&&!b.img?b.title:"Novidade no Prumo",`<div class="stack">${banHTML(b,true)}<button class="btn ghost block" data-act="closeModal">${b.btn||b.go?"Agora não":"Fechar"}</button></div>`)}
-function bannerCard(){if(Store.demo)return"";const off=S.profile.banOff||{};const b=(BAN.list||[]).find(x=>banOk(x)&&!off[x.id]);if(!b)return"";
+function bannerCard(){if(Store.demo)return"";const b=banHead();if(!b)return"";
  return `<div class="card stack" style="gap:10px;position:relative"><button class="iconbtn" data-act="banOff" data-v="${b.id}" aria-label="Dispensar aviso" style="position:absolute;top:8px;right:8px;width:32px;height:32px;z-index:1;background:rgba(255,255,255,.85)">×</button>${banHTML(b,false)}</div>`}
-A.banGo=el=>{const b=(BAN.list||[]).find(x=>x.id===el.dataset.v);closeModal();if(!b||!b.go)return;if(b.go==="profile:city"){setTimeout(()=>{if(typeof wxCityModal==="function")wxCityModal()},250);return}const [tab,sub]=b.go.split(":");if(typeof TEAM!=="undefined"&&TEAM&&typeof teamExit==="function")teamExit();UI.tab=tab;
+A.banGo=el=>{const b=(BAN.list||[]).find(x=>x.id===el.dataset.v);closeModal();if(!b||!b.go)return;if(b.go==="profile:city"){setTimeout(()=>{if(typeof wxCityModal==="function")wxCityModal()},250);return} // some sozinho quando a cidade é escolhida
+ S.profile.banOff=S.profile.banOff||{};S.profile.banOff[b.id]=1;saveApp();
+ if(b.go==="profile:review"){S.profile.reviewed=today();saveApp();try{trackOnce("banner:avaliar")}catch(e){}window.open(BAN_REVIEW,"_blank");setTimeout(render,300);return}const [tab,sub]=b.go.split(":");if(typeof TEAM!=="undefined"&&TEAM&&typeof teamExit==="function")teamExit();UI.tab=tab;
  if(tab==="ex")UI.ex=sub;else if(tab==="fin"){UI.fin=sub;UI.finOpen=true}else if(tab==="study")UI.study=sub||"hoje";else if(tab==="agenda")UI.agendaSub=sub||"cal";window.scrollTo(0,0);render()};
 A.banOff=el=>{S.profile.banOff=S.profile.banOff||{};S.profile.banOff[el.dataset.v]=1;banSeen()[el.dataset.v]=banSeen()[el.dataset.v]||today();saveApp();render()};
 {const _np=typeof newsPending==="function"?newsPending:()=>false;newsPending=function(){return _np()||bannerPending()}}

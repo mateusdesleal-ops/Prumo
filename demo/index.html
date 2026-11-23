@@ -3328,7 +3328,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.34</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.35</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -7522,6 +7522,7 @@ function pushMomentAsk(kind){try{if(Store.demo||!Store.cloud||UI.needAuth||!S.pr
  pushState().then(st=>{if(st!=="off")return;try{localStorage.setItem(PMK,String(Date.now()))}catch(e){}
   const txt={conta:["Quer que eu te avise antes de vencer?","Te mando um lembrete 1 dia antes da conta vencer, para nada passar batido."],
    tarefa:["Quer um lembrete na hora certa?","Te aviso quando chegar a hora dessa tarefa, mesmo com o app fechado."],
+   podcast:["Quer saber quando sair episódio novo?","Te aviso assim que um podcast que você segue lançar episódio. Só das 8h às 22h."],
    gasto:["Quer um empurrãozinho no fim do dia?","Te lembro de anotar os gastos à noite, quando você esquecer. Só um aviso por dia."]}[kind]||["Quer receber lembretes?","Contas vencendo, tarefas e as suas missões do dia."];
   setTimeout(()=>{if($("#modal").innerHTML)return;openModal(txt[0],`<div class="stack"><p>${txt[1]}</p><p class="tiny muted">Você escolhe o que recebe em Perfil › Sons e avisos, e pode desligar quando quiser.</p>
   <div class="grid2"><button class="btn ghost" data-act="closeModal">Agora não</button><button class="btn" data-act="pushMomentYes">Quero os avisos</button></div></div>`)},700)})}catch(e){}}
@@ -7623,10 +7624,11 @@ document.addEventListener("change",async e=>{const id=e.target&&e.target.id;cons
 
 /* ---------- Podcasts (Estudos): buscar, seguir, ouvir, baixar por 24h e registrar como estudo ----------
    Catálogo público do Apple Podcasts via função "podcast" do servidor. O áudio vem direto do servidor de cada podcast.
-   Baixados ficam só neste aparelho (app do iPhone: arquivo no celular; site: no navegador) e somem depois de 24h. */
+   Baixados ficam só neste aparelho (app do iPhone: arquivo no celular; site: no navegador) até a pessoa apagar.
+   Seguir um podcast também avisa quando sai episódio novo (o servidor confere os feeds de 2 em 2 horas, das 8h às 22h). */
 const POD_URL=()=>(CFG.supabaseUrl||"")+"/functions/v1/podcast";
-const POD={q:"",res:null,busy:false,open:null,data:{},cur:null,audio:null,heard:0,lastT:0,dl:{}};
-const POD_TTL=24*3600e3;
+const POD={q:"",res:null,busy:false,open:null,data:{},cur:null,audio:null,heard:0,lastT:0,dl:{},tab:"descobrir"};
+const podMB=b=>b>=1e9?(b/1e9).toFixed(1).replace(".",",")+" GB":Math.max(1,Math.round(b/1e6))+" MB";
 const PODS=()=>{S.study.pods=S.study.pods||{};const p=S.study.pods;p.subs=p.subs||{};p.prog=p.prog||{};return p};
 const POD_NAT=()=>window.Capacitor&&window.Capacitor.getPlatform&&window.Capacitor.getPlatform()==="ios"&&window.Capacitor.Plugins&&window.Capacitor.Plugins.PrumoPod;
 const podKey=g=>{let h=5381;for(const c of String(g))h=((h<<5)+h+c.charCodeAt(0))>>>0;return "p"+h.toString(36)+String(g).length.toString(36)};
@@ -7640,18 +7642,19 @@ const idb=()=>new Promise((ok,no)=>{try{const r=indexedDB.open("prumo-pod",1);r.
 const idbDo=(mode,fn)=>idb().then(db=>new Promise((ok,no)=>{const tx=db.transaction("f",mode),st=tx.objectStore("f");const r=fn(st);tx.oncomplete=()=>ok(r&&r.result);tx.onerror=()=>no(tx.error)}));
 async function podDownload(ep,pod){const k=podKey(ep.g);if(POD.dl[k])return;POD.dl[k]={p:0};render();
  try{const W=POD_NAT();let rec={g:ep.g,k,t:ep.t,pod:pod.title,pid:pod.id,art:ep.img||pod.art,s:ep.s,at:Date.now()};
-  if(W){const r=await W.download({url:ep.u,id:k});rec.path=r.path}
-  else{const res=await fetch(ep.u,{mode:"cors"});if(!res.ok)throw new Error("http");const total=+res.headers.get("content-length")||0;
+  if(W){const r=await W.download({url:ep.u,id:k});rec.path=r.path;rec.size=+r.size||0}
+  else{try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}}
+  if(!W){
+  const res=await fetch(ep.u,{mode:"cors"});if(!res.ok)throw new Error("http");const total=+res.headers.get("content-length")||0;
    const rd=res.body&&res.body.getReader?res.body.getReader():null;let blob;
    if(rd){const parts=[];let got=0;for(;;){const {done,value}=await rd.read();if(done)break;parts.push(value);got+=value.length;if(total){POD.dl[k].p=got/total;podDlPaint(k)}}blob=new Blob(parts,{type:res.headers.get("content-type")||"audio/mpeg"})}
    else blob=await res.blob();
-   await idbDo("readwrite",st=>st.put(blob,k));rec.idb=1}
-  const L=dlList();L[k]=rec;dlSave(L);toast("⬇️ Baixado. Fica disponível sem internet por 24 horas.");try{trackOnce("podcast:baixar")}catch(e){}}
+   await idbDo("readwrite",st=>st.put(blob,k));rec.idb=1;rec.size=blob.size}
+  const L=dlList();L[k]=rec;dlSave(L);toast("⬇️ Baixado. Fica no seu aparelho para ouvir sem internet, até você apagar.");try{trackOnce("podcast:baixar")}catch(e){}}
  catch(e){toast(POD_NAT()?"Não deu para baixar agora. Confira a internet e tente de novo.":"Este podcast não deixa baixar pelo site. No app do iPhone funciona. Você ainda pode ouvir online.",5200)}
  delete POD.dl[k];render()}
 function podDlPaint(k){const el=document.querySelector(`[data-dlp="${k}"]`);if(el&&POD.dl[k])el.textContent=Math.round(POD.dl[k].p*100)+"%"}
 async function podRemove(k){const L=dlList(),r=L[k];if(!r)return;try{if(r.path&&POD_NAT())await POD_NAT().remove({id:k});if(r.idb)await idbDo("readwrite",st=>st.delete(k))}catch(e){}delete L[k];dlSave(L)}
-async function podExpire(){const L=dlList();const now=Date.now();for(const k in L)if(now-L[k].at>POD_TTL&&!(POD.cur&&POD.cur.k===k))await podRemove(k);}
 async function podSrc(ep){const k=podKey(ep.g),r=dlList()[k];if(r){try{if(r.path)return window.Capacitor.convertFileSrc(r.path);if(r.idb){const b=await idbDo("readonly",st=>st.get(k));if(b)return URL.createObjectURL(b)}}catch(e){}}return ep.u}
 /* ---- servidor ---- */
 async function podFetch(qs){const r=await fetch(POD_URL()+"?"+qs);if(!r.ok)throw new Error("http");return r.json()}
@@ -7721,29 +7724,43 @@ const POD_SUG=[["💰","Finanças"],["🧠","Psicologia"],["💪","Saúde"],["�
 function podCardSmall(p){return `<button class="card" data-act="podOpen" data-v="${p.id}" style="padding:8px;text-align:left;display:flex;flex-direction:column;gap:6px;border:1px solid var(--line)">
  <img src="${esc(p.art||"")}" alt="" loading="lazy" style="width:100%;aspect-ratio:1;border-radius:10px;object-fit:cover;background:var(--surface2)">
  <b class="tiny" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(p.title)}</b></button>`}
-function podEpRow(ep,pod){const k=podKey(ep.g),pr=PODS().prog[k]||{},dl=dlList()[k],now=POD.cur&&POD.cur.k===k,a=POD.audio;
- const left=dl?Math.max(1,Math.ceil((POD_TTL-(Date.now()-dl.at))/3600e3)):0;const pct=pr.done?100:pr.t&&(pr.s||ep.s)?Math.round(pr.t/(pr.s||ep.s)*100):0;
- const meta=[podDate(ep.d),podDur(ep.s),pr.done?"✓ ouvido":pct?`${pct}% ouvido`:""].filter(Boolean).join(" · ");
+function podEpRow(ep,pod,showPod){const k=podKey(ep.g),pr=PODS().prog[k]||{},dl=dlList()[k],now=POD.cur&&POD.cur.k===k,a=POD.audio;
+ const pct=pr.done?100:pr.t&&(pr.s||ep.s)?Math.round(pr.t/(pr.s||ep.s)*100):0;
+ const meta=[showPod?esc(pod.title):"",podDate(ep.d),podDur(ep.s),pr.done?"✓ ouvido":pct?`${pct}% ouvido`:""].filter(Boolean).join(" · ");
  return `<div class="row" style="gap:10px;padding:10px 0;border-top:1px solid var(--line);align-items:flex-start">
  <button class="iconbtn" data-act="podPlayEp" data-v="${esc(ep.g)}" data-p="${pod.id}" aria-label="Tocar" style="flex:none;width:40px;height:40px;${now?"background:var(--pink,#D9547F);color:#fff":""}">${now&&a&&!a.paused?"❚❚":"▶"}</button>
  <div class="grow stack-s" style="gap:2px;min-width:0"><b class="small">${esc(ep.t)}</b><span class="tiny muted">${meta}</span>
- ${dl?`<span class="tiny" style="color:var(--green,#2E8B57)">✓ Disponível sem internet por mais ${left}h</span>`:""}</div>
+ ${dl?`<span class="tiny" style="color:var(--green,#2E8B57)">✓ Baixado · ouve sem internet</span>`:""}</div>
  ${POD.dl[k]?`<span class="tiny muted" data-dlp="${k}" style="flex:none;padding-top:10px">${Math.round((POD.dl[k].p||0)*100)}%</span>`
  :dl?`<button class="iconbtn" data-act="podDel" data-v="${k}" aria-label="Apagar download" style="flex:none">🗑</button>`
- :`<button class="iconbtn" data-act="podDl" data-v="${esc(ep.g)}" data-p="${pod.id}" aria-label="Baixar por 24 horas" style="flex:none">⬇︎</button>`}</div>`}
+ :`<button class="iconbtn" data-act="podDl" data-v="${esc(ep.g)}" data-p="${pod.id}" aria-label="Baixar para ouvir sem internet" style="flex:none">⬇︎</button>`}</div>`}
 function podView(){if(Store.demo&&!CFG.supabaseUrl)return `<div class="card"><p class="small" style="margin:0">Na demonstração os podcasts não carregam. Crie sua conta para buscar, ouvir e baixar episódios.</p></div>`;
  if(POD.open)return podShow(POD.open);
- const subs=Object.values(PODS().subs),L=Object.values(dlList()).sort((a,b)=>b.at-a.at);
- return `<div class="stack">
- <div class="card stack-s"><b>🎧 Ouça e aprenda</b><span class="small muted">Busque qualquer podcast, baixe episódios para ouvir sem internet por 24 horas e registre o tempo como estudo.</span>
+ const subs=Object.values(PODS().subs),L=Object.values(dlList());
+ const tabs=[["descobrir","Descobrir"],["seguindo",`Seguindo${subs.length?" ("+subs.length+")":""}`],["baixados",`Baixados${L.length?" ("+L.length+")":""}`]];
+ const body={descobrir:podDiscover,seguindo:podFollowing,baixados:podDownloads}[POD.tab]||podDiscover;
+ return `<div class="stack"><div class="chips">${tabs.map(([id,n])=>`<button class="chip ${POD.tab===id?"on":""}" data-act="podTab" data-v="${id}">${n}</button>`).join("")}</div>${body()}</div>`}
+A.podTab=el=>{POD.tab=el.dataset.v;render()};
+function podDiscover(){return `<div class="card stack-s"><b>🎧 Ouça e aprenda</b><span class="small muted">Busque qualquer podcast, baixe episódios para ouvir sem internet e registre o tempo como estudo.</span>
  <form data-form="podSearch" class="row" style="gap:8px;margin-top:6px"><input id="podQ" placeholder="Buscar podcast (ex.: finanças, inglês)" value="${esc(POD.q)}" style="flex:1" enterkeyhint="search"><button class="btn sm" type="submit">Buscar</button></form>
  <div class="chips" style="margin-top:4px">${POD_SUG.map(([e,t])=>`<button class="chip" data-act="podSug" data-v="${t}">${e} ${t}</button>`).join("")}</div></div>
- ${POD.busy?`<p class="small muted">Buscando…</p>`:POD.res?(POD.res.length?`<div class="section"><div class="label">Resultados para “${esc(POD.q)}”</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${POD.res.map(podCardSmall).join("")}</div></div>`:`<p class="small muted">Nada encontrado para “${esc(POD.q)}”.</p>`):""}
- ${L.length?`<div class="section"><div class="label">Baixados neste aparelho</div><div class="card">${L.map(r=>{const left=Math.max(1,Math.ceil((POD_TTL-(Date.now()-r.at))/3600e3));
-  return `<div class="row" style="gap:10px;padding:8px 0"><img src="${esc(r.art||"")}" alt="" style="width:40px;height:40px;border-radius:8px;object-fit:cover"><div class="grow stack-s" style="gap:1px;min-width:0"><b class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.t)}</b><span class="tiny muted">${esc(r.pod)} · some em ${left}h</span></div>
-  <button class="iconbtn" data-act="podPlayDl" data-v="${r.k}" aria-label="Tocar">▶</button><button class="iconbtn" data-act="podDel" data-v="${r.k}" aria-label="Apagar">🗑</button></div>`}).join("")}</div></div>`:""}
- ${subs.length?`<div class="section"><div class="label">Seus podcasts</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${subs.map(podCardSmall).join("")}</div></div>`:""}
- </div>`}
+ ${POD.busy?`<p class="small muted">Buscando…</p>`:POD.res?(POD.res.length?`<div class="section"><div class="label">Resultados para “${esc(POD.q)}”</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${POD.res.map(podCardSmall).join("")}</div></div>`:`<p class="small muted">Nada encontrado para “${esc(POD.q)}”.</p>`):""}`}
+function podFollowing(){const subs=Object.values(PODS().subs);
+ if(!subs.length)return `<div class="card stack-s"><b>Você ainda não segue nenhum podcast</b><span class="small muted">Abra um podcast e toque em <b>+ Seguir</b>. Quando sair episódio novo, o Prumo te avisa.</span><button class="btn sm" data-act="podTab" data-v="descobrir" style="align-self:flex-start">Descobrir podcasts</button></div>`;
+ subs.forEach(p=>{if(!POD.data[p.id]&&!POD.loading?.[p.id]){(POD.loading=POD.loading||{})[p.id]=1;podLoad(String(p.id)).then(render).catch(()=>{}).finally(()=>{delete POD.loading[p.id]})}});
+ const eps=[];subs.forEach(p=>{const d=POD.data[p.id];if(d)(d.eps||[]).slice(0,3).forEach(e=>eps.push([e,d]))});
+ eps.sort((a,b)=>(b[0].d||"").localeCompare(a[0].d||""));
+ return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${subs.map(podCardSmall).join("")}</div>
+ <div class="section"><div class="label">Últimos episódios</div><div class="card" style="padding-top:2px">${eps.length?eps.slice(0,15).map(([e,d])=>podEpRow(e,d,true)).join(""):`<p class="small muted">Carregando…</p>`}</div></div>
+ <p class="tiny muted" style="margin:0">🔔 Você recebe um aviso quando sai episódio novo dos podcasts que segue (das 8h às 22h).</p>`}
+function podDownloads(){const L=Object.values(dlList()).sort((a,b)=>b.at-a.at);const tot=L.reduce((s,r)=>s+(r.size||0),0);
+ if(!L.length)return `<div class="card stack-s"><b>Nenhum episódio baixado</b><span class="small muted">Toque em ⬇︎ ao lado de um episódio para baixar. Ele fica no seu aparelho para ouvir sem internet, até você apagar.</span></div>`;
+ return `<div class="card row between"><span class="small"><b>${L.length} episódio${L.length>1?"s":""}</b>${tot?` · ${podMB(tot)} no aparelho`:""}</span><button class="btn ghost sm" data-act="podDelAll">Apagar todos</button></div>
+ <div class="card">${L.map(r=>`<div class="row" style="gap:10px;padding:8px 0;border-bottom:1px solid var(--line)"><img src="${esc(r.art||"")}" alt="" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex:none"><div class="grow stack-s" style="gap:1px;min-width:0"><b class="small">${esc(r.t)}</b><span class="tiny muted">${esc(r.pod)}${r.size?" · "+podMB(r.size):""}</span></div>
+  <button class="iconbtn" data-act="podPlayDl" data-v="${r.k}" aria-label="Tocar">${POD.cur&&POD.cur.k===r.k&&POD.audio&&!POD.audio.paused?"❚❚":"▶"}</button><button class="iconbtn" data-act="podDel" data-v="${r.k}" aria-label="Apagar">🗑</button></div>`).join("")}</div>
+ <p class="tiny muted" style="margin:0">Os episódios baixados ficam só neste aparelho e não ocupam espaço na sua conta.</p>`}
+A.podDelAll=()=>openModal("Apagar todos os baixados?",`<div class="stack"><p class="small" style="margin:0">Os episódios saem deste aparelho. Você pode baixar de novo quando quiser.</p><button class="btn" data-act="podDelAllYes">Apagar todos</button><button class="btn ghost" data-act="closeModal">Cancelar</button></div>`);
+A.podDelAllYes=async()=>{for(const k of Object.keys(dlList()))if(!(POD.cur&&POD.cur.k===k))await podRemove(k);closeModal();toast("Downloads apagados.");render()};
 function podShow(id){const d=POD.data[id];
  if(!d){podLoad(id).then(render).catch(()=>{toast("Não deu para carregar este podcast agora.");POD.open=null;render()});return `<button class="btn ghost sm" data-act="podBack">‹ Podcasts</button><p class="small muted">Carregando episódios…</p>`}
  const fol=!!PODS().subs[id];
@@ -7760,15 +7777,25 @@ A.podSug=el=>podSearch(el.dataset.v);
 document.addEventListener("submit",e=>{if(e.target&&e.target.dataset&&e.target.dataset.form==="podSearch"){e.preventDefault();const i=document.getElementById("podQ");podSearch(i&&i.value)}});
 A.podOpen=el=>{POD.open=String(el.dataset.v);render();scrollTo(0,0)};
 A.podBack=()=>{POD.open=null;render()};
-A.podFollow=el=>{const id=el.dataset.v,d=POD.data[id],s=PODS().subs;if(s[id])delete s[id];else if(d){s[id]={id:d.id,title:d.title,author:d.author,art:d.art};toast("Seguindo "+d.title+".")}saveApp();render()};
+A.podFollow=el=>{const id=el.dataset.v,d=POD.data[id],s=PODS().subs;
+ if(s[id]){delete s[id];podServer("del",id)}else if(d){s[id]={id:d.id,title:d.title,author:d.author,art:d.art};podServer("add",id,d.title);toast("Seguindo "+d.title+". Te aviso quando sair episódio novo. 🔔",4200);try{trackOnce("podcast:seguir")}catch(e){}setTimeout(()=>{try{pushMomentAsk("podcast")}catch(e){}},1600)}
+ saveApp();render()};
+function podServer(op,id,title){try{if(Store.demo||!Store.cloud||typeof sb==="undefined"||!sb||typeof SESSION==="undefined"||!SESSION||!SESSION.user)return;const uid=SESSION.user.id;
+ if(op==="add")sb.from("pod_follows").upsert({uid,pid:+id,title:String(title||"").slice(0,120)}).then(()=>{});else sb.from("pod_follows").delete().eq("uid",uid).eq("pid",+id).then(()=>{})}catch(e){}}
+/* mantém a lista do servidor igual à do app (uma vez por dia por aparelho) */
+setTimeout(async()=>{try{if(Store.demo||!Store.cloud||typeof sb==="undefined"||!sb||!SESSION||!SESSION.user)return;const t=today();if(localStorage.getItem("prumo.podSync")===t)return;
+ const uid=SESSION.user.id,mine=PODS().subs;const {data}=await sb.from("pod_follows").select("pid");const have=new Set((data||[]).map(r=>String(r.pid)));
+ const add=Object.values(mine).filter(p=>!have.has(String(p.id))).map(p=>({uid,pid:+p.id,title:String(p.title||"").slice(0,120)}));if(add.length)await sb.from("pod_follows").upsert(add);
+ for(const pid of have)if(!mine[pid])await sb.from("pod_follows").delete().eq("uid",uid).eq("pid",+pid);localStorage.setItem("prumo.podSync",t)}catch(e){}},6000);
+/* aviso de episódio novo abre o podcast: /?pod=ID */
+try{const q=new URLSearchParams(location.search).get("pod");if(q&&/^\d{3,12}$/.test(q)){UI.tab="study";UI.study="podcasts";POD.open=q;history.replaceState({},"",location.pathname)}}catch(e){}
 const podFind=(pid,g)=>{const d=POD.data[pid];return d?[(d.eps||[]).find(e=>e.g===g),d]:[null,null]};
 A.podPlayEp=el=>{const [ep,d]=podFind(el.dataset.p,el.dataset.v);if(ep)podPlay(ep,d)};
 A.podDl=el=>{const [ep,d]=podFind(el.dataset.p,el.dataset.v);if(ep)podDownload(ep,d)};
 A.podDel=async el=>{const k=el.dataset.v;if(POD.cur&&POD.cur.k===k){toast("Pare o episódio antes de apagar o download.");return}await podRemove(k);toast("Download apagado.");render()};
-A.podPlayDl=el=>{const r=dlList()[el.dataset.v];if(!r)return;podPlay({g:r.g,t:r.t,s:r.s,u:"",img:r.art},{id:r.pid,title:r.pod,art:r.art})};
+A.podPlayDl=el=>{const r=dlList()[el.dataset.v];if(!r)return;if(POD.cur&&POD.cur.k===r.k){A.podToggle();setTimeout(render,100);return}podPlay({g:r.g,t:r.t,s:r.s,u:"",img:r.art},{id:r.pid,title:r.pod,art:r.art})};
 /* aba Podcasts dentro de Estudos, espaço para o tocador e limpeza dos downloads vencidos */
 {const _r=render;render=function(){const x=_r.apply(this,arguments);try{podBar();const app=document.getElementById("app");if(app&&POD.cur&&!document.getElementById("podSpace"))app.insertAdjacentHTML("beforeend",'<div id="podSpace" style="height:76px"></div>')}catch(e){}return x}}
-setTimeout(()=>{podExpire().then(()=>{try{render()}catch(e){}})},4000);setInterval(podExpire,10*60e3);
 addEventListener("resize",()=>{if(POD.cur)podBar()});
 
 /* início */

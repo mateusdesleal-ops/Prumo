@@ -324,7 +324,7 @@ body.team-env .envbtn.cur{border-color:var(--money);background:color-mix(in srgb
 .tray{position:sticky;bottom:calc(-22px - env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1.5px solid var(--line);margin:4px -16px calc(-22px - env(safe-area-inset-bottom,0px));padding:12px 16px calc(14px + env(safe-area-inset-bottom,0px));z-index:3;box-shadow:0 -8px 20px rgba(0,0,0,.06)}
 .tray.pop{animation:trayPop .35s ease}@keyframes trayPop{0%{transform:translateY(0)}40%{transform:translateY(-4px)}100%{transform:none}}
 .supdot{position:absolute;right:-3px;bottom:-3px;width:18px;height:18px;border-radius:50%;background:var(--pig-deep);color:#fff;display:grid;place-items:center;border:2px solid var(--bg);pointer-events:none}
-.avatar:has(.avpig){background:#FBE3EA;overflow:hidden;padding:0}.avatar .avpig{width:118%;height:118%;margin:-9%;display:block}.avatar .avpig *{animation:none!important}
+.avatar:has(.avpig){background:#FBE3EA;overflow:hidden;padding:0}.avatar .avpig{width:100%;height:100%;display:block}.avatar .avpig *{animation:none!important}
 .calleg{width:14px;height:14px;border-radius:5px;display:inline-block}.calleg.has{background:color-mix(in srgb,var(--pig) 30%,transparent)}.calleg.today{box-shadow:inset 0 0 0 2px var(--pig-deep)}
 
 /* timer */
@@ -672,7 +672,7 @@ function myPigSig(){if(MYPIG&&Date.now()-MYPIG.t<4000)return MYPIG.v;let v={pet:
  try{TEAM=null;v=withPersonal(()=>{if(!S.profile.pet)return{pet:false};return{pet:true,equip:effectiveEquip(),mood:"feliz",score:90} /* sigilo: para a equipe o porquinho está sempre feliz; o humor real fica só com a pessoa */})}catch(e){}finally{TEAM=T}
  MYPIG={t:Date.now(),v};return v}
 const PIGAV={};
-function pigAvatar(p){p={equip:p.equip||{},mood:"feliz",score:90};const k=JSON.stringify([p.equip]);if(!PIGAV[k])PIGAV[k]=pigSVG({score:90,mood:"feliz",equip:p.equip,env:0,mini:true}).replace(/viewBox="[^"]*"/,'viewBox="62 50 196 196"').replace('<svg ','<svg class="avpig" aria-hidden="true" ');return PIGAV[k]}
+function pigAvatar(p){p={equip:p.equip||{},mood:"feliz",score:90};const k=JSON.stringify([p.equip]);if(!PIGAV[k])PIGAV[k]=pigSVG({score:90,mood:"feliz",equip:p.equip,env:0,mini:true}).replace(/viewBox="[^"]*"/,`viewBox="${pigFitVB(p.equip,65,231)}"`).replace('<svg ','<svg class="avpig" aria-hidden="true" ');return PIGAV[k]}
 const teamInitials=uid=>{const pg=uid===ME.uid?myPigSig():((teamMembers().find(x=>x.uid===uid)||{}).pig);if(pg&&pg.pet)return pigAvatar(pg);
  const n=uid===ME.uid?(S.profile.name||"Eu"):teamNick(uid);return n.split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase()};
 function envBar(){return typeof teamEnvBar==="function"?teamEnvBar():""}
@@ -1138,6 +1138,10 @@ function doveFly(hy,walking){const w=walking;const xl=134+(w?30.18:0),xt=134+(w?
 const dovePerch=hy=>`<g transform="translate(134 ${hy})"><g class="dvperch"><g transform="scale(1.15)">${DOVE_PERCH}</g></g></g>`;
 const dvUmb=(x,y,r)=>`<line x1="${x}" y1="${y+12}" x2="${x}" y2="${y-14}" stroke="#5a3b2e" stroke-width="2.2" stroke-linecap="round"/><path d="M${x-r} ${y-12} Q${x-r} ${y-12-r*.7} ${x} ${y-12-r*.7} Q${x+r} ${y-12-r*.7} ${x+r} ${y-12} q-${r/3} -6 -${r*2/3} 0 q-${r/3} -6 -${r*2/3} 0 q-${r/3} -6 -${r*2/3} 0 Z" fill="#7FB8E8" stroke="#3B82C4" stroke-width="1.8"/><circle cx="${x}" cy="${y-12-r*.7-2.5}" r="2.5" fill="#3B82C4"/>`;
 const doveGround=(rain)=>`<g class="dvground"><g class="dvgwalk"><g transform="scale(1.25)"><g class="dvgstep">${DOVE_FRONT}</g></g>${rain?dvUmb(286,193,17):""}</g></g>`;
+/* topo de cada chapéu (para o desenho não cortar em quadros pequenos) */
+const PIG_HAT_TOP={festa:27,gorro:27,chef:34,cartola:40,bone:44,fone:48,cowboy:49,coroa:52,lapis:53,palha:54,capelo:60};
+function pigHatTop(h){return h&&PIG_HAT_TOP[h]||64}
+function pigFitVB(equip,top,bottom){const t=Math.min(top,pigHatTop(equip&&equip.head)-6),z=bottom-t;return `${160-z/2} ${t} ${z} ${z}`}
 function pigSVG(o){
  if(o&&o.wx==="rain"&&!o.mini&&o.equip&&o.equip.head)o={...o,equip:{...o.equip,head:null}}; // na chuva guarda o chapéu para usar o guarda-chuva
  const {score=60,mood="ok",equip={},env=0,mini=false,dry=false,peace=0,zen=0,wet=false,wx=null}=o;const pz=Math.max(peace,zen);
@@ -1197,7 +1201,7 @@ function pigSVG(o){
  // moedinhas felizes
  let coins="";if(mood==="feliz")coins=`<g opacity=".9"><circle class="pig-coin" cx="${cx-rx-18}" cy="${cy-40}" r="8" fill="#F2C230" stroke="#C99A12" stroke-width="2"/><circle class="pig-coin b" cx="${cx+rx+20}" cy="${cy-56}" r="6" fill="#F2C230" stroke="#C99A12" stroke-width="2"/></g>`;
  const heart=`<path class="pig-heart" d="M${cx+rx*.4} ${cy-ry-6} c-6 -10 -20 -4 -12 8 l12 10 l12 -10 c8 -12 -6 -18 -12 -8z" fill="#E23D6D"/>`;
- const vb=mini?"60 60 200 170":"0 0 320 240";
+ const _ht=pigHatTop(equip.head);const vb=mini?(_ht<64?`60 ${_ht-4} 200 ${234-_ht}`:"60 60 200 170"):"0 0 320 240";
  const hy=Math.round(cy-ry-29-(equip.head?({laco:6,fone:2,lapis:4}[equip.head]??26):0));const dv=!mini&&peace>=1;
  const walk=!mini&&(mood==="feliz"||mood==="ok");
  const wxSky=mini||!wx?"":wx==="rain"?`<rect x="0" y="0" width="320" height="240" fill="#36465c" opacity=".38"/>`:wx==="hot"?`<g class="wx-sun"><circle cx="272" cy="40" r="20" fill="#FFD23F"/>${[0,45,90,135,180,225,270,315].map(a=>`<line x1="${272+Math.cos(a*Math.PI/180)*27}" y1="${40+Math.sin(a*Math.PI/180)*27}" x2="${272+Math.cos(a*Math.PI/180)*36}" y2="${40+Math.sin(a*Math.PI/180)*36}" stroke="#FFB800" stroke-width="4" stroke-linecap="round"/>`).join("")}</g>`:"";
@@ -3327,7 +3331,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.36</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.37</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -4788,7 +4792,7 @@ document.addEventListener("change",ev=>{const el=ev.target;if(!el)return;if(el.i
 /* ============================================================
    Recado do mascote: por que o Prumo existe (com a voz do mascote)
    ============================================================ */
-function pigFace(equip){return pigSVG({score:80,mood:"feliz",equip:equip||{},env:1,dry:false,peace:0}).replace(/viewBox="[^"]*"/,'viewBox="62 48 196 196"')}
+function pigFace(equip){return pigSVG({score:80,mood:"feliz",equip:equip||{},env:1,dry:false,peace:0}).replace(/viewBox="[^"]*"/,`viewBox="${pigFitVB(equip,48,244)}"`)}
 function letterPig(){return S.profile.pet!==false}
 function letterWho(){return S.pet&&S.pet.name?esc(S.pet.name):"seu mascote"}
 function letterParas(short){const pig=letterPig();const who=letterWho();

@@ -3328,7 +3328,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.35</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.36</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -7693,7 +7693,7 @@ function podBar(){let b=document.getElementById("podBar");if(!POD.cur){if(b)b.re
  const c=POD.cur;b.innerHTML=`<div class="card row" style="gap:10px;padding:8px 10px 8px 8px;box-shadow:0 10px 30px rgba(0,0,0,.18);border:1px solid var(--line);position:relative;overflow:hidden">
  <div id="podPg" style="position:absolute;left:0;bottom:0;height:3px;background:var(--pig);width:0"></div>
  <button data-act="podFull" style="border:0;background:none;padding:0;display:flex;gap:10px;align-items:center;flex:1;min-width:0;text-align:left;color:inherit">
- <img src="${esc(c.art||"")}" alt="" style="width:44px;height:44px;border-radius:10px;object-fit:cover;flex:none;background:var(--surface2)">
+ <img src="${esc(c.art||"")}" alt="" onerror="this.style.visibility='hidden'" style="width:44px;height:44px;border-radius:10px;object-fit:cover;flex:none;background:var(--surface2)">
  <span class="stack-s" style="gap:1px;min-width:0"><b class="small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.t)}</b><span class="tiny muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.pod)}</span></span></button>
  <button class="iconbtn" data-act="podSkip" data-v="-15" aria-label="Voltar 15 segundos" style="font-size:13px;font-weight:800">↺15</button>
  <button class="iconbtn" data-act="podToggle" id="podPP" aria-label="Tocar ou pausar" style="width:42px;height:42px;background:var(--pink,#D9547F);color:#fff;font-size:17px">▶</button>
@@ -7756,7 +7756,7 @@ function podFollowing(){const subs=Object.values(PODS().subs);
 function podDownloads(){const L=Object.values(dlList()).sort((a,b)=>b.at-a.at);const tot=L.reduce((s,r)=>s+(r.size||0),0);
  if(!L.length)return `<div class="card stack-s"><b>Nenhum episódio baixado</b><span class="small muted">Toque em ⬇︎ ao lado de um episódio para baixar. Ele fica no seu aparelho para ouvir sem internet, até você apagar.</span></div>`;
  return `<div class="card row between"><span class="small"><b>${L.length} episódio${L.length>1?"s":""}</b>${tot?` · ${podMB(tot)} no aparelho`:""}</span><button class="btn ghost sm" data-act="podDelAll">Apagar todos</button></div>
- <div class="card">${L.map(r=>`<div class="row" style="gap:10px;padding:8px 0;border-bottom:1px solid var(--line)"><img src="${esc(r.art||"")}" alt="" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex:none"><div class="grow stack-s" style="gap:1px;min-width:0"><b class="small">${esc(r.t)}</b><span class="tiny muted">${esc(r.pod)}${r.size?" · "+podMB(r.size):""}</span></div>
+ <div class="card">${L.map(r=>`<div class="row" style="gap:10px;padding:8px 0;border-bottom:1px solid var(--line)"><img src="${esc(r.art||"")}" alt="" onerror="this.style.visibility='hidden'" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex:none;background:var(--surface2)"><div class="grow stack-s" style="gap:1px;min-width:0"><b class="small">${esc(r.t)}</b><span class="tiny muted">${esc(r.pod)}${r.size?" · "+podMB(r.size):""}</span></div>
   <button class="iconbtn" data-act="podPlayDl" data-v="${r.k}" aria-label="Tocar">${POD.cur&&POD.cur.k===r.k&&POD.audio&&!POD.audio.paused?"❚❚":"▶"}</button><button class="iconbtn" data-act="podDel" data-v="${r.k}" aria-label="Apagar">🗑</button></div>`).join("")}</div>
  <p class="tiny muted" style="margin:0">Os episódios baixados ficam só neste aparelho e não ocupam espaço na sua conta.</p>`}
 A.podDelAll=()=>openModal("Apagar todos os baixados?",`<div class="stack"><p class="small" style="margin:0">Os episódios saem deste aparelho. Você pode baixar de novo quando quiser.</p><button class="btn" data-act="podDelAllYes">Apagar todos</button><button class="btn ghost" data-act="closeModal">Cancelar</button></div>`);
@@ -7797,6 +7797,16 @@ A.podPlayDl=el=>{const r=dlList()[el.dataset.v];if(!r)return;if(POD.cur&&POD.cur
 /* aba Podcasts dentro de Estudos, espaço para o tocador e limpeza dos downloads vencidos */
 {const _r=render;render=function(){const x=_r.apply(this,arguments);try{podBar();const app=document.getElementById("app");if(app&&POD.cur&&!document.getElementById("podSpace"))app.insertAdjacentHTML("beforeend",'<div id="podSpace" style="height:76px"></div>')}catch(e){}return x}}
 addEventListener("resize",()=>{if(POD.cur)podBar()});
+/* sem internet (ou sem conseguir entrar): os episódios baixados continuam ao alcance, como o modo offline do Spotify */
+function podOfflineView(){return `<div class="stack" style="max-width:520px;margin:0 auto;padding-top:10px">${typeof logoHTML==="function"?logoHTML(40):""}
+ <div class="row between"><h2 style="margin:0">🎧 Podcasts baixados</h2><button class="btn ghost sm" data-act="podOfflineBack">Voltar</button></div>
+ <p class="small muted" style="margin:0">Funciona sem internet. Quando a conexão voltar, é só tocar em Voltar para entrar no Prumo.</p>${podDownloads()}</div>`}
+A.podOffline=()=>{UI.podOffline=true;render()};
+A.podOfflineBack=()=>{UI.podOffline=false;if(UI.needAuth==="offline"&&navigator.onLine)location.reload();else render()};
+{const _va=typeof viewAuth==="function"?viewAuth:null;if(_va)viewAuth=function(){if(UI.podOffline)return podOfflineView();const h=_va.apply(this,arguments);const n=Object.keys(dlList()).length;
+ if(!n||(navigator.onLine&&UI.needAuth!=="offline"))return h;
+ return h+`<div style="max-width:420px;margin:18px auto 0;text-align:center"><button class="btn ghost block" data-act="podOffline">🎧 Ouvir podcasts baixados (${n})</button><p class="tiny muted">Funciona sem internet.</p></div>`}}
+addEventListener("online",()=>{if(UI.needAuth&&!UI.podOffline)try{render()}catch(e){}});addEventListener("offline",()=>{if(UI.needAuth)try{render()}catch(e){}});
 
 /* início */
 (function boot(){

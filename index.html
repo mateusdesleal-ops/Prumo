@@ -1201,7 +1201,7 @@ function pigSVG(o){
  // moedinhas felizes
  let coins="";if(mood==="feliz")coins=`<g opacity=".9"><circle class="pig-coin" cx="${cx-rx-18}" cy="${cy-40}" r="8" fill="#F2C230" stroke="#C99A12" stroke-width="2"/><circle class="pig-coin b" cx="${cx+rx+20}" cy="${cy-56}" r="6" fill="#F2C230" stroke="#C99A12" stroke-width="2"/></g>`;
  const heart=`<path class="pig-heart" d="M${cx+rx*.4} ${cy-ry-6} c-6 -10 -20 -4 -12 8 l12 10 l12 -10 c8 -12 -6 -18 -12 -8z" fill="#E23D6D"/>`;
- const _ht=pigHatTop(equip.head);const vb=mini?(_ht<64?`60 ${_ht-4} 200 ${234-_ht}`:"60 60 200 170"):"0 0 320 240";
+ const _ht=pigHatTop(equip.head);const _vx=mood==="feliz"?Math.min(60,Math.floor(160-rx-30)):60;const vb=mini?`${_vx} ${_ht<64?_ht-4:60} ${320-2*_vx} ${_ht<64?234-_ht:170}`:"0 0 320 240";
  const hy=Math.round(cy-ry-29-(equip.head?({laco:6,fone:2,lapis:4}[equip.head]??26):0));const dv=!mini&&peace>=1;
  const walk=!mini&&(mood==="feliz"||mood==="ok");
  const wxSky=mini||!wx?"":wx==="rain"?`<rect x="0" y="0" width="320" height="240" fill="#36465c" opacity=".38"/>`:wx==="hot"?`<g class="wx-sun"><circle cx="272" cy="40" r="20" fill="#FFD23F"/>${[0,45,90,135,180,225,270,315].map(a=>`<line x1="${272+Math.cos(a*Math.PI/180)*27}" y1="${40+Math.sin(a*Math.PI/180)*27}" x2="${272+Math.cos(a*Math.PI/180)*36}" y2="${40+Math.sin(a*Math.PI/180)*36}" stroke="#FFB800" stroke-width="4" stroke-linecap="round"/>`).join("")}</g>`:"";
@@ -3331,7 +3331,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.37</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.38</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>

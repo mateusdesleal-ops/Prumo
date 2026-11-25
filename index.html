@@ -3332,7 +3332,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.39</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.40</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -7732,7 +7732,7 @@ function podEpRow(ep,pod,showPod){const k=podKey(ep.g),pr=PODS().prog[k]||{},dl=
  const pct=pr.done?100:pr.t&&(pr.s||ep.s)?Math.round(pr.t/(pr.s||ep.s)*100):0;
  const meta=[showPod?esc(pod.title):"",podDate(ep.d),podDur(ep.s),pr.done?"✓ ouvido":pct?`${pct}% ouvido`:""].filter(Boolean).join(" · ");
  return `<div class="row" style="gap:10px;padding:10px 0;border-top:1px solid var(--line);align-items:flex-start">
- <button class="iconbtn" data-act="podPlayEp" data-v="${esc(ep.g)}" data-p="${pod.id}" aria-label="Tocar" style="flex:none;width:40px;height:40px;${now?"background:var(--pink,#D9547F);color:#fff":""}">${now&&a&&!a.paused?"❚❚":"▶"}</button>
+ <button data-act="podPlayEp" data-v="${esc(ep.g)}" data-p="${pod.id}" aria-label="Tocar" style="flex:none;width:56px;height:56px;border-radius:10px;border:0;padding:0;position:relative;overflow:hidden;background:var(--surface2);cursor:pointer">${(ep.img||pod.art)?`<img src="${esc(String(ep.img||pod.art).replace(/^http:/,"https:"))}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.remove()">`:""}<span style="position:absolute;right:4px;bottom:4px;width:24px;height:24px;border-radius:50%;background:${now?"var(--pig-deep,#D9547F)":"rgba(0,0,0,.62)"};color:#fff;font-size:10px;line-height:1;display:grid;place-items:center">${now&&a&&!a.paused?"❚❚":"▶"}</span></button>
  <div class="grow stack-s" style="gap:2px;min-width:0"><b class="small">${esc(ep.t)}</b><span class="tiny muted">${meta}</span>
  ${dl?`<span class="tiny" style="color:var(--green,#2E8B57)">✓ Baixado · ouve sem internet</span>`:""}</div>
  ${POD.dl[k]?`<span class="tiny muted" data-dlp="${k}" style="flex:none;padding-top:10px">${Math.round((POD.dl[k].p||0)*100)}%</span>`

@@ -3333,7 +3333,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.42</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.43</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -8065,7 +8065,7 @@ async function stkMake(file){const url=URL.createObjectURL(file);try{const img=a
   const path=`${TEAM.id}/fig/${ME.uid}/${rid()}.png`;const {error}=await sb.storage.from("checkins").upload(path,b,{contentType:"image/png",upsert:false,cacheControl:"31536000"});if(error)throw error;PH.url[path]=URL.createObjectURL(b);return {c:path}}
  finally{URL.revokeObjectURL(url)}}
 function stkSend(k,o){const {c,u,ck}=chCkOf(k);if(!ck||!o)return;const rep=UI.chCmReply&&UI.chCmReply.k===k&&(ck.cm||{})[UI.chCmReply.id]?UI.chCmReply:null;
- ck.cm=ck.cm||{};ck.cm[rid()]={u:ME.uid,t:Date.now(),x:"",st:o,...(rep?{re:rep.id}:{})};UI.chCmReply=null;UI.chCmOpen=k;closeModal();chPatch(k);chQuietSave();setTimeout(chLoadPhotos,0);if(o.p)stkPlay(o.p);
+ ck.cm=ck.cm||{};ck.cm[rid()]={u:ME.uid,t:Date.now(),x:o.p&&STK_BY[o.p]?`🐷 Figurinha: ${STK_BY[o.p].t}`:"🖼️ Figurinha",st:o,...(rep?{re:rep.id}:{})};UI.chCmReply=null;UI.chCmOpen=k;closeModal();chPatch(k);chQuietSave();setTimeout(chLoadPhotos,0);if(o.p)stkPlay(o.p);
  if(typeof teamNotify==="function"&&TEAM){const lb=`${TEAM.name} · ${c.name}`,go=`chal&i=${c.id}&k=${encodeURIComponent(k)}`;
   if(rep&&rep.u!==ME.uid)teamNotify([rep.u],"chal",lb,`${myNick()} respondeu seu comentário com uma figurinha 🐷`,go);
   if(u!==ME.uid&&!(rep&&rep.u===u))teamNotify([u],"chal",lb,`${myNick()} mandou uma figurinha no seu check-in 🐷`,go)}}
@@ -8090,7 +8090,7 @@ Object.assign(A,{
 /* colar uma imagem direto na caixa de comentário vira figurinha */
 document.addEventListener("paste",e=>{const t=e.target;if(!t||!t.dataset||!t.dataset.cmIn)return;const it=[...((e.clipboardData&&e.clipboardData.items)||[])].find(x=>x.kind==="file"&&x.type.startsWith("image/"));if(!it)return;e.preventDefault();const f=it.getAsFile();if(f){UI.stkK=t.dataset.cmIn;stkNew(f)}});
 /* nos comentários: mostra a figurinha e põe o botão 🐷 ao lado do microfone */
-{const _row=chCmRow;chCmRow=function(k,x,isReply){let h=_row.apply(this,arguments);if(x&&x.st)h=h.replace('<span style="white-space:pre-line;overflow-wrap:anywhere"></span>',`<div style="margin-top:4px">${stkHTML(x.st)}</div>`);return h}}
+{const _row=chCmRow;chCmRow=function(k,x,isReply){let h=_row.apply(this,arguments);if(x&&x.st)h=h.replace(`<span style="white-space:pre-line;overflow-wrap:anywhere">${esc(x.x||"")}</span>`,`<div style="margin-top:4px">${stkHTML(x.st)}</div>`);return h}}
 {const _box=chCmBox;chCmBox=function(c,u,d){let h=_box.apply(this,arguments);const k=`${c.id}|${u}|${d}`;return h.replace('placeholder="Escreva uma resposta"','placeholder="Responda…"').replace('placeholder="Escreva um comentário"','placeholder="Comente…"').replace(`<input class="grow" data-cm-in="${k}"`,`<button type="button" class="btn ghost sm" data-act="stkOpen" data-k="${k}" aria-label="Figurinhas" title="Figurinhas" style="padding:6px 9px;font-size:18px">🐷</button><input class="grow" data-cm-in="${k}"`)}}
 (function(){const css=`.stk{border:0;background:none;padding:0;cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;position:relative;max-width:100%}
 .stk-pig{width:100%;filter:drop-shadow(3px 0 0 #fff) drop-shadow(-3px 0 0 #fff) drop-shadow(0 3px 0 #fff) drop-shadow(0 -3px 0 #fff) drop-shadow(0 4px 6px rgba(0,0,0,.18))}

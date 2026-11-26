@@ -8107,7 +8107,7 @@ document.addEventListener("paste",e=>{const t=e.target;if(!t||!t.dataset||!t.dat
 @media (prefers-reduced-motion:reduce){.stk-pop{animation:none}}`;const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)})();
 
 /* versão do código (no app do iPhone/Android é a versão que veio dentro do app): fica no perfil para avisar quem precisa atualizar */
-const PRUMO_V="2.54";
+const PRUMO_V="2.55";
 setTimeout(function apv(){try{if(!S.profile||!S.profile.created||Store.demo){setTimeout(apv,15000);return}const k=isNativeApp()?"app":"web";if(S.profile.ver&&S.profile.ver[k]===PRUMO_V)return;S.profile.ver=Object.assign({},S.profile.ver,{[k]:PRUMO_V});saveApp()}catch(e){}},9000);
 /* ============================================================
    Tela do Plus com o progresso da pessoa + registro automático de erros
@@ -8557,6 +8557,37 @@ A.sqDeco=el=>{const id=el.dataset.v;S.profile.decoOff=S.profile.decoOff||{};if(S
 if(typeof viewTeamHome==="function"){const _vt=viewTeamHome;viewTeamHome=function(){const h=_vt.apply(this,arguments);try{const L=teamMembers().map(m=>({u:m.uid,n:m.uid===ME.uid?(myPigSig().fire||0):+((m.pig||{}).fire||0)})).filter(x=>x.n>=2).sort((a,b)=>b.n-a.n);if(!L.length)return h;
  const card=`<div class="card stack-s" style="gap:6px"><div class="label">🔥 Sequências no Prumo</div>${L.slice(0,8).map(x=>`<div class="row between"><span class="small">${esc(x.u===ME.uid?"Você":teamNick(x.u))}</span><b class="small num">🔥 ${x.n} dias</b></div>`).join("")}<span class="tiny muted">Dias seguidos fazendo alguma coisa no Prumo.</span></div>`;
  return h.replace(/<\/div>\s*$/,card+"</div>")}catch(e){return h}}}
+
+/* ---------- Atualizar o app do iPhone ----------
+   O app leva o site dentro dele (PRUMO_V é a versão que foi junto na build).
+   No servidor: ios_latest_v = versão que está na última build aprovada pela Apple; ios_min_v = abaixo disso o app pede para atualizar antes de continuar.
+   Também mostra um aviso no lugar de conteúdo novo que esta versão não sabe mostrar (como no WhatsApp). */
+const APPSTORE_URL="https://apps.apple.com/br/app/prumo-vida-em-ordem/id6832061965";
+const UPD={info:null,at:0};
+function updCmp(a,b){const x=String(a||"0").split(".").map(n=>+n||0),y=String(b||"0").split(".").map(n=>+n||0);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d<0?-1:1}return 0}
+const updNative=()=>{try{return typeof isNativeApp==="function"&&isNativeApp()}catch(e){return false}};
+async function updLoad(){if(!updNative()||Store.demo||!sb)return;if(UPD.info&&Date.now()-UPD.at<6*3600e3)return;
+ try{const {data}=await sb.rpc("app_version_info");UPD.info=data||{};UPD.at=Date.now();updApply()}catch(e){}}
+const updOld=()=>!!(UPD.info&&UPD.info.latest&&updCmp(PRUMO_V,UPD.info.latest)<0);
+const updBlocked=()=>!!(UPD.info&&UPD.info.min&&updCmp(PRUMO_V,UPD.info.min)<0);
+function updApply(){try{trackOnce(updBlocked()?"app:bloqueado":updOld()?"app:desatualizado":"app:em_dia")}catch(e){}
+ if(updBlocked()){updWall();return}if(updOld()&&UI.tab==="home")render()}
+function updWall(){if(document.getElementById("updWall"))return;const d=document.createElement("div");d.id="updWall";
+ d.style.cssText="position:fixed;inset:0;z-index:99999;background:var(--bg,#FBF6F7);display:flex;align-items:center;justify-content:center;padding:28px;padding-top:calc(28px + env(safe-area-inset-top))";
+ d.innerHTML=`<div class="stack" style="max-width:360px;text-align:center;gap:14px;align-items:center"><div style="width:150px">${pigSVG({score:90,mood:"feliz",equip:{head:"festa"},env:0,mini:true})}</div>
+  <h2 style="margin:0">Chegou um Prumo novinho! 🎉</h2><p style="margin:0;line-height:1.55;color:var(--muted)">Esta versão do app ficou antiga e não funciona mais com as novidades. Atualize na App Store para continuar. Seus dados continuam todos salvos.</p>
+  <a class="btn block" href="${APPSTORE_URL}" data-upd="1" style="text-decoration:none">Atualizar na App Store</a><span class="tiny muted">Leva menos de um minuto.</span></div>`;
+ document.body.appendChild(d);try{trackOnce("app:parede")}catch(e){}}
+function updCard(){if(!updOld()||updBlocked())return"";const k="prumo.upd."+UPD.info.latest;let off=0;try{off=+localStorage.getItem(k)||0}catch(e){}if(off&&Date.now()-off<3*864e5)return"";
+ return `<div class="card stack-s" style="gap:8px;border:1.5px solid var(--pig,#F28AA8)"><div class="row" style="justify-content:space-between;gap:8px;align-items:flex-start"><div class="stack-s" style="gap:3px"><b>🆕 Chegou uma versão nova do Prumo</b><span class="small" style="line-height:1.45">Atualize o app para ver as novidades. Seus dados continuam salvos.</span></div><button class="iconbtn" data-act="updLater" aria-label="Depois" style="width:30px;height:30px;font-size:14px;flex:none">✕</button></div><a class="btn sm" href="${APPSTORE_URL}" data-upd="1" style="align-self:flex-start;text-decoration:none">Atualizar agora</a></div>`}
+A.updLater=()=>{try{localStorage.setItem("prumo.upd."+UPD.info.latest,String(Date.now()))}catch(e){}render()};
+document.addEventListener("click",e=>{const a=e.target&&e.target.closest&&e.target.closest("[data-upd]");if(a)try{trackOnce("app:toque_atualizar")}catch(x){}},true);
+{const _vh=viewHome;viewHome=function(){const h=_vh.apply(this,arguments);const c=updCard();if(!c)return h;const r=h.replace(/(<h1[^>]*>[\s\S]*?<\/h1>)/,"$1"+c);return r===h?c+h:r}}
+{let first=true;const _r=render;render=function(){const x=_r.apply(this,arguments);if(first&&UI.booted){first=false;setTimeout(updLoad,3000)}return x}}
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)updLoad()});
+/* conteúdo que esta versão não conhece: figurinha que ainda não existe aqui */
+{const _h=stkHTML;stkHTML=function(o,big){const r=_h.apply(this,arguments);if(r||!o||!o.p)return r;const w=big?180:112;
+ return `<div class="stk" style="width:${w}px;padding:10px;border-radius:16px;background:var(--surface2);text-align:center"><div style="font-size:30px">🐷</div><span class="tiny" style="line-height:1.35;display:block">Figurinha nova! ${updNative()?`<a href="${APPSTORE_URL}" data-upd="1" style="color:var(--pig-deep);font-weight:700">Atualize o app</a> para ver.`:"Recarregue o Prumo para ver."}</span></div>`}}
 
 /* início */
 (function boot(){

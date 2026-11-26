@@ -8106,7 +8106,7 @@ document.addEventListener("paste",e=>{const t=e.target;if(!t||!t.dataset||!t.dat
 @media (prefers-reduced-motion:reduce){.stk-pop{animation:none}}`;const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)})();
 
 /* versão do código (no app do iPhone/Android é a versão que veio dentro do app): fica no perfil para avisar quem precisa atualizar */
-const PRUMO_V="2.48";
+const PRUMO_V="2.49";
 setTimeout(function apv(){try{if(!S.profile||!S.profile.created||Store.demo){setTimeout(apv,15000);return}const k=isNativeApp()?"app":"web";if(S.profile.ver&&S.profile.ver[k]===PRUMO_V)return;S.profile.ver=Object.assign({},S.profile.ver,{[k]:PRUMO_V});saveApp()}catch(e){}},9000);
 /* ============================================================
    Tela do Plus com o progresso da pessoa + registro automático de erros
@@ -8300,7 +8300,7 @@ function alShow(id){const d=POD.data[id];
 /* marca o progresso do audiolivro para "Continuar ouvindo" */
 {const _pp=podPlay;podPlay=async function(ep,pod){const r=await _pp.apply(this,arguments);try{if(String(pod.id).startsWith("lv:")){PODS().lvLast={id:pod.id,title:pod.title,at:Date.now()};saveApp()}}catch(e){}return r}}
 async function alSearch(q){q=(q||"").trim();if(!q)return;AL.q=q;AL.res=null;render();try{AL.res=await alFetch("q="+encodeURIComponent(q)+"&lang="+AL.lang)}catch(e){AL.res=null;toast("Sem conexão para buscar agora.")}render()}
-async function alGSearch(q){q=(q||"").trim();if(!q)return;AL.gq=q;AL.gres=null;render();try{AL.gres=await alFetch("gq="+encodeURIComponent(q)+"&glang="+AL_G[AL.lang])}catch(e){AL.gres=null;toast("Sem conexão para buscar agora.")}render()}
+async function alGSearch(q){q=(q||"").trim();if(!q)return;AL.gq=q;AL.gres=null;render();const nm=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase(),ws=nm(q).split(/\s+/).filter(Boolean),loc=()=>(AL.gtop[AL_G[AL.lang]]||[]).filter(b=>ws.every(w=>nm(b.title+" "+b.author).includes(w)));try{const r=await alFetch("gq="+encodeURIComponent(q)+"&glang="+AL_G[AL.lang]);AL.gres=r&&r.length?r:loc()}catch(e){const l=loc();AL.gres=l.length?l:null;if(!l.length)toast("A busca de livros não respondeu agora. Tente de novo daqui a pouco.")}render()}
 document.addEventListener("submit",e=>{const f=e.target&&e.target.dataset&&e.target.dataset.form;if(f==="alSearch"){e.preventDefault();alSearch(v("alQ"))}if(f==="alGSearch"){e.preventDefault();alGSearch(v("alGQ"))}});
 /* ---------- leitura em voz alta (voz do aparelho) ---------- */
 const ALS={u:null,on:false,lock:null,t0:0,heard:0,chunks:[],ci:0};

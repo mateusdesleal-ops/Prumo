@@ -5602,7 +5602,7 @@ if(PN())setInterval(nativePushInit,4000);
 
 /* ---------- Avisos para todos (banners vindos do servidor: aparecem na hora no site e no app) ---------- */
 const BAN={list:null,at:0};
-const BAN_GO=[["","Sem botão de destino"],["ex:medit","Saúde → Meditação"],["ex:remed","Saúde → Remédios"],["ex:comida","Saúde → Alimentação"],["fin:mes","Finanças → Mês"],["fin:contas","Finanças → Meu dinheiro"],["fin:cartoes","Finanças → Cartões"],["fin:dividas","Finanças → Dívidas"],["study:hoje","Estudos"],["agenda:cal","Agenda"],["agenda:tasks","Tarefas"],["pig:","Porquinho"],["profile:","Perfil"],["profile:city","Escolher a cidade (abre a busca de cidade)"],["profile:review","Avaliar na App Store (só aparece no iPhone)"]];
+const BAN_GO=[["","Sem botão de destino"],["ex:medit","Saúde → Meditação"],["ex:remed","Saúde → Remédios"],["ex:comida","Saúde → Alimentação"],["fin:mes","Finanças → Mês"],["fin:contas","Finanças → Meu dinheiro"],["fin:cartoes","Finanças → Cartões"],["fin:dividas","Finanças → Dívidas"],["study:hoje","Estudos"],["agenda:cal","Agenda"],["agenda:tasks","Tarefas"],["team:new","Criar equipe"],["pig:","Porquinho"],["profile:","Perfil"],["profile:city","Escolher a cidade (abre a busca de cidade)"],["profile:review","Avaliar na App Store (só aparece no iPhone)"]];
 async function banLoad(force){if(!sb||!Store.cloud||Store.demo)return;if(!force&&BAN.list&&Date.now()-BAN.at<10*60000)return;BAN.at=Date.now();
  try{const {data}=await sb.from("banners").select("id,title,body,btn,go,ends,img,created_at,aud").order("created_at",{ascending:false}).limit(5);BAN.list=(data||[]).filter(banOk).reverse();render();setTimeout(banPopup,1500)}catch(e){}}
 const banSeen=()=>(S.profile.banSeen=S.profile.banSeen||{});
@@ -5621,7 +5621,7 @@ function banPopup(){if(typeof quietOn==="function"&&quietOn())return;if(Store.de
  openModal(b.title&&!b.img?b.title:"Novidade no Prumo",`<div class="stack">${banHTML(b,true)}<button class="btn ghost block" data-act="closeModal">${b.btn||b.go?"Agora não":"Fechar"}</button></div>`)}
 function bannerCard(){if(Store.demo)return"";const b=banHead();if(!b)return"";
  return `<div class="card stack" style="gap:10px;position:relative"><button class="iconbtn" data-act="banOff" data-v="${b.id}" aria-label="Dispensar aviso" style="position:absolute;top:8px;right:8px;width:32px;height:32px;z-index:1;background:rgba(255,255,255,.85)">×</button>${banHTML(b,false)}</div>`}
-A.banGo=el=>{const b=(BAN.list||[]).find(x=>x.id===el.dataset.v);closeModal();if(!b||!b.go)return;if(b.go==="profile:city"){setTimeout(()=>{if(typeof wxCityModal==="function")wxCityModal()},250);return} // some sozinho quando a cidade é escolhida
+A.banGo=el=>{const b=(BAN.list||[]).find(x=>x.id===el.dataset.v);closeModal();if(!b||!b.go)return;if(b.go==="team:new"){try{trackOnce("banner:equipe")}catch(e){}UI.tab="home";render();setTimeout(()=>{try{A.teamNew()}catch(e){}},250);return}if(b.go==="profile:city"){setTimeout(()=>{if(typeof wxCityModal==="function")wxCityModal()},250);return} // some sozinho quando a cidade é escolhida
  S.profile.banOff=S.profile.banOff||{};S.profile.banOff[b.id]=1;saveApp();
  if(b.go==="profile:review"){S.profile.reviewed=today();saveApp();try{trackOnce("banner:avaliar")}catch(e){}window.open(BAN_REVIEW,"_blank");setTimeout(render,300);return}const [tab,sub]=b.go.split(":");if(typeof TEAM!=="undefined"&&TEAM&&typeof teamExit==="function")teamExit();UI.tab=tab;
  if(tab==="ex")UI.ex=sub;else if(tab==="fin"){UI.fin=sub;UI.finOpen=true}else if(tab==="study")UI.study=sub||"hoje";else if(tab==="agenda")UI.agendaSub=sub||"cal";window.scrollTo(0,0);render()};
@@ -7964,7 +7964,7 @@ function newsWhen(s){const d=new Date(s);const h=(Date.now()-d)/36e5;return h<1?
 function newsRx(p){const c=NEWS.cnt[p.id]||{},me=NEWS.mine[p.id];return `<div class="row" style="gap:6px;flex-wrap:wrap" data-nrx="${p.id}">${NEWS_RX.map(e=>`<button type="button" class="chip ${me===e?"on":""}" data-act="newsReact" data-v="${p.id}" data-e="${e}" style="padding:4px 10px" aria-label="Reagir com ${e}">${e}${c[e]?" "+c[e]:""}</button>`).join("")}</div>`}
 function newsPost(p){return `<div class="card stack" style="gap:10px;padding:0;overflow:hidden">${p.img?`<img src="${esc(p.img)}" alt="" style="width:100%;display:block">`:""}
  <div class="stack" style="gap:8px;padding:${p.img?"4px":"16px"} 16px 16px"><span class="tiny muted">${newsWhen(p.created_at)}</span><b style="font-family:var(--f-display);font-size:19px;line-height:1.2">${esc(p.title)}</b>${p.body?`<p class="small" style="margin:0;white-space:pre-line">${esc(p.body)}</p>`:""}
- ${p.link?`<a class="btn sm" href="${esc(p.link)}" target="_blank" rel="noopener" style="align-self:flex-start">${esc(p.link_label||"Ver mais")}</a>`:""}${newsRx(p)}</div></div>`}
+ ${p.link?`<a class="btn sm" href="${esc(p.link)}" ${/^\//.test(p.link)?"":`target="_blank" rel="noopener"`} style="align-self:flex-start">${esc(p.link_label||"Ver mais")}</a>`:""}${newsRx(p)}</div></div>`}
 function newsView(){const L=NEWS.list||[];return `<div class="stack">${L.length?L.map(newsPost).join(""):`<div class="empty">${NEWS.list?"Ainda não tem novidades por aqui.":"Carregando…"}</div>`}</div>`}
 function newsCard(){if(Store.demo||!NEWS.list)return"";const n=newsUnseen();if(!n)return"";const p=NEWS.list[0];
  return `<button class="card row" data-act="newsOpen" style="gap:12px;text-align:left;width:100%;border:1.5px solid var(--pig);cursor:pointer"><span style="font-size:26px">📣</span><span class="grow stack-s" style="gap:2px;min-width:0"><span class="tiny muted" style="font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--pig-deep)">Novidade do Prumo${n>1?` · ${n} novas`:""}</span><b class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.title)}</b></span><span class="muted">${I.right.replace('<svg','<svg width="18" height="18"')}</span></button>`}
@@ -8106,7 +8106,7 @@ document.addEventListener("paste",e=>{const t=e.target;if(!t||!t.dataset||!t.dat
 @media (prefers-reduced-motion:reduce){.stk-pop{animation:none}}`;const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)})();
 
 /* versão do código (no app do iPhone/Android é a versão que veio dentro do app): fica no perfil para avisar quem precisa atualizar */
-const PRUMO_V="2.50";
+const PRUMO_V="2.51";
 setTimeout(function apv(){try{if(!S.profile||!S.profile.created||Store.demo){setTimeout(apv,15000);return}const k=isNativeApp()?"app":"web";if(S.profile.ver&&S.profile.ver[k]===PRUMO_V)return;S.profile.ver=Object.assign({},S.profile.ver,{[k]:PRUMO_V});saveApp()}catch(e){}},9000);
 /* ============================================================
    Tela do Plus com o progresso da pessoa + registro automático de erros
@@ -8380,6 +8380,9 @@ Object.assign(A,{
 /* ao sair da aba, para a leitura em voz alta */
 {const _r=render;render=function(){const x=_r.apply(this,arguments);try{if(AL.rd&&!(UI.tab==="study"&&UI.study==="audio")&&ALS.on)alStop()}catch(e){}return x}}
 addEventListener("pagehide",()=>{try{if(ALS.on)alStop()}catch(e){}});
+
+/* link dos avisos "crie uma equipe": /?equipe=nova abre a criação de equipe (quem não tem Plus vê a tela do Plus) */
+try{const q=new URLSearchParams(location.search).get("equipe");if(q==="nova"){history.replaceState({},"",location.pathname);const go=n=>{if(typeof ME!=="undefined"&&ME&&ME.uid&&Store.cloud&&S.profile&&S.profile.created&&!UI.needAuth){UI.tab="home";render();setTimeout(()=>{try{A.teamNew()}catch(e){}},300)}else if(n<25)setTimeout(()=>go(n+1),800)};setTimeout(()=>go(0),1500)}}catch(e){}
 
 /* início */
 (function boot(){

@@ -8107,7 +8107,7 @@ document.addEventListener("paste",e=>{const t=e.target;if(!t||!t.dataset||!t.dat
 @media (prefers-reduced-motion:reduce){.stk-pop{animation:none}}`;const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)})();
 
 /* versão do código (no app do iPhone/Android é a versão que veio dentro do app): fica no perfil para avisar quem precisa atualizar */
-const PRUMO_V="2.51";
+const PRUMO_V="2.52";
 setTimeout(function apv(){try{if(!S.profile||!S.profile.created||Store.demo){setTimeout(apv,15000);return}const k=isNativeApp()?"app":"web";if(S.profile.ver&&S.profile.ver[k]===PRUMO_V)return;S.profile.ver=Object.assign({},S.profile.ver,{[k]:PRUMO_V});saveApp()}catch(e){}},9000);
 /* ============================================================
    Tela do Plus com o progresso da pessoa + registro automático de erros
@@ -8384,6 +8384,30 @@ addEventListener("pagehide",()=>{try{if(ALS.on)alStop()}catch(e){}});
 
 /* link dos avisos "crie uma equipe": /?equipe=nova abre a criação de equipe (quem não tem Plus vê a tela do Plus) */
 try{const q=new URLSearchParams(location.search).get("equipe");if(q==="nova"){history.replaceState({},"",location.pathname);const go=n=>{if(typeof ME!=="undefined"&&ME&&ME.uid&&Store.cloud&&S.profile&&S.profile.created&&!UI.needAuth){UI.tab="home";render();setTimeout(()=>{try{A.teamNew()}catch(e){}},300)}else if(n<25)setTimeout(()=>go(n+1),800)};setTimeout(()=>go(0),1500)}}catch(e){}
+
+/* funil do Plus: só contagens somadas por dia (trackOnce = 1 por aparelho por dia), ninguém é identificado */
+const PF=(ev)=>{try{trackOnce("plus:"+ev)}catch(e){}};
+const PF_AREA=w=>String(w||"geral").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z]+/g,"_").replace(/^_|_$/g,"").slice(0,22)||"geral";
+let PF_OPEN=false;
+{const _pv=paywallView;paywallView=function(what){PF("viu");PF("bloq:"+PF_AREA(what));if(PLUS.plan&&PLUS.plan.tier&&PLUS.plan.tier!=="open")PF("viu_teste_acabou");return _pv.apply(this,arguments)}}
+{const _pm=plusModal;plusModal=function(what){PF("viu");PF("modal:"+PF_AREA(what));PF_OPEN=true;return _pm.apply(this,arguments)}}
+{const _cm=closeModal;closeModal=function(){try{if(PF_OPEN){PF_OPEN=false;if(!isPlus()||(PLUS.plan&&PLUS.plan.tier==="open"))PF("fechou")}}catch(e){}return _cm.apply(this,arguments)}}
+{const _pk=A.plusPick;A.plusPick=function(el){PF("plano:"+((el&&el.dataset.v)||"?"));return _pk.apply(this,arguments)}}
+{const _pb=A.plusBuy;A.plusBuy=async function(){PF("toque:apple:"+(UI.plusPick||"anual"));PF_OPEN=false;const r=await _pb.apply(this,arguments);try{PF(PLUS.plan&&["plus"].includes(PLUS.plan.tier)?"apple:ok":"apple:nao_concluiu")}catch(e){}return r}}
+{const _mp=A.plusMp;A.plusMp=async function(el){PF("toque:"+((el&&el.dataset.v)==="pix"?"pix":"cartao")+":"+(UI.plusPick||"anual"));PF_OPEN=false;return _mp.apply(this,arguments)}}
+{const _bk=A.plusBack;A.plusBack=function(){PF("voltou_sem_assinar");return _bk.apply(this,arguments)}}
+{const q=new URLSearchParams(location.search).get("plus");if(q)setTimeout(()=>PF("mp:"+(q==="ok"?"ok":q==="pend"?"pendente":"nao_concluiu")),6000)}
+/* painel: funil (7 dias) */
+const PF_NAMES=[["plus:viu","Viram a tela do Plus"],["plus:viu_teste_acabou","… já com o teste acabado"],["plus:fechou","Fecharam sem assinar"],["plus:voltou_sem_assinar","Voltaram sem assinar (tela bloqueada)"],["plus:plano:mensal","Tocaram no plano mensal"],["plus:plano:anual","Tocaram no plano anual"],["plus:toque:","Tocaram em assinar"],["plus:apple:ok","Assinaram pela Apple"],["plus:apple:nao_concluiu","Não concluíram na Apple"],["plus:mp:ok","Pagaram no Mercado Pago"],["plus:mp:pendente","Pagamento pendente (Pix)"],["plus:mp:nao_concluiu","Desistiram no Mercado Pago"]];
+function admPlusFunnel(){if(!ADM.use&&!ADM.useLoading&&typeof admUseCard==="function")admUseCard();const U=ADM.use||[];const sum=p=>U.filter(x=>p.endsWith(":")?x.ev.startsWith(p):x.ev===p).reduce((a,x)=>a+(+x.n||0),0);
+ const where=U.filter(x=>/^plus:(bloq|modal):/.test(x.ev)).sort((a,b)=>b.n-a.n).slice(0,6);
+ const how=U.filter(x=>/^plus:toque:/.test(x.ev)).sort((a,b)=>b.n-a.n);
+ return `<div class="card stack" style="gap:8px"><h3 style="margin:0">💳 Funil do Plus (7 dias)</h3>
+ ${!ADM.use?`<p class="small muted">Carregando…</p>`:`<div class="list">${PF_NAMES.map(([k,n])=>`<div class="item"><span class="small">${n}</span><b class="num">${sum(k)}</b></div>`).join("")}</div>
+ ${how.length?`<div class="tiny muted">Como tentaram: ${how.map(x=>`${esc(x.ev.replace("plus:toque:","").replace(":"," · "))} ${x.n}`).join(" · ")}</div>`:""}
+ ${where.length?`<div class="tiny muted">Onde viram: ${where.map(x=>`${esc(x.ev.replace(/^plus:(bloq|modal):/,"").replace(/_/g," "))} ${x.n}`).join(" · ")}</div>`:""}`}
+ <span class="tiny muted">Pessoas por dia, somadas na semana. Só contagens: ninguém é identificado.</span></div>`}
+{const _ab=admBannerCard;admBannerCard=function(){return admPlusFunnel()+_ab.apply(this,arguments)}}
 
 /* início */
 (function boot(){

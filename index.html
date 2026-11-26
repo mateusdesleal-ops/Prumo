@@ -3104,6 +3104,7 @@ function trendChart(){const ms=[];for(let i=5;i>=0;i--)ms.push(shiftMonth(UI.mon
 function finPlan(){
  const inc=refIncome(mkey());const plan=planFor(inc);const j=journey();const m=meta();
  return `${scopeBanner()}
+ ${typeof dreamsSection==="function"?dreamsSection():""}
  <div class="card stack"><div class="label">Sugestão para ${brl0(inc)} por mês</div>
   ${inc?`<div class="stack">${["N","D","F"].map(k=>`<div class="row"><span class="ico" style="background:color-mix(in srgb,${BUCKETS[k].color} 16%,transparent);color:${BUCKETS[k].color}">${plan[k]}%</span><div class="grow stack-s" style="gap:1px"><b>${BUCKETS[k].name}: ${brl0(inc*plan[k]/100)}</b><span class="tiny muted">${BUCKETS[k].desc}</span></div><button class="btn ghost sm" data-act="bucketInfo" data-v="${k}">Entender</button></div>`).join("")}</div>
   <p class="small muted">Divisão para ${plan.label}, adaptada da regra 50/30/20 de Elizabeth Warren à realidade brasileira.${plan.debtMode?" Como você tem dívida cara, parte dos desejos foi para o futuro até ela acabar.":""}</p>`
@@ -8105,7 +8106,7 @@ document.addEventListener("paste",e=>{const t=e.target;if(!t||!t.dataset||!t.dat
 @media (prefers-reduced-motion:reduce){.stk-pop{animation:none}}`;const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)})();
 
 /* versão do código (no app do iPhone/Android é a versão que veio dentro do app): fica no perfil para avisar quem precisa atualizar */
-const PRUMO_V="2.46";
+const PRUMO_V="2.47";
 setTimeout(function apv(){try{if(!S.profile||!S.profile.created||Store.demo){setTimeout(apv,15000);return}const k=isNativeApp()?"app":"web";if(S.profile.ver&&S.profile.ver[k]===PRUMO_V)return;S.profile.ver=Object.assign({},S.profile.ver,{[k]:PRUMO_V});saveApp()}catch(e){}},9000);
 /* ============================================================
    Tela do Plus com o progresso da pessoa + registro automático de erros
@@ -8181,6 +8182,56 @@ Object.assign(A,{
    if(r.exp)o.expenses[id]={v:r.v,desc:r.desc,cat:r.cat||"outros",date:r.date,by:ME.uid,t:Date.now(),added:td,imp:1};else o.incomes[id]={v:r.v,desc:r.desc,date:r.date,by:ME.uid,t:Date.now(),imp:1}});
   Object.entries(by).forEach(([m,o])=>{const p={};if(Object.keys(o.expenses).length)p.expenses=o.expenses;if(Object.keys(o.incomes).length)p.incomes=o.incomes;finPatch(m,p)});
   const ne=rows.filter(r=>r.exp).length,ni=rows.length-ne;markActive();saveApp();closeModal();UI.ext=null;toast(`Pronto! ${ne} gasto${ne===1?"":"s"}${ni?` e ${ni} entrada${ni===1?"":"s"}`:""} importado${rows.length===1?"":"s"}.`,5000)}});
+
+/* ============================================================
+   Cofrinhos: um porquinho para cada sonho (viagem, carro, reserva...)
+   O valor guardado vem dos lançamentos na categoria "Sonhos e objetivos" ligados ao cofrinho.
+   ============================================================ */
+const DREAM_EMO=["✈️","🏖️","🏠","🚗","🎓","💍","🛡️","🎮","📱","🐶","👶","💰"];
+const dreamsList=()=>Object.entries(meta().dreams||{}).filter(([,d])=>d).map(([id,d])=>({id,...d}));
+function dreamSaved(id){let s=0;try{for(const k of allMonths())for(const e of monthData(k).expenses)if(e.dr===id&&e.st!=="apagar")s+=+e.v||0}catch(e){}return Math.round(s*100)/100}
+function dreamPig(p){const fill=Math.max(0,Math.min(1,p));const h=Math.round(58*fill);const id="dj"+Math.random().toString(36).slice(2,7);
+ return `<svg viewBox="0 0 84 70" width="64" height="54" aria-hidden="true"><defs><clipPath id="${id}"><ellipse cx="40" cy="40" rx="30" ry="24"/></clipPath></defs>
+ <path d="M18 24 q-2 -12 8 -14 q2 8 -2 14z" fill="#F7A8BE"/><path d="M58 22 q4 -12 -6 -14 q-4 8 0 14z" fill="#F7A8BE"/>
+ <ellipse cx="40" cy="40" rx="30" ry="24" fill="#FCE3EA"/><rect x="8" y="${64-h}" width="64" height="${h}" fill="#F28AA8" clip-path="url(#${id})"/>
+ ${fill>.15?`<circle cx="30" cy="${Math.min(58,66-h+8)}" r="4" fill="#FFD23F" stroke="#C99A12" stroke-width="1.5" clip-path="url(#${id})"/><circle cx="46" cy="${Math.min(60,66-h+12)}" r="3.5" fill="#FFD23F" stroke="#C99A12" stroke-width="1.5" clip-path="url(#${id})"/>`:""}
+ <ellipse cx="40" cy="40" rx="30" ry="24" fill="none" stroke="#D9577E" stroke-width="2.5"/><rect x="33" y="15" width="14" height="4" rx="2" fill="#C9627F"/>
+ <ellipse cx="70" cy="42" rx="7" ry="6" fill="#F48CAA" stroke="#D9577E" stroke-width="2"/><circle cx="68" cy="42" r="1.4" fill="#B84A6C"/><circle cx="72" cy="42" r="1.4" fill="#B84A6C"/>
+ <circle cx="56" cy="34" r="2.2" fill="#2B1E24"/><rect x="22" y="60" width="7" height="8" rx="2" fill="#F7A8BE"/><rect x="48" y="60" width="7" height="8" rx="2" fill="#F7A8BE"/></svg>`}
+function dreamMonths(due){if(!due)return 0;const [y,m]=due.split("-").map(Number);const n=new Date();return Math.max(0,(y-n.getFullYear())*12+(m-1-n.getMonth()))}
+function dreamCard(d){const s=dreamSaved(d.id),t=+d.target||0,p=t?s/t:0,left=Math.max(0,t-s),mo=dreamMonths(d.due),per=mo?left/mo:left;
+ return `<button class="card row" data-act="dreamOpen" data-v="${d.id}" style="gap:12px;width:100%;text-align:left;cursor:pointer;align-items:center">${dreamPig(p)}
+ <div class="grow stack-s" style="gap:3px;min-width:0"><b style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.emo||"🐷")} ${esc(d.name)}</b>
+ <span class="small num">${brl0(s)} <span class="muted">de ${brl0(t)}</span></span><div class="meter" style="height:8px"><i style="width:${Math.min(100,p*100).toFixed(1)}%;background:var(--future)"></i></div>
+ <span class="tiny muted">${p>=1?"🎉 Meta alcançada!":d.due?`${mo?`Faltam ${mo} ${mo===1?"mês":"meses"} · guarde ${brl0(per)} por mês`:"O prazo chegou"}`:`Faltam ${brl0(left)}`}</span></div></button>`}
+function dreamsSection(){if(finScope&&finScope()==="t")return"";const L=dreamsList();
+ return `<div class="section" style="margin-top:0"><div class="row between"><div class="label">🐷 Cofrinhos dos seus sonhos</div><button class="btn sm" data-act="dreamNew">${I.plus.replace('<svg','<svg width="16" height="16"')} Cofrinho</button></div>
+ ${L.length?`<div class="stack-s">${L.map(dreamCard).join("")}</div>`:`<div class="card stack" style="gap:8px"><span class="small">Viagem, carro, casa, reserva de emergência… Crie um cofrinho para cada sonho, diga quanto custa e até quando. O Prumo mostra quanto guardar por mês, e o porquinho vai enchendo a cada depósito.</span><button class="btn line sm" data-act="dreamNew" style="align-self:flex-start">Criar meu primeiro cofrinho</button></div>`}</div>`}
+function dreamForm(d){d=d||{};UI.dreamEmo=d.emo||"✈️";
+ openModal(d.id?"Editar cofrinho":"Novo cofrinho",`<div class="stack"><label class="field"><span>Qual é o sonho?</span><input id="dr_name" maxlength="40" value="${esc(d.name||"")}" placeholder="Ex.: Viagem para a praia"></label>
+ <div class="row wrap" style="gap:6px">${DREAM_EMO.map(e=>`<button type="button" class="chip ${e===UI.dreamEmo?"on":""}" data-act="dreamEmo" data-v="${e}" style="font-size:18px;padding:4px 10px">${e}</button>`).join("")}</div>
+ <div class="grid2"><label class="field"><span>Quanto custa</span><input id="dr_target" inputmode="decimal" value="${d.target?String(d.target).replace(".",","):""}" placeholder="R$ 0,00"></label><label class="field"><span>Até quando (opcional)</span><input id="dr_due" type="month" value="${esc(d.due||"")}"></label></div>
+ <button class="btn block" data-act="dreamSave" data-v="${d.id||""}">${d.id?"Salvar":"Criar cofrinho"}</button>${d.id?`<button class="btn danger block" data-act="dreamDel" data-v="${d.id}">Apagar cofrinho</button>`:""}</div>`)}
+Object.assign(A,{
+ dreamNew:()=>dreamForm(),
+ dreamEmo:el=>{UI.dreamEmo=el.dataset.v;document.querySelectorAll('[data-act="dreamEmo"]').forEach(b=>b.classList.toggle("on",b===el))},
+ dreamSave:el=>{const name=v("dr_name").trim(),target=parseMoney(v("dr_target"));if(!name||!target){toast("Diga o sonho e quanto ele custa.");return}const id=el.dataset.v||rid();const old=(meta().dreams||{})[id]||{};
+  finPatch("meta",{dreams:{[id]:{name,target,due:v("dr_due")||null,emo:UI.dreamEmo||"🐷",by:old.by||ME.uid,created:old.created||today()}}});markActive();saveApp();closeModal();toast(old.name?"Cofrinho atualizado.":"Cofrinho criado! Agora é só ir guardando. 🐷")},
+ dreamDel:el=>{const id=el.dataset.v;const d=(meta().dreams||{})[id];if(!d)return;openModal("Apagar cofrinho?",`<div class="stack"><p class="small">O cofrinho <b>${esc(d.name)}</b> some da lista. O que você já guardou continua nos seus lançamentos, na categoria Sonhos e objetivos.</p><button class="btn danger block" data-act="dreamDelYes" data-v="${id}">Apagar</button><button class="btn ghost block" data-act="closeModal">Cancelar</button></div>`)},
+ dreamDelYes:el=>{finPatch("meta",{dreams:{[el.dataset.v]:null}});saveApp();closeModal();toast("Cofrinho apagado.")},
+ dreamOpen:el=>{const d=dreamsList().find(x=>x.id===el.dataset.v);if(!d)return;const s=dreamSaved(d.id),t=+d.target||0,mo=dreamMonths(d.due),left=Math.max(0,t-s);
+  const dep=[];try{for(const k of allMonths())for(const e of monthData(k).expenses)if(e.dr===d.id)dep.push(e)}catch(e){}dep.sort((a,b)=>b.date.localeCompare(a.date));
+  openModal(`${d.emo||"🐷"} ${d.name}`,`<div class="stack"><div class="row" style="gap:14px;align-items:center">${dreamPig(t?s/t:0).replace('width="64" height="54"','width="96" height="80"')}<div class="stack-s" style="gap:2px"><span class="big num" style="font-size:26px">${brl0(s)}</span><span class="small muted">de ${brl0(t)}${d.due?` · até ${MONTHS[+d.due.slice(5)-1]} de ${d.due.slice(0,4)}`:""}</span></div></div>
+  ${left>0?`<p class="small" style="margin:0">${mo?`Para chegar lá no prazo, guarde <b>${brl0(left/mo)}</b> por mês.`:`Faltam <b>${brl0(left)}</b>.`}</p>`:`<div class="banner info"><span>🎉 Você chegou lá! Hora de realizar esse sonho.</span></div>`}
+  <div class="grid2"><label class="field"><span>Guardar agora</span><input id="dr_dep" inputmode="decimal" placeholder="R$ 0,00"></label><button class="btn money" data-act="dreamDeposit" data-v="${d.id}" style="align-self:end">🐷 Guardar</button></div>
+  <span class="tiny muted">Cada depósito entra nas suas finanças como “Sonhos e objetivos”, na fatia Futuro. Se quiser desfazer, é só apagar o lançamento no mês.</span>
+  ${dep.length?`<div class="label">Depósitos</div><div class="list">${dep.slice(0,12).map(e=>`<div class="item"><span class="grow small">${ddmm(e.date)}</span><span class="amount">${brl(e.v)}</span></div>`).join("")}</div>`:""}
+  <button class="btn ghost block" data-act="dreamEdit" data-v="${d.id}">Editar cofrinho</button></div>`)},
+ dreamEdit:el=>{const d=dreamsList().find(x=>x.id===el.dataset.v);if(d)dreamForm(d)},
+ dreamDeposit:el=>{const d=dreamsList().find(x=>x.id===el.dataset.v);const val=parseMoney(v("dr_dep"));if(!d||!val){toast("Informe quanto vai guardar.");return}const before=dreamSaved(d.id);
+  const id=rid(),date=today();finPatch(mid(mkey(date)),{expenses:{[id]:{v:val,desc:`Cofrinho: ${d.name}`,cat:"sonho",date,dr:d.id,by:ME.uid,t:Date.now(),added:date}}});markActive();saveApp();
+  const now=before+val;closeModal();if(typeof pigPoke==="function")try{pigPoke()}catch(e){}
+  toast(now>=d.target&&before<d.target?`🎉 Você completou o cofrinho “${d.name}”!`:`🐷 Guardado! ${brl0(now)} de ${brl0(d.target)}.`,4500)}});
 
 /* início */
 (function boot(){

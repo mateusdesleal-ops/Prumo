@@ -7255,6 +7255,7 @@ function paywallBody(what){UI.plusPick=UI.plusPick||"anual";const native=!!IAP()
  if(native&&!PLUS.prods)plusProducts();
  return `<div class="stack" id="plusBody" style="gap:12px">
  <div class="row" style="gap:12px;align-items:center"><div style="width:84px;flex:none">${pigSVG({score:96,mood:"feliz",equip:effectiveEquip(),env:0,mini:true})}</div><div class="stack-s" style="gap:2px"><b style="font-size:20px;line-height:1.2">${what?esc(what)+" faz parte do Prumo Plus":"Prumo Plus"}</b><span class="small muted">Tudo o que o Prumo tem, para colocar a vida em ordem de verdade.</span></div></div>
+ ${typeof plusMine==="function"?plusMine():""}
  ${plusTrialNote()?`<div class="banner info"><span>${plusTrialNote()}</span></div>`:""}
  <div class="stack-s" style="gap:6px">${plusPerks().map(([i,n])=>`<div class="row small" style="gap:10px"><span style="width:22px;text-align:center">${i}</span><span>${n}</span></div>`).join("")}</div>
  <div class="grid2" style="gap:10px;margin-top:4px">${plusPlanBtn("mensal")}${plusPlanBtn("anual")}</div>
@@ -8104,8 +8105,38 @@ document.addEventListener("paste",e=>{const t=e.target;if(!t||!t.dataset||!t.dat
 @media (prefers-reduced-motion:reduce){.stk-pop{animation:none}}`;const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)})();
 
 /* versão do código (no app do iPhone/Android é a versão que veio dentro do app): fica no perfil para avisar quem precisa atualizar */
-const PRUMO_V="2.43";
+const PRUMO_V="2.44";
 setTimeout(function apv(){try{if(!S.profile||!S.profile.created||Store.demo){setTimeout(apv,15000);return}const k=isNativeApp()?"app":"web";if(S.profile.ver&&S.profile.ver[k]===PRUMO_V)return;S.profile.ver=Object.assign({},S.profile.ver,{[k]:PRUMO_V});saveApp()}catch(e){}},9000);
+/* ============================================================
+   Tela do Plus com o progresso da pessoa + registro automático de erros
+   ============================================================ */
+function plusMine(){try{let exp=0;try{for(const k of allMonths()){const d=monthData(k);exp+=(d.expenses||[]).length+(d.incomes||[]).length}}catch(e){}
+ const ex=vals(S.ex&&S.ex.logs).length,stMin=vals(S.study&&S.study.logs).reduce((a,l)=>a+(+l.min||0),0),tk=vals(S.tasks&&S.tasks.items).filter(t=>t.status==="done").length,
+  meals=vals(S.food&&S.food.logs).length,days=Object.keys(S.activity||{}).length,ev=vals(S.agenda&&S.agenda.events).length;
+ const it=[];if(exp)it.push(["📒",`<b>${exp}</b> lançamento${exp>1?"s":""} nas finanças`]);if(ex)it.push(["🏃",`<b>${ex}</b> treino${ex>1?"s":""} registrado${ex>1?"s":""}`]);
+ if(stMin>=10)it.push(["📚",`<b>${stMin>=120?Math.round(stMin/60)+" h":stMin+" min"}</b> de estudo`]);if(meals)it.push(["🍎",`<b>${meals}</b> ${meals>1?"refeições anotadas":"refeição anotada"}`]);
+ if(tk)it.push(["✅",`<b>${tk}</b> tarefa${tk>1?"s":""} concluída${tk>1?"s":""}`]);if(ev)it.push(["🗓️",`<b>${ev}</b> compromisso${ev>1?"s":""} na agenda`]);
+ if(it.length<2&&days<3)return"";
+ return `<div class="card flat stack-s" style="gap:8px"><b class="small">${days>=2?`Em ${days} dias de Prumo, você já construiu:`:"O que você já construiu no Prumo:"}</b>
+ <div class="stack-s" style="gap:5px">${it.slice(0,5).map(([i,t])=>`<div class="row small" style="gap:10px"><span style="width:22px;text-align:center">${i}</span><span>${t}</span></div>`).join("")}</div>
+ <span class="tiny muted">Tudo isso continua guardado. Com o Plus, você segue exatamente de onde parou.</span></div>`}catch(e){return""}}
+/* erros: guarda só a mensagem técnica (sem dados pessoais), no máximo 5 por sessão */
+const ERRS={q:[],seen:new Set(),n:0};
+function errPush(msg,src){try{msg=String(msg||"").slice(0,400);if(!msg||/ResizeObserver|^Script error\.?$|extension:\/\/|NotAllowedError: play\(\)|AbortError|Load failed$|Failed to fetch$|NetworkError/i.test(msg))return;
+ if(ERRS.seen.has(msg)||ERRS.n>=5)return;ERRS.seen.add(msg);ERRS.n++;ERRS.q.push({msg,src:String(src||"").slice(0,600),ver:typeof PRUMO_V!=="undefined"?PRUMO_V:"",app:isNativeApp()?"app":"web",tab:String(UI&&UI.tab||"").slice(0,40),ua:String(navigator.userAgent||"").replace(/\s+/g," ").slice(0,160)});errFlush()}catch(e){}}
+async function errFlush(){try{if(!ERRS.q.length||typeof sb==="undefined"||!sb||!Store.cloud||Store.demo||!ME.uid||ME.uid==="local"||navigator.onLine===false)return;const rows=ERRS.q.splice(0);await sb.from("client_errors").insert(rows.map(r=>({...r,uid:ME.uid})))}catch(e){}}
+window.addEventListener("error",e=>errPush(e.message||(e.error&&e.error.message),e.error&&e.error.stack?String(e.error.stack).split("\n").slice(0,4).join(" | "):`${e.filename||""}:${e.lineno||""}:${e.colno||""}`));
+window.addEventListener("unhandledrejection",e=>{const r=e.reason;errPush(r&&r.message||String(r),r&&r.stack?String(r.stack).split("\n").slice(0,4).join(" | "):"promise")});
+setInterval(errFlush,30000);
+/* painel do admin: erros dos últimos 7 dias */
+const ADME={list:null};
+function admErrCard(){if(!ADME.list&&!ADME.loading){ADME.loading=1;sb.rpc("admin_errors",{p_days:7}).then(r=>{ADME.list=r.data||[];ADME.loading=0;render()},()=>{ADME.loading=0})}
+ const L=ADME.list||[];return `<div class="card stack" style="gap:8px"><div class="row between"><h3 style="margin:0">🐞 Erros do app (7 dias)</h3><button class="btn ghost sm" data-act="admErrReload">Atualizar</button></div>
+ <span class="small muted">Registrados automaticamente, só a mensagem técnica, sem dados pessoais.</span>
+ ${L.length?`<div class="list">${L.map(x=>`<div class="item" style="flex-direction:column;align-items:stretch;gap:2px"><b class="small" style="overflow-wrap:anywhere">${esc(x.msg)}</b><span class="tiny muted">${x.n}× · ${x.pessoas} pessoa${x.pessoas>1?"s":""} · ${esc(x.app||"")} ${esc(x.ver||"")} · ${esc(x.tab||"")} · último ${new Date(x.ultimo).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</span>${x.src?`<span class="tiny muted" style="overflow-wrap:anywhere;font-family:ui-monospace,monospace">${esc(x.src.slice(0,220))}</span>`:""}</div>`).join("")}</div>`:`<div class="empty" style="padding:10px">${ADME.list?"Nenhum erro registrado. 🎉":"Carregando…"}</div>`}</div>`}
+A.admErrReload=()=>{ADME.list=null;render()};
+{const _ab=admBannerCard;admBannerCard=function(){return _ab.apply(this,arguments)+admErrCard()}}
+
 /* início */
 (function boot(){
  const l=lsGet();if(l&&l.S){S=hydrate(l.S);Object.assign(PFIN,l.PFIN||{})}

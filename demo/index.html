@@ -8107,7 +8107,7 @@ document.addEventListener("paste",e=>{const t=e.target;if(!t||!t.dataset||!t.dat
 @media (prefers-reduced-motion:reduce){.stk-pop{animation:none}}`;const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)})();
 
 /* versão do código (no app do iPhone/Android é a versão que veio dentro do app): fica no perfil para avisar quem precisa atualizar */
-const PRUMO_V="2.52";
+const PRUMO_V="2.53";
 setTimeout(function apv(){try{if(!S.profile||!S.profile.created||Store.demo){setTimeout(apv,15000);return}const k=isNativeApp()?"app":"web";if(S.profile.ver&&S.profile.ver[k]===PRUMO_V)return;S.profile.ver=Object.assign({},S.profile.ver,{[k]:PRUMO_V});saveApp()}catch(e){}},9000);
 /* ============================================================
    Tela do Plus com o progresso da pessoa + registro automático de erros
@@ -8408,6 +8408,36 @@ function admPlusFunnel(){if(!ADM.use&&!ADM.useLoading&&typeof admUseCard==="func
  ${where.length?`<div class="tiny muted">Onde viram: ${where.map(x=>`${esc(x.ev.replace(/^plus:(bloq|modal):/,"").replace(/_/g," "))} ${x.n}`).join(" · ")}</div>`:""}`}
  <span class="tiny muted">Pessoas por dia, somadas na semana. Só contagens: ninguém é identificado.</span></div>`}
 {const _ab=admBannerCard;admBannerCard=function(){return admPlusFunnel()+_ab.apply(this,arguments)}}
+
+/* volta sem culpa (quem passou 7+ dias sem usar) e missão do 2º dia (quem criou a conta ontem ou anteontem) */
+const BK={gap:null,day:null};
+function bkCreatedDay(){const c=S.profile&&S.profile.created;if(!c)return null;if(typeof c==="number")return new Date(c).toISOString().slice(0,10);return String(c).slice(0,10)}
+function bkGap(){if(BK.day===today()&&BK.gap!==null)return BK.gap;const t=today();const prev=Object.keys(S.activity||{}).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)&&d<t).sort().pop();
+ BK.gap=prev?Math.round((parseDate(t)-parseDate(prev))/86400000):0;BK.day=t;return BK.gap}
+function bkLate(){try{if(TEAM)return [];return taskList().filter(t=>t&&t.status!=="done"&&t.date&&t.date<today())}catch(e){return []}}
+function bkBtns(late){return `<div class="row" style="gap:8px;flex-wrap:wrap">
+ <button class="btn sm" data-act="bkDo" data-v="gasto">💸 Anotar um gasto</button>
+ <button class="btn sm line" data-act="bkDo" data-v="agua">💧 Beber um copo de água</button>
+ <button class="btn sm line" data-act="bkDo" data-v="remed">💊 Marcar um remédio</button>
+ ${late?`<button class="btn sm line" data-act="bkDo" data-v="atrasadas">🗓️ Passar ${late} atrasada${late>1?"s":""} para hoje</button>`:""}</div>`}
+function bkCard(){try{if(Store.demo||TEAM||!UI.booted||!S.profile||!S.profile.created||UI.tab!=="home")return"";const t=today();
+ const cd=bkCreatedDay();const age=cd?Math.round((parseDate(t)-parseDate(cd))/86400000):99;
+ const x=`<button class="iconbtn" data-act="bkOff" aria-label="Fechar" style="width:30px;height:30px;font-size:14px;flex:none">✕</button>`;
+ if(bkGap()>=7&&S.profile.backSeen!==t){const late=bkLate().length;
+  return `<div class="card stack-s" style="gap:10px;background:var(--pig-soft)" data-bk="volta"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:8px"><div class="stack-s" style="gap:4px"><h3 style="margin:0">Que bom te ver de volta 💗</h3><p class="small" style="margin:0;line-height:1.5">Tudo o que você guardou continua aqui. Sem pressa e sem cobrança: que tal começar com uma coisa só?</p></div>${x}</div>${bkBtns(late)}${late?`<span class="tiny muted">Tem ${late} tarefa${late>1?"s":""} com data que já passou. Se quiser, passe para hoje e recomece do zero.</span>`:""}</div>`}
+ if(age>=1&&age<=2&&!(S.activity||{})[t]&&S.profile.d2Seen!==t)
+  return `<div class="card stack-s" style="gap:10px;background:var(--pig-soft)" data-bk="dia2"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:8px"><div class="stack-s" style="gap:4px"><span class="tiny" style="font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--pig-deep)">Missão de hoje</span><h3 style="margin:0">Só uma coisinha 🐷</h3><p class="small" style="margin:0;line-height:1.5">Quem faz uma coisa no Prumo no segundo dia pega o jeito. Escolha a mais fácil:</p></div>${x}</div>${bkBtns(0)}</div>`;
+ return""}catch(e){return""}}
+function bkSeen(){const t=today();if(bkGap()>=7)S.profile.backSeen=t;else S.profile.d2Seen=t;saveApp()}
+A.bkOff=()=>{try{trackOnce("volta:fechou")}catch(e){}bkSeen();render()};
+A.bkDo=el=>{const v=el.dataset.v;try{trackOnce("volta:"+v)}catch(e){}
+ if(v==="atrasadas"){const L=bkLate();L.forEach(t=>{t.date=today()});bkSeen();commit();toast(`Pronto! ${L.length} tarefa${L.length>1?"s":""} para hoje. Uma de cada vez 💗`);return}
+ bkSeen();
+ if(v==="gasto"){render();A.addExpense?A.addExpense():expenseForm(null);return}
+ if(v==="agua"){A.water({dataset:{v:"1"}});toast("Um copo a mais 💧 Bom recomeço!");return}
+ if(v==="remed"){UI.tab="ex";UI.ex="remed";window.scrollTo(0,0);render();return}};
+{const _vh=viewHome;viewHome=function(){const h=_vh.apply(this,arguments);const c=bkCard();if(!c)return h;try{trackOnce("volta:viu:"+(c.includes('data-bk="volta"')?"volta":"dia2"))}catch(e){}
+ const r=h.replace(/(<h1[^>]*>[\s\S]*?<\/h1>)/,"$1"+c);return r===h?c+h:r}}
 
 /* início */
 (function boot(){

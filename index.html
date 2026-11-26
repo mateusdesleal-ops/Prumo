@@ -8106,7 +8106,7 @@ document.addEventListener("paste",e=>{const t=e.target;if(!t||!t.dataset||!t.dat
 @media (prefers-reduced-motion:reduce){.stk-pop{animation:none}}`;const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)})();
 
 /* versão do código (no app do iPhone/Android é a versão que veio dentro do app): fica no perfil para avisar quem precisa atualizar */
-const PRUMO_V="2.49";
+const PRUMO_V="2.50";
 setTimeout(function apv(){try{if(!S.profile||!S.profile.created||Store.demo){setTimeout(apv,15000);return}const k=isNativeApp()?"app":"web";if(S.profile.ver&&S.profile.ver[k]===PRUMO_V)return;S.profile.ver=Object.assign({},S.profile.ver,{[k]:PRUMO_V});saveApp()}catch(e){}},9000);
 /* ============================================================
    Tela do Plus com o progresso da pessoa + registro automático de erros
@@ -8304,9 +8304,27 @@ async function alGSearch(q){q=(q||"").trim();if(!q)return;AL.gq=q;AL.gres=null;r
 document.addEventListener("submit",e=>{const f=e.target&&e.target.dataset&&e.target.dataset.form;if(f==="alSearch"){e.preventDefault();alSearch(v("alQ"))}if(f==="alGSearch"){e.preventDefault();alGSearch(v("alGQ"))}});
 /* ---------- leitura em voz alta (voz do aparelho) ---------- */
 const ALS={u:null,on:false,lock:null,t0:0,heard:0,chunks:[],ci:0};
-function alVoice(lang){const V=speechSynthesis.getVoices()||[];const want=lang==="en"?"en":lang==="es"?"es":"pt";
- const pref=want==="pt"?[/pt[-_]BR/i,/pt/i]:want==="en"?[/en[-_]US/i,/en/i]:[/es[-_](ES|MX|US)/i,/es/i];
- for(const re of pref){const vs=V.filter(v=>re.test(v.lang));if(vs.length)return vs.find(v=>/Luciana|Felipe|Google|Natural|Premium|Enhanced|Francisca|Thiago/i.test(v.name))||vs[0]}return null}
+/* vozes: escolhe a melhor instalada (Premium > Aprimorada > Google/neural > básica); a pessoa pode trocar */
+const AL_OS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1)?"ios":/Android/i.test(navigator.userAgent)?"android":"outro";
+function alLangRe(lang){const w=lang==="en"?"en":lang==="es"?"es":"pt";return w==="pt"?/^pt([-_]|$)/i:w==="en"?/^en([-_]|$)/i:/^es([-_]|$)/i}
+function alVScore(v,lang){const n=(v.name||"")+" "+(v.voiceURI||"");if(/eloquence|Rocko|Grandma|Grandpa|Shelley|Sandy|Reed|Flo\b|Eddy|bells|bubbles|cellos|jester|organ|trinoids|whisper|zarvox|bad news|good news|boing|bahh|albert|fred|junior|ralph|superstar|wobble/i.test(n))return -5;
+ let sc=0;if(/premium/i.test(n))sc=40;else if(/enhanced|aprimorad|neural|natural|wavenet|online/i.test(n))sc=30;else if(/google/i.test(n)||v.localService===false)sc=25;else if(/siri/i.test(n))sc=28;else if(/compact|b[aá]sic/i.test(n))sc=5;else sc=10;
+ if(lang!=="en"&&lang!=="es"&&/pt[-_]BR/i.test(v.lang))sc+=3;if(lang==="en"&&/en[-_]US/i.test(v.lang))sc+=3;return sc}
+function alVoices(lang){const re=alLangRe(lang);return (("speechSynthesis" in window&&speechSynthesis.getVoices())||[]).filter(v=>re.test(v.lang)).map(v=>({v,sc:alVScore(v,lang)})).filter(x=>x.sc>0).sort((a,b)=>b.sc-a.sc)}
+function alVoice(lang){const L=alVoices(lang);if(!L.length)return null;let pick="";try{pick=localStorage.getItem("prumo.ttsVoice."+lang)||""}catch(e){}return (pick&&L.find(x=>x.v.voiceURI===pick)||L[0]).v}
+function alVoiceLevel(lang){const L=alVoices(lang);return !L.length?0:L[0].sc>=28?3:L[0].sc>=20?2:1}
+function alVoicesReady(){return new Promise(ok=>{if(!("speechSynthesis" in window))return ok();if(speechSynthesis.getVoices().length)return ok();let d=0;const f=()=>{if(d)return;d=1;ok()};speechSynthesis.addEventListener?.("voiceschanged",f,{once:true});setTimeout(f,1500)})}
+if("speechSynthesis" in window){try{speechSynthesis.getVoices();speechSynthesis.addEventListener?.("voiceschanged",()=>{if(AL.rd&&UI.study==="audio")render()})}catch(e){}}
+function alVName(v){return String(v.name||"").replace(/\s*\((Enhanced|Premium|Compact)\)/i,(m,k)=>({enhanced:" (Aprimorada)",premium:" (Premium)",compact:""})[k.toLowerCase()]).replace(/^Google\s+/i,"Google ")}
+function alHowTo(){return AL_OS==="ios"?`No iPhone: <b>Ajustes › Acessibilidade › Conteúdo Falado › Vozes › Português (Brasil)</b>, escolha a Luciana ou o Felipe e baixe a versão <b>Premium</b> (ou Aprimorada). Depois volte aqui.`
+ :AL_OS==="android"?`No Android: <b>Configurações › Sistema › Idiomas › Saída de texto para voz</b>, escolha o <b>Mecanismo de fala do Google</b>, toque na engrenagem › <b>Instalar dados de voz</b> › <b>Português (Brasil)</b>. Depois volte aqui.`
+ :`No computador, instale uma voz em português nas configurações de fala do sistema, ou use o Chrome, que já traz vozes do Google.`}
+function alVoiceBox(lang){const lv=alVoiceLevel(lang);if(!("speechSynthesis" in window))return `<div class="card stack-s" style="gap:6px"><b>🔇 Este aparelho não lê em voz alta</b><p class="small muted" style="margin:0">Experimente os audiolivros narrados por pessoas.</p><button class="btn sm" data-act="alGoNarr">🎙️ Ver os narrados</button></div>`;
+ if(lv===0)return `<div class="card stack-s" style="gap:8px;border:1.5px solid var(--pig,#F28AA8)"><b>🔈 Falta uma voz ${lang==="en"?"em inglês":lang==="es"?"em espanhol":"em português"} no seu aparelho</b><p class="small" style="margin:0;line-height:1.5">Sem ela, o celular leria com sotaque errado. ${alHowTo()}</p><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm ghost" data-act="alVoiceRetry">Já instalei</button><button class="btn sm" data-act="alGoNarr">🎙️ Ouvir os narrados</button></div></div>`;
+ const L=alVoices(lang),cur=alVoice(lang);let tip="";let off=false;try{off=localStorage.getItem("prumo.ttsTip")==="1"}catch(e){}
+ if(lv<3&&!off)tip=`<div class="card stack-s" style="gap:6px;background:var(--pig-soft)"><div class="row" style="justify-content:space-between;align-items:flex-start;gap:8px"><b style="font-size:14px">✨ Quer uma voz mais natural?</b><button class="iconbtn" data-act="alTipOff" aria-label="Fechar dica" style="width:28px;height:28px;font-size:14px">✕</button></div><p class="small" style="margin:0;line-height:1.5">${alHowTo()}</p></div>`;
+ const sel=L.length>1?`<label class="field" style="margin:0"><span>Voz</span><select id="alVoiceSel">${L.map(x=>`<option value="${esc(x.v.voiceURI)}" ${cur&&x.v.voiceURI===cur.voiceURI?"selected":""}>${esc(alVName(x.v))}</option>`).join("")}</select></label>`:"";
+ return tip+sel}
 function alChunks(p){const out=[];let cur="";for(const s of String(p).split(/(?<=[.!?…;:])\s+/)){if((cur+" "+s).length>380&&cur){out.push(cur);cur=s}else cur=cur?cur+" "+s:s}if(cur)out.push(cur);return out}
 async function alBook(gid){const k="txt:"+gid;try{const c=await idbDo("readonly",st=>st.get(k));if(c&&c.chapters)return c}catch(e){}
  const b=await alFetch("gid="+gid);try{await idbDo("readwrite",st=>st.put(b,k))}catch(e){}return b}
@@ -8316,6 +8334,7 @@ function alReaderView(){const R=AL.rd;if(!R.book)return `<button class="btn ghos
  const b=R.book,ch=b.chapters[R.ci]||{t:"",p:[]},rate=+(localStorage.getItem("prumo.ttsRate")||1);const pct=Math.round(((R.ci+(R.pi/Math.max(1,ch.p.length)))/b.chapters.length)*100);
  return `<div class="stack"><button class="btn ghost sm" data-act="alRdBack" style="align-self:flex-start">‹ Audiolivros</button>
  <div class="stack-s" style="gap:2px"><b style="font-family:var(--f-display);font-size:20px;line-height:1.2">${esc(b.title)}</b><span class="small muted">${esc(b.author||"")} · ${pct}% lido</span></div>
+ ${alVoiceBox(b.lang||"pt")}
  <label class="field"><span>Capítulo</span><select id="alCh">${b.chapters.map((c,i)=>`<option value="${i}" ${i===R.ci?"selected":""}>${esc(c.t||("Parte "+(i+1)))}</option>`).join("")}</select></label>
  <div class="card stack" id="alText" style="gap:12px;max-height:46vh;overflow:auto;font-size:17px;line-height:1.6">${ch.p.map((p,i)=>`<p data-alp="${i}" style="margin:0;${i===R.pi?"background:var(--pig-soft);border-radius:8px;padding:6px 8px;margin:0 -8px":"opacity:.72"}">${esc(p)}</p>`).join("")}</div>
  <div class="row" style="gap:14px;justify-content:center"><button class="iconbtn" data-act="alPrev" aria-label="Parágrafo anterior" style="font-weight:800">⏮</button>
@@ -8336,9 +8355,9 @@ function alSpeak(){const R=AL.rd;if(!R||!R.book)return;const ch=R.book.chapters[
  u.onend=()=>{if(ALS.u!==u)return;if(ALS.t0)ALS.heard+=(Date.now()-ALS.t0)/1000;ALS.t0=0;if(!ALS.on)return;ALS.ci++;if(ALS.ci>=ALS.chunks.length){ALS.chunks=[];R.pi++;alSave();alPaint()}alSpeak()};
  u.onerror=e=>{if(e&&(e.error==="interrupted"||e.error==="canceled"))return;ALS.on=false;alPaint()};
  speechSynthesis.speak(u)}
-async function alStart(){if(!("speechSynthesis" in window)){toast("Este aparelho não tem leitura em voz alta.");return}ALS.on=true;ALS.chunks=[];speechSynthesis.cancel();try{if(navigator.wakeLock)ALS.lock=await navigator.wakeLock.request("screen")}catch(e){}alSpeak();alPaint();try{trackOnce("audiolivro:voz")}catch(e){}}
+async function alStart(){if(!("speechSynthesis" in window)){toast("Este aparelho não tem leitura em voz alta.");return}await alVoicesReady();const lg=(AL.rd&&AL.rd.book&&AL.rd.book.lang)||"pt";if(!alVoiceLevel(lg)){render();toast("Instale uma voz em português para o Prumo ler.");return}ALS.on=true;ALS.chunks=[];speechSynthesis.cancel();try{if(navigator.wakeLock)ALS.lock=await navigator.wakeLock.request("screen")}catch(e){}alSpeak();alPaint();try{trackOnce("audiolivro:voz")}catch(e){}}
 function alStop(){ALS.on=false;ALS.u=null;ALS.chunks=[];try{speechSynthesis.cancel()}catch(e){}try{ALS.lock&&ALS.lock.release()}catch(e){}ALS.lock=null;alSave();saveApp();alPaint()}
-document.addEventListener("change",e=>{if(e.target&&e.target.id==="alCh"&&AL.rd){const was=ALS.on;alStop();AL.rd.ci=+e.target.value;AL.rd.pi=0;alSave();render();if(was)alStart()}});
+document.addEventListener("change",e=>{if(e.target&&e.target.id==="alVoiceSel"&&AL.rd){const lg=(AL.rd.book&&AL.rd.book.lang)||"pt";try{localStorage.setItem("prumo.ttsVoice."+lg,e.target.value)}catch(x){}const was=ALS.on;if(was){alStop();alStart()}return}if(e.target&&e.target.id==="alCh"&&AL.rd){const was=ALS.on;alStop();AL.rd.ci=+e.target.value;AL.rd.pi=0;alSave();render();if(was)alStart()}});
 document.addEventListener("click",e=>{const p=e.target&&e.target.closest&&e.target.closest("[data-alp]");if(!p||!AL.rd)return;const was=ALS.on;alStop();AL.rd.pi=+p.dataset.alp;alSave();alPaint();alStart()});
 Object.assign(A,{
  alTab:el=>{AL.tab=el.dataset.v;render()},
@@ -8352,6 +8371,9 @@ Object.assign(A,{
  alPlay:()=>{ALS.on?alStop():alStart()},
  alPrev:()=>{const R=AL.rd;if(!R)return;const was=ALS.on;alStop();if(R.pi>0)R.pi--;else if(R.ci>0){R.ci--;R.pi=Math.max(0,R.book.chapters[R.ci].p.length-1);render()}alPaint();if(was)alStart()},
  alNext:()=>{const R=AL.rd;if(!R)return;const was=ALS.on;alStop();R.pi++;if(R.pi>=R.book.chapters[R.ci].p.length&&R.ci+1<R.book.chapters.length){R.ci++;R.pi=0;render()}alPaint();if(was)alStart()},
+ alTipOff:()=>{try{localStorage.setItem("prumo.ttsTip","1")}catch(e){}render()},
+ alVoiceRetry:async()=>{await alVoicesReady();if(alVoiceLevel((AL.rd&&AL.rd.book&&AL.rd.book.lang)||"pt"))toast("Voz encontrada 🎉");else toast("Ainda não achei. Às vezes é preciso fechar e abrir o Prumo depois de instalar.");render()},
+ alGoNarr:()=>{alStop();AL.rd=null;AL.open=null;AL.tab="narrados";render();scrollTo(0,0)},
  alRate:el=>{try{localStorage.setItem("prumo.ttsRate",el.dataset.v)}catch(e){}const was=ALS.on;if(was){alStop()}render();if(was)alStart()},
  alLog:()=>{const R=AL.rd;const min=Math.round(ALS.heard/60);if(min<1)return;const id=rid();const t=R&&R.book?R.book.title:"Leitura em voz alta";
   S.study.logs[id]={id,date:today(),t:Date.now(),type:"livro",min,desc:`📖 ${t}`.slice(0,140),src:"audiolivro",bookId:alShelfId(t)||null};ALS.heard=0;markActive();toast(`📚 ${min} min de leitura registrados.`);commit()}});

@@ -3035,6 +3035,7 @@ function finMonth(){
   ${budgetAlert(t)}
   ${inc?bucketBars(t.b,inc,plan,false):`<p class="small muted">Lance a renda do mês para ver quanto cabe em cada fatia.</p>`}
   <div class="grid2"><button class="btn money" data-act="addIncome">Lançar renda</button><button class="btn" data-act="addExpense">Lançar gasto</button></div>
+  ${finScope()==="t"?"":`<button class="btn ghost sm" data-act="extOpen" style="align-self:center">📥 Importar extrato do banco</button>`}
   ${showSalary?`<button class="btn ghost" data-act="quickSalary">Lançar salário de ${brl0(S.profile.income)}</button>`:""}
   ${prevFixed.length&&!hasFixed?`<button class="btn ghost" data-act="copyFixed">Trazer ${prevFixed.length} conta(s) fixa(s) do mês passado</button>`:""}
  </div>
@@ -8104,7 +8105,7 @@ document.addEventListener("paste",e=>{const t=e.target;if(!t||!t.dataset||!t.dat
 @media (prefers-reduced-motion:reduce){.stk-pop{animation:none}}`;const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)})();
 
 /* versão do código (no app do iPhone/Android é a versão que veio dentro do app): fica no perfil para avisar quem precisa atualizar */
-const PRUMO_V="2.45";
+const PRUMO_V="2.46";
 setTimeout(function apv(){try{if(!S.profile||!S.profile.created||Store.demo){setTimeout(apv,15000);return}const k=isNativeApp()?"app":"web";if(S.profile.ver&&S.profile.ver[k]===PRUMO_V)return;S.profile.ver=Object.assign({},S.profile.ver,{[k]:PRUMO_V});saveApp()}catch(e){}},9000);
 /* ============================================================
    Tela do Plus com o progresso da pessoa + registro automático de erros
@@ -8136,6 +8137,50 @@ function admErrCard(){if(!ADME.list&&!ADME.loading){ADME.loading=1;sb.rpc("admin
 A.admErrReload=()=>{ADME.list=null;render()};
 A.plusStartFree=()=>{closeModal();if(typeof TEAM!=="undefined"&&TEAM&&typeof teamExit==="function")teamExit();UI.tab="fin";UI.fin="mes";window.scrollTo(0,0);render();setTimeout(()=>{try{expenseForm(null)}catch(e){}},50)};
 {const _ab=admBannerCard;admBannerCard=function(){return _ab.apply(this,arguments)+admErrCard()}}
+
+/* ============================================================
+   Importar extrato do banco (OFX, CSV ou texto colado)
+   Saídas viram gastos, entradas viram rendas. A pessoa revisa antes de salvar.
+   ============================================================ */
+const EXT_SKIP=/pagamento\s*(de\s*)?fatura|pag\.?\s*fatura|fatura\s*(do\s*)?cart|pgto\s*fat|transf\w*\s*(entre|mesma\s*titularidade)|entre\s*contas|aplica[cç][aã]o|resgate|rdb|cdb|poupan[cç]a|invest|estorno/i;
+function extParse(text){const t=String(text||"");let rows=/<STMTTRN>/i.test(t)?parseOFX(t):[];
+ const L0=(t.split(/\r?\n/).find(l=>l.trim())||"");if(!rows.length&&/[;,]/.test(L0)&&!/^\s*\d{1,2}[\/.\-]\d{1,2}/.test(L0)&&/[a-z]{3}/i.test(L0))rows=parseCSV(t);
+ if(!rows.length)rows=t.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(l=>{const r=typeof impFlexLine==="function"?impFlexLine(l):null;if(!r)return null;const neg=/(^|\s)-\s*R?\$?\s*\d|\d\s*-$|\bD\b|d[eé]bito|compra|pix\s*enviado|pagamento/i.test(l);return {date:r.date,v:neg?-Math.abs(r.v):Math.abs(r.v),desc:r.desc||""}}).filter(Boolean);
+ return rows.filter(r=>r&&r.date&&r.v)}
+function extRows(raw){const out=[];for(const r of raw){const exp=r.v<0,v=Math.round(Math.abs(r.v)*100)/100,desc=String(r.desc||"").replace(/\s{2,}/g," ").trim().slice(0,80)||(exp?"Gasto":"Entrada");const k=mkey(r.date);
+  let dup=false;try{const d=monthData(k);dup=(exp?d.expenses:d.incomes||[]).some(e=>Math.abs((+e.v||0)-v)<.01&&Math.abs(Date.parse(e.date)-Date.parse(r.date))<=2*864e5)}catch(e){}
+  const skip=EXT_SKIP.test(desc);out.push({date:r.date,v,desc,exp,cat:exp?guessCat(desc):null,on:!dup&&!skip,dup,skip})}
+ return out.sort((a,b)=>b.date.localeCompare(a.date))}
+function extBody(){const X=UI.ext||{};
+ if(!X.rows)return `<p class="small muted">Traga as movimentações da sua conta de uma vez: as saídas viram gastos e as entradas viram rendas. Você confere tudo antes de salvar.</p>
+ <div class="card flat stack"><b>Jeito 1: arquivo do banco</b><span class="small muted">No app ou site do banco, abra o extrato e procure <b>Exportar</b> ou <b>Baixar</b>, no formato <b>OFX</b> (o melhor) ou <b>CSV</b>. Nubank, Itaú, Inter, Bradesco, Santander, Caixa, BB e C6 oferecem.</span>
+  <label class="btn line" style="cursor:pointer;text-align:center">Escolher arquivo do extrato<input type="file" id="extFile" accept=".ofx,.qfx,.csv,.txt,text/csv,text/plain,application/x-ofx" style="display:none"></label></div>
+ <div class="card flat stack"><b>Jeito 2: copiar e colar</b><span class="small muted">Copie as linhas do extrato e cole aqui. Cada linha precisa ter data, descrição e valor; saídas com sinal de menos. Ex.: <i>12/11 Padaria Central -18,50</i></span>
+  <textarea id="ext_text" rows="5" placeholder="Cole aqui as linhas do extrato" style="width:100%;font:inherit;padding:10px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)"></textarea>
+  <button class="btn" data-act="extRead">Ler movimentações</button></div>`;
+ const on=X.rows.filter(r=>r.on),ge=on.filter(r=>r.exp),gi=on.filter(r=>!r.exp);const cats=CATS.map(c=>`<option value="${c.id}">${esc(c.n)} · ${BUCKETS[c.b].name}</option>`).join("");
+ return `<div class="row between"><span class="small"><b>${X.rows.length}</b> movimentações encontradas</span><button class="btn ghost sm" data-act="extBack">Voltar</button></div>
+ <p class="small muted" style="margin:0">Confira as categorias: o Prumo sugere sozinho e aprende com as suas correções.${X.rows.some(r=>r.dup)?" O que você já tinha lançado veio desmarcado para não duplicar.":""}${X.rows.some(r=>r.skip)?" Pagamento de fatura, transferências entre contas e investimentos vieram desmarcados, porque não são gasto de verdade.":""}</p>
+ <div class="stack-s" style="max-height:48vh;overflow:auto;margin-inline:-4px;padding-inline:4px">${X.rows.map((r,j)=>`<div class="card flat" style="padding:8px 10px;${r.on?"":"opacity:.55"}"><div class="row" style="gap:8px;align-items:flex-start"><input type="checkbox" data-ext-on="${j}" ${r.on?"checked":""} style="margin-top:4px;width:20px;height:20px;flex:none" aria-label="Importar ${esc(r.desc)}">
+  <div class="grow stack-s" style="gap:4px;min-width:0"><div class="row between" style="gap:8px"><b class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.desc)}</b><b class="small num" style="white-space:nowrap;color:${r.exp?"var(--ink)":"var(--good)"}">${r.exp?"−":"+"} ${brl(r.v)}</b></div>
+  <div class="row" style="gap:8px"><span class="tiny muted" style="flex:none">${ddmm(r.date)}${r.dup?" · já lançado":r.skip?" · não é gasto":""}</span>${r.exp?`<select data-ext-cat="${j}" style="min-height:32px;padding:4px 8px;font-size:13px">${cats.replace(`value="${r.cat}"`,`value="${r.cat}" selected`)}</select>`:`<span class="tiny" style="color:var(--good)">vira renda</span>`}</div></div></div></div>`).join("")}</div>
+ <button class="btn block" data-act="extSave" ${on.length?"":"disabled"}>Importar ${ge.length} gasto${ge.length===1?"":"s"}${gi.length?` e ${gi.length} entrada${gi.length===1?"":"s"}`:""}</button>`}
+function extRefresh(){const r=document.getElementById("ext_root");if(r)r.innerHTML=extBody()}
+async function extFile(f){try{let t=await f.text();if(/charset\s*[:=]\s*1252|ENCODING:\s*USASCII|CHARSET:1252/i.test(t.slice(0,600))||/�/.test(t)){const b=await f.arrayBuffer();t=new TextDecoder("windows-1252").decode(b)}
+  const raw=extParse(t);if(!raw.length){toast("Não encontrei movimentações nesse arquivo. Tente o formato OFX ou copie e cole as linhas.",6000);return}UI.ext.rows=extRows(raw);extRefresh()}catch(e){toast("Não consegui ler esse arquivo.")}}
+document.addEventListener("change",ev=>{const el=ev.target;if(!UI.ext||!el)return;
+ if(el.id==="extFile"&&el.files&&el.files[0])extFile(el.files[0]);
+ if(el.dataset&&el.dataset.extOn!=null){UI.ext.rows[+el.dataset.extOn].on=el.checked;extRefresh()}
+ if(el.dataset&&el.dataset.extCat!=null)UI.ext.rows[+el.dataset.extCat].cat=el.value});
+Object.assign(A,{
+ extOpen:()=>{if(typeof isPlus==="function"&&!isPlus()){plusModal("Importar extrato do banco");return}UI.ext={rows:null};openModal("Importar extrato do banco",`<div class="stack" id="ext_root">${extBody()}</div>`)},
+ extBack:()=>{UI.ext.rows=null;extRefresh()},
+ extRead:()=>{const raw=extParse(v("ext_text"));if(!raw.length){toast("Não reconheci as linhas. Cada uma precisa ter data, descrição e valor.",5000);return}UI.ext.rows=extRows(raw);extRefresh()},
+ extSave:()=>{const rows=(UI.ext&&UI.ext.rows||[]).filter(r=>r.on);if(!rows.length)return;const by={};const td=today();
+  rows.forEach(r=>{const m=mid(mkey(r.date));const id=rid();const o=by[m]=by[m]||{expenses:{},incomes:{}};
+   if(r.exp)o.expenses[id]={v:r.v,desc:r.desc,cat:r.cat||"outros",date:r.date,by:ME.uid,t:Date.now(),added:td,imp:1};else o.incomes[id]={v:r.v,desc:r.desc,date:r.date,by:ME.uid,t:Date.now(),imp:1}});
+  Object.entries(by).forEach(([m,o])=>{const p={};if(Object.keys(o.expenses).length)p.expenses=o.expenses;if(Object.keys(o.incomes).length)p.incomes=o.incomes;finPatch(m,p)});
+  const ne=rows.filter(r=>r.exp).length,ni=rows.length-ne;markActive();saveApp();closeModal();UI.ext=null;toast(`Pronto! ${ne} gasto${ne===1?"":"s"}${ni?` e ${ni} entrada${ni===1?"":"s"}`:""} importado${rows.length===1?"":"s"}.`,5000)}});
 
 /* início */
 (function boot(){

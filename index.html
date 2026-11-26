@@ -3332,7 +3332,7 @@ function viewProfile(){const p=S.profile;
  ${shareToggle()}
  <a class="small muted" href="privacidade.html" target="_blank" rel="noopener" style="text-align:center">Política de privacidade</a>
  ${SB_ON&&Store.cloud?`<button class="btn danger sm" data-act="deleteAccount" style="align-self:center">Excluir minha conta</button>`:""}
- <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.41</p>
+ <p class="tiny muted" style="text-align:center">Prumo: Vida em ordem · versão 2.42</p>
  </div>`}
 function hhInfo(){openModal("Dividir finanças",`<div class="stack">${!Store.cloud?`<p class="small muted">${Store.localOnly?"Neste modo de teste seus dados ficam salvos só neste aparelho, por isso as finanças compartilhadas não estão disponíveis. Exporte um backup de vez em quando.":"Para dividir as finanças com outra pessoa, entre com uma conta. Sem conta, os dados ficam só neste aparelho."}</p>`:`<p>Divide despesas com cônjuge, namorado(a) ou outra pessoa? Juntem as finanças para que os dois vejam e lancem tudo no mesmo lugar.</p><p class="small muted">Estudos, exercícios, agenda e porquinho continuam individuais.</p><div class="grid2"><button class="btn money" data-act="hhCreate2">Criar e convidar</button><button class="btn ghost" data-act="joinHH">Entrar com código</button></div>`}<button class="btn ghost" data-act="closeModal">Fechar</button></div>`)}
 function dataModal(){openModal("Seus dados",`<div class="stack"><p class="small muted">Guarde uma cópia de tudo de vez em quando. Você pode restaurar depois neste ou em outro aparelho.</p>
@@ -6971,8 +6971,8 @@ let pushChecked=false;
  if(!NOTIF.t&&!NOTIF.loading)setTimeout(notifLoad,0);
  if(!pushChecked&&pushOK()&&Notification.permission==="granted"){pushChecked=true;setTimeout(()=>pushSubscribe(false),1500)}
  if(UI.pendTeam&&TEAMS)setTimeout(notifApply,0);
- const top=document.querySelector("#app .top");const un=NOTIF.list.filter(x=>!x.read_at).length;
- if(top&&(NOTIF.list.length||TEAMS&&TEAMS.length)&&!document.getElementById("bellBtn")){const ref=top.querySelector(".streak");const h=`<button id="bellBtn" class="iconbtn" data-act="notifOpen" aria-label="Avisos${un?`: ${un} novos`:""}" style="position:relative">${I.bell}${un?`<span class="supdot" style="background:var(--bad);font-size:10px;font-weight:800;width:18px;height:18px">${un>9?"9+":un}</span>`:""}</button>`;if(ref)ref.insertAdjacentHTML("beforebegin",h);else top.insertAdjacentHTML("beforeend",h)}
+ const top=document.querySelector("#app .top");const un=NOTIF.list.filter(x=>!x.read_at).length+(typeof newsUnseen==="function"?newsUnseen():0);
+ if(top&&(NOTIF.list.length||TEAMS&&TEAMS.length||(typeof NEWS!=="undefined"&&NEWS.list&&NEWS.list.length))&&!document.getElementById("bellBtn")){const ref=top.querySelector(".streak");const h=`<button id="bellBtn" class="iconbtn" data-act="notifOpen" aria-label="Avisos${un?`: ${un} novos`:""}" style="position:relative">${I.bell}${un?`<span class="supdot" style="background:var(--bad);font-size:10px;font-weight:800;width:18px;height:18px">${un>9?"9+":un}</span>`:""}</button>`;if(ref)ref.insertAdjacentHTML("beforebegin",h);else top.insertAdjacentHTML("beforeend",h)}
  if(top&&typeof quietOn==="function"&&quietOn()&&!document.getElementById("quietBtn")){const ref=top.querySelector("#bellBtn")||top.querySelector(".streak");const h=`<button id="quietBtn" class="streak" data-act="quietMenu" title="Modo silencioso ${quietLabel()}" style="cursor:pointer;border:0">🔕 <span class="tiny">Silencioso</span></button>`;if(ref)ref.insertAdjacentHTML("beforebegin",h);else top.insertAdjacentHTML("beforeend",h)}}catch(e){}}}
 
 /* convite para ativar as notificações (na tela da equipe) */
@@ -7944,6 +7944,163 @@ Object.assign(A,{
  gsOpen:()=>{openModal("Buscar no Prumo",`<div class="stack"><div class="searchbox"><input id="gsQ" type="search" placeholder="Ex.: farmácia, dentista, 89,90" autocomplete="off" aria-label="Buscar em tudo" value="${esc(UI.gsQ||"")}"></div><div id="gsRes" class="stack"></div></div>`,m=>{const i=m.querySelector("#gsQ");let tm;i.addEventListener("input",()=>{clearTimeout(tm);tm=setTimeout(()=>{UI.gsQ=i.value;gsRun(i.value)},120)});gsRun(i.value)});},
  gsGo:el=>{const a=el.dataset.a;const f=A[a];if(!f)return;closeModal();const tab={editExpense:"fin",editIncome:"fin",editDebt:"fin",editSub:"fin",editTask:"agenda",editEvent:"agenda"}[a];
   f({dataset:{v:el.dataset.v,m:el.dataset.m}})}});
+
+/* ============================================================
+   Novidades do Prumo (postagens oficiais) e figurinhas nos comentários
+   ============================================================ */
+/* ---------- Novidades do Prumo ---------- */
+const NEWS={list:null,cnt:{},mine:{},at:0,busy:0};
+const NEWS_RX=["❤️","🔥","👏","😍","🐷"];
+async function newsLoad(force){if(typeof sb==="undefined"||!sb||!Store.cloud||Store.demo)return;if(!force&&NEWS.list&&Date.now()-NEWS.at<10*60000)return;NEWS.at=Date.now();
+ try{const [p,c,m]=await Promise.all([sb.from("news_posts").select("id,title,body,img,link,link_label,created_at").eq("active",true).order("created_at",{ascending:false}).limit(30),sb.rpc("news_counts"),sb.from("news_reacts").select("post_id,emoji")]);
+  NEWS.list=p.data||[];NEWS.cnt={};(c.data||[]).forEach(r=>{(NEWS.cnt[r.post_id]=NEWS.cnt[r.post_id]||{})[r.emoji]=+r.n});NEWS.mine={};(m.data||[]).forEach(r=>NEWS.mine[r.post_id]=r.emoji);
+  const b=document.getElementById("bellBtn");if(b)b.remove();render()}catch(e){console.warn(e)}}
+function newsSeenAt(){const v=+S.profile.newsSeen||0;return v||Date.now()-14*864e5}
+function newsUnseen(){if(!NEWS.list)return 0;const t=newsSeenAt();return NEWS.list.filter(p=>Date.parse(p.created_at)>t).length}
+function newsWhen(s){const d=new Date(s);const h=(Date.now()-d)/36e5;return h<1?"agora há pouco":h<24?`há ${Math.round(h)} h`:h<48?"ontem":d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})}
+function newsRx(p){const c=NEWS.cnt[p.id]||{},me=NEWS.mine[p.id];return `<div class="row" style="gap:6px;flex-wrap:wrap" data-nrx="${p.id}">${NEWS_RX.map(e=>`<button type="button" class="chip ${me===e?"on":""}" data-act="newsReact" data-v="${p.id}" data-e="${e}" style="padding:4px 10px" aria-label="Reagir com ${e}">${e}${c[e]?" "+c[e]:""}</button>`).join("")}</div>`}
+function newsPost(p){return `<div class="card stack" style="gap:10px;padding:0;overflow:hidden">${p.img?`<img src="${esc(p.img)}" alt="" style="width:100%;display:block">`:""}
+ <div class="stack" style="gap:8px;padding:${p.img?"4px":"16px"} 16px 16px"><span class="tiny muted">${newsWhen(p.created_at)}</span><b style="font-family:var(--f-display);font-size:19px;line-height:1.2">${esc(p.title)}</b>${p.body?`<p class="small" style="margin:0;white-space:pre-line">${esc(p.body)}</p>`:""}
+ ${p.link?`<a class="btn sm" href="${esc(p.link)}" target="_blank" rel="noopener" style="align-self:flex-start">${esc(p.link_label||"Ver mais")}</a>`:""}${newsRx(p)}</div></div>`}
+function newsView(){const L=NEWS.list||[];return `<div class="stack">${L.length?L.map(newsPost).join(""):`<div class="empty">${NEWS.list?"Ainda não tem novidades por aqui.":"Carregando…"}</div>`}</div>`}
+function newsCard(){if(Store.demo||!NEWS.list)return"";const n=newsUnseen();if(!n)return"";const p=NEWS.list[0];
+ return `<button class="card row" data-act="newsOpen" style="gap:12px;text-align:left;width:100%;border:1.5px solid var(--pig);cursor:pointer"><span style="font-size:26px">📣</span><span class="grow stack-s" style="gap:2px;min-width:0"><span class="tiny muted" style="font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--pig-deep)">Novidade do Prumo${n>1?` · ${n} novas`:""}</span><b class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.title)}</b></span><span class="muted">${I.right.replace('<svg','<svg width="18" height="18"')}</span></button>`}
+Object.assign(A,{
+ newsOpen:()=>{openModal("Novidades do Prumo",newsView());S.profile.newsSeen=Date.now();saveApp();const b=document.getElementById("bellBtn");if(b)b.remove();newsLoad(true)},
+ newsReact:async el=>{const id=el.dataset.v,e=el.dataset.e;const old=NEWS.mine[id];const c=NEWS.cnt[id]=NEWS.cnt[id]||{};
+  if(old){c[old]=Math.max(0,(c[old]||1)-1)}if(old===e){delete NEWS.mine[id]}else{NEWS.mine[id]=e;c[e]=(c[e]||0)+1}
+  document.querySelectorAll(`[data-nrx="${id}"]`).forEach(x=>{const p=(NEWS.list||[]).find(y=>y.id===id);if(p)x.outerHTML=newsRx(p)});
+  try{if(old===e)await sb.from("news_reacts").delete().eq("post_id",id).eq("uid",ME.uid);else await sb.from("news_reacts").upsert({post_id:id,uid:ME.uid,emoji:e})}catch(x){console.warn(x)}}});
+/* entra junto com os avisos (banners): carrega ao abrir e de tempos em tempos */
+{const _bl=banLoad;banLoad=function(){const r=_bl.apply(this,arguments);newsLoad(arguments[0]);return r}}
+{const _bc=bannerCard;bannerCard=function(){return newsCard()+_bc.apply(this,arguments)}}
+/* no sininho: a primeira linha leva às novidades */
+{const _nv=notifView;notifView=function(){_nv.apply(this,arguments);const m=document.querySelector("#modal .sheet .stack");if(!m||Store.demo)return;const n=newsUnseen();
+ m.insertAdjacentHTML("afterbegin",`<button class="item" data-act="newsOpen" style="width:100%;background:var(--pig-soft);border:0;border-radius:14px;text-align:left;padding:12px 14px;gap:10px"><span style="font-size:22px">📣</span><span class="grow stack-s" style="gap:1px"><b class="small">Novidades do Prumo</b><span class="tiny muted">${n?`${n} nova${n>1?"s":""} para ver`:"Atualizações e recados do Prumo"}</span></span>${n?`<span class="pill bad">${n}</span>`:""}</button>`)}}
+/* painel do admin: publicar uma novidade */
+const ADMN={list:null,busy:0,blob:null,prev:null,f:{}};
+function admNewsCard(){if(!ADMN.list&&!ADMN.loading){ADMN.loading=1;sb.from("news_posts").select("*").order("created_at",{ascending:false}).limit(20).then(r=>{ADMN.list=r.data||[];ADMN.loading=0;render()},()=>{ADMN.loading=0})}
+ const f=ADMN.f;return `<div class="card stack" style="gap:10px"><h3 style="margin:0">📣 Novidades do Prumo</h3><span class="small muted">Postagens oficiais que ficam na área de Novidades (sininho e tela inicial). Todo mundo vê e pode reagir.</span>
+ <label class="field"><span>Título</span><input id="nw_title" maxlength="120" value="${esc(f.title||"")}" placeholder="Ex.: Chegaram os podcasts!"></label>
+ <label class="field"><span>Texto</span><textarea id="nw_body" rows="5" maxlength="2000" placeholder="Conte a novidade">${esc(f.body||"")}</textarea></label>
+ <label class="field"><span>Imagem (opcional)</span><input id="nw_img" type="file" accept="image/*"></label>${ADMN.prev?`<img src="${ADMN.prev}" alt="" style="width:100%;border-radius:12px">`:""}
+ <div class="grid2"><label class="field"><span>Link (opcional)</span><input id="nw_link" value="${esc(f.link||"")}" placeholder="https://"></label><label class="field"><span>Texto do botão</span><input id="nw_ll" value="${esc(f.ll||"")}" placeholder="Ver mais"></label></div>
+ <label class="check"><input type="checkbox" id="nw_push" ${f.push?"checked":""}><span>Mandar notificação para todos</span></label>
+ <button class="btn" data-act="newsPublish" ${ADMN.busy?"disabled":""}>${ADMN.busy?"Publicando…":"Publicar novidade"}</button>
+ ${(ADMN.list||[]).length?`<div class="label" style="margin-top:6px">Publicadas</div><div class="list">${ADMN.list.map(p=>`<div class="item" style="gap:10px"><span class="grow stack-s" style="gap:1px;min-width:0"><b class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.title)}</b><span class="tiny muted">${new Date(p.created_at).toLocaleDateString("pt-BR")} · ${p.active?"No ar":"Fora do ar"}</span></span><button class="btn ghost sm" data-act="newsToggle" data-v="${p.id}">${p.active?"Tirar do ar":"Reativar"}</button></div>`).join("")}</div>`:""}</div>`}
+function admNewsKeep(){const pe=document.getElementById("nw_push");ADMN.f={title:v("nw_title"),body:v("nw_body"),link:v("nw_link"),ll:v("nw_ll"),push:pe?pe.checked:false}}
+document.addEventListener("change",async e=>{if(!e.target||e.target.id!=="nw_img"||!e.target.files[0])return;admNewsKeep();try{ADMN.blob=await banShrink(e.target.files[0]);ADMN.prev=URL.createObjectURL(ADMN.blob);render()}catch(x){toast("Não consegui abrir a imagem")}});
+Object.assign(A,{
+ newsPublish:async()=>{admNewsKeep();const f=ADMN.f;if(!f.title.trim()){toast("Coloque um título.");return}if(f.link&&!/^https:\/\//.test(f.link.trim())){toast("O link precisa começar com https://");return}
+  ADMN.busy=1;render();try{let img=null;if(ADMN.blob){const path=`n_${Date.now()}_${rid()}.jpg`;const up=await sb.storage.from("banners").upload(path,ADMN.blob,{contentType:"image/jpeg",cacheControl:"31536000"});if(up.error)throw up.error;img=sb.storage.from("banners").getPublicUrl(path).data.publicUrl}
+   const {error}=await sb.from("news_posts").insert({title:f.title.trim(),body:f.body.trim()||null,img,link:f.link.trim()||null,link_label:f.ll.trim()||null});if(error)throw error;
+   let pn="";if(f.push){const r=await sb.rpc("admin_push",{p_aud:"all",p_title:("📣 "+f.title.trim()).slice(0,90),p_body:(f.body.trim()||"Toque para ver a novidade.").slice(0,220),p_url:"/?news=1"});pn=r.error?" A notificação não saiu.":" Notificação enviada."}
+   ADMN.f={};ADMN.blob=null;ADMN.prev=null;ADMN.list=null;newsLoad(true);toast("Novidade publicada."+pn,5000)}catch(x){toast("Não consegui publicar: "+((x&&x.message)||"erro"),6000)}ADMN.busy=0;render()},
+ newsToggle:async el=>{const p=(ADMN.list||[]).find(x=>x.id===el.dataset.v);if(!p)return;const {error}=await sb.from("news_posts").update({active:!p.active}).eq("id",p.id);if(error){toast("Não consegui mudar.");return}ADMN.list=null;newsLoad(true);render()}});
+{const _ab=admBannerCard;admBannerCard=function(){return admNewsCard()+_ab.apply(this,arguments)}}
+/* link ?news=1 (notificação) abre as novidades */
+try{if(/[?&]news=1/.test(location.search))setTimeout(()=>{if(!UI.needAuth)A.newsOpen()},2500)}catch(e){}
+
+/* ---------- Figurinhas ---------- */
+/* pacote do porquinho: desenho do próprio app, com expressões próprias e som */
+const STK=[
+ {id:"oinc",h:null,f:"feliz",t:"Oinc!",s:"oinc"},{id:"kkk",h:null,f:"riso",t:"KKKKK",s:"riso"},{id:"amei",h:null,f:"amor",t:"Amei!",s:"oinc2",x:"coracoes"},
+ {id:"arrasou",h:"coroa",f:"feliz",t:"Arrasou!",s:"palmas",x:"brilho"},{id:"parabens",h:"festa",f:"feliz",t:"Parabéns!",s:"tada",x:"confete"},{id:"uau",h:null,f:"uau",t:"Uau!",s:"oincAlto"},
+ {id:"bora",h:"bandana",f:"foco",t:"Bora treinar!",s:"oinc",x:"suor"},{id:"foco",h:"fone",f:"foco",t:"Foco total",s:"oinc"},{id:"estudou",h:"capelo",f:"pisca",t:"Estudou hoje?",s:"oinc"},
+ {id:"forca",h:"faixa",f:"foco",t:"Força!",s:"palmas"},{id:"saudade",h:"laco",f:"choro",t:"Saudade…",s:"oincBaixo"},{id:"economizou",h:"palha",f:"feliz",t:"Economizou!",s:"moeda",x:"moedas"},
+ {id:"comida",h:"chef",f:"pisca",t:"Comida de verdade",s:"oinc"},{id:"tamojunto",h:"cowboy",f:"pisca",t:"Tamo junto!",s:"oinc2"},{id:"deboa",h:null,f:"oculos",t:"Tô de boa",s:"oinc"},
+ {id:"obrigado",h:"flores",f:"feliz",t:"Obrigado!",s:"oinc2",x:"coracoes"},{id:"respira",h:"zen",f:"calmo",t:"Respira…",s:null},{id:"boanoite",h:"gorro",f:"dormindo",t:"Boa noite",s:null,x:"zzz"}];
+const STK_BY=Object.fromEntries(STK.map(x=>[x.id,x]));
+function stkFace(f){const D="#2B1E24",M="#B84A6C",L=131,R=189,Y=136;const st=`stroke="${D}" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"`;
+ const open=(x,r=6,ry=7.5)=>`<ellipse cx="${x}" cy="${Y}" rx="${r}" ry="${ry}" fill="${D}"/><circle cx="${x+2}" cy="${Y-3}" r="2.2" fill="#fff"/>`;
+ const arc=x=>`<path d="M${x-8} ${Y+2} Q${x} ${Y-8} ${x+8} ${Y+2}" ${st}/>`,arcDn=x=>`<path d="M${x-8} ${Y-1} Q${x} ${Y+6} ${x+8} ${Y-1}" ${st}/>`;
+ const smile=`<path d="M144 184 Q160 202 176 184 Z" fill="${M}" stroke="${D}" stroke-width="3.5" stroke-linejoin="round"/>`;
+ const heart=x=>`<path d="M${x} ${Y+8} C${x-15} ${Y-2} ${x-9} ${Y-14} ${x} ${Y-5} C${x+9} ${Y-14} ${x+15} ${Y-2} ${x} ${Y+8} Z" fill="#E8445A"/>`;
+ const drop=(x,y)=>`<path d="M${x} ${y} q5 9 0 13 q-5 -4 0 -13z" fill="#7EC3F0"/>`;
+ switch(f){
+  case"riso":return `<path d="M123 129 L137 136 L123 143" ${st}/><path d="M197 129 L183 136 L197 143" ${st}/><path d="M139 180 Q160 216 181 180 Z" fill="${M}" stroke="${D}" stroke-width="3.5" stroke-linejoin="round"/><ellipse cx="160" cy="198" rx="9" ry="5" fill="#F27198"/>${drop(113,140)}${drop(205,140)}`;
+  case"amor":return heart(L)+heart(R)+smile;
+  case"pisca":return open(L)+`<path d="M${R-8} ${Y} Q${R} ${Y-6} ${R+8} ${Y}" ${st}/>`+smile+`<ellipse cx="167" cy="195" rx="6" ry="5" fill="#F27198"/>`;
+  case"choro":return open(L,6,6.5)+open(R,6,6.5)+`<path d="M121 129 L139 122" ${st} stroke-width="3"/><path d="M199 129 L181 122" ${st} stroke-width="3"/><path d="M146 194 Q160 182 174 194" ${st}/><path d="M127 145 q-3 16 1 28" stroke="#7EC3F0" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M193 145 q3 16 -1 28" stroke="#7EC3F0" stroke-width="5" fill="none" stroke-linecap="round"/>`;
+  case"foco":return open(L)+open(R)+`<path d="M120 121 L140 128" ${st} stroke-width="3.5"/><path d="M200 121 L180 128" ${st} stroke-width="3.5"/><path d="M147 189 Q160 195 174 186" ${st}/>`;
+  case"uau":return open(L,7.5,9.5)+open(R,7.5,9.5)+`<path d="M121 120 Q131 114 141 120" ${st} stroke-width="3"/><path d="M179 120 Q189 114 199 120" ${st} stroke-width="3"/><ellipse cx="160" cy="191" rx="8" ry="10" fill="${M}" stroke="${D}" stroke-width="3.5"/>`;
+  case"oculos":return `<rect x="114" y="125" width="34" height="22" rx="9" fill="${D}"/><rect x="172" y="125" width="34" height="22" rx="9" fill="${D}"/><path d="M148 133 Q160 128 172 133" stroke="${D}" stroke-width="4" fill="none"/><path d="M121 130 L131 130" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".6"/><path d="M150 188 Q164 196 176 184" ${st}/>`;
+  case"calmo":return arcDn(L)+arcDn(R)+`<path d="M150 188 Q160 196 170 188" ${st}/>`;
+  case"dormindo":return arcDn(L)+arcDn(R)+`<ellipse cx="160" cy="191" rx="5" ry="4" fill="${M}" stroke="${D}" stroke-width="3"/>`;
+  default:return arc(L)+arc(R)+smile}}
+function stkExtra(x){switch(x){
+ case"coracoes":return `<path d="M232 70 c-9 -7 -5 -15 1 -11 c6 -4 10 4 1 11z" fill="#E8445A"/><path d="M84 92 c-7 -6 -4 -12 1 -9 c5 -3 8 3 -1 9z" fill="#F27198"/><path d="M226 112 c-6 -5 -3 -10 1 -7 c4 -3 7 2 -1 7z" fill="#F27198"/>`;
+ case"brilho":return `<path d="M86 70 l4 10 10 4 -10 4 -4 10 -4 -10 -10 -4 10 -4z" fill="#FFD23F"/><path d="M236 92 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3z" fill="#FFD23F"/>`;
+ case"confete":return ["#E8445A,82,70,20","#3C6FD1,236,64,-25","#FFD23F,96,104,40","#2FBF71,226,104,-10","#B07CE0,110,60,-35","#F28AA8,214,80,30"].map(s=>{const [c,x,y,r]=s.split(",");return `<rect x="${x}" y="${y}" width="10" height="5" rx="2" fill="${c}" transform="rotate(${r} ${x} ${y})"/>`}).join("");
+ case"suor":return `<path d="M222 96 q8 13 0 19 q-8 -6 0 -19z" fill="#7EC3F0"/><path d="M234 118 q5 8 0 12 q-5 -4 0 -12z" fill="#7EC3F0"/>`;
+ case"moedas":return `<circle cx="92" cy="96" r="13" fill="#FFD23F" stroke="#C99A12" stroke-width="3"/><text x="92" y="102" font-size="15" font-weight="800" text-anchor="middle" fill="#C99A12">$</text><circle cx="230" cy="84" r="11" fill="#FFD23F" stroke="#C99A12" stroke-width="3"/>`;
+ case"zzz":return `<text x="214" y="84" font-family="Fredoka,sans-serif" font-size="26" font-weight="700" fill="#7A6670">z</text><text x="232" y="62" font-family="Fredoka,sans-serif" font-size="20" font-weight="700" fill="#9A8A90">z</text>`;
+ default:return""}}
+const STK_SVG={};
+function stkPigSVG(st){if(STK_SVG[st.id])return STK_SVG[st.id];let svg=pigSVG({score:80,mood:"ok",equip:st.h?{head:st.h}:{},env:0,mini:true,dry:true,peace:0});
+ const top=Math.min(48,pigHatTop(st.h)-6);svg=svg.replace(/viewBox="[^"]*"/,`viewBox="58 ${top} 204 ${244-top}"`).replace(/<\/svg>\s*$/,`<g class="stk-face">${stkFace(st.f)}</g>${stkExtra(st.x)}</svg>`);return STK_SVG[st.id]=svg}
+function stkHTML(o,big){const w=big?180:112;
+ if(o&&o.p&&STK_BY[o.p]){const st=STK_BY[o.p];return `<button type="button" class="stk" data-act="stkTap" data-v="${st.id}" style="width:${w}px" aria-label="Figurinha ${esc(st.t)}"><span class="stk-pig">${stkPigSVG(st)}</span><b class="stk-t">${esc(st.t)}</b></button>`}
+ if(o&&(o.c||o.d))return `<button type="button" class="stk stk-c" data-act="stkTapC" data-v="${esc(o.c||"")}" style="width:${w}px" aria-label="Figurinha"><img alt="Figurinha" ${o.d?`src="${esc(o.d)}"`:`data-ph="${esc(o.c)}"`}></button>`;
+ return""}
+/* sons: tudo gerado no aparelho (oinc do próprio Prumo, palmas, moeda e "tadã" sintetizados) */
+let STK_AC=null,STK_OINC=null;
+function stkAC(){if(!STK_AC){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;STK_AC=new C()}if(STK_AC.state==="suspended")STK_AC.resume();return STK_AC}
+async function stkOinc(rate=1,times=1,gap=.28){const a=stkAC();if(!a)return;try{if(!STK_OINC){const r=await fetch("pig/oinc.mp3");STK_OINC=await a.decodeAudioData(await r.arrayBuffer())}for(let i=0;i<times;i++){const s=a.createBufferSource();s.buffer=STK_OINC;s.playbackRate.value=rate;s.connect(a.destination);s.start(a.currentTime+i*gap)}}catch(e){}}
+function stkTone(notes,type="triangle",len=.12,gain=.16){const a=stkAC();if(!a)return;notes.forEach(([f,t])=>{const o=a.createOscillator(),g=a.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(0,a.currentTime+t);g.gain.linearRampToValueAtTime(gain,a.currentTime+t+.01);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+t+len);o.connect(g).connect(a.destination);o.start(a.currentTime+t);o.stop(a.currentTime+t+len+.05)})}
+function stkClaps(){const a=stkAC();if(!a)return;const n=a.sampleRate*.08,buf=a.createBuffer(1,n,a.sampleRate),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,4);
+ for(let i=0;i<16;i++){const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain();s.buffer=buf;f.type="bandpass";f.frequency.value=1100+Math.random()*900;g.gain.value=.5+Math.random()*.4;s.connect(f).connect(g).connect(a.destination);s.start(a.currentTime+Math.random()*1.1)}}
+function stkPlay(id){const st=STK_BY[id];if(!st||!st.s)return;try{if(S.profile&&S.profile.sounds===false)return}catch(e){}
+ ({oinc:()=>stkOinc(1),oinc2:()=>stkOinc(1.1,2,.3),oincAlto:()=>stkOinc(1.45),oincBaixo:()=>stkOinc(.72),riso:()=>stkOinc(1.5,3,.18),
+  tada:()=>stkTone([[523,0],[659,.1],[784,.2],[1047,.32]],"triangle",.3),moeda:()=>stkTone([[988,0],[1319,.08]],"square",.25,.08),palmas:()=>stkClaps()}[st.s]||(()=>{}))()}
+/* minhas figurinhas (por equipe, porque as imagens ficam no espaço da equipe) */
+function stkMine(){const p=S.profile;p.stk=p.stk||{};const t=TEAM&&TEAM.id||"_";return p.stk[t]=p.stk[t]||[]}
+async function stkMake(file){const url=URL.createObjectURL(file);try{const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=url});
+  const M=320,sc=Math.min(1,M/Math.max(img.naturalWidth,img.naturalHeight));const cv=document.createElement("canvas");cv.width=Math.max(1,Math.round(img.naturalWidth*sc));cv.height=Math.max(1,Math.round(img.naturalHeight*sc));
+  cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);let b=await new Promise(r=>cv.toBlob(r,"image/png"));
+  if(b&&b.size>900e3){const c2=document.createElement("canvas");c2.width=Math.round(cv.width*.7);c2.height=Math.round(cv.height*.7);c2.getContext("2d").drawImage(cv,0,0,c2.width,c2.height);b=await new Promise(r=>c2.toBlob(r,"image/png"))}
+  if(!b)throw new Error("img");
+  if(Store.demo||!sb||!TEAM)return {d:await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(b)})};
+  const path=`${TEAM.id}/fig/${ME.uid}/${rid()}.png`;const {error}=await sb.storage.from("checkins").upload(path,b,{contentType:"image/png",upsert:false,cacheControl:"31536000"});if(error)throw error;PH.url[path]=URL.createObjectURL(b);return {c:path}}
+ finally{URL.revokeObjectURL(url)}}
+function stkSend(k,o){const {c,u,ck}=chCkOf(k);if(!ck||!o)return;const rep=UI.chCmReply&&UI.chCmReply.k===k&&(ck.cm||{})[UI.chCmReply.id]?UI.chCmReply:null;
+ ck.cm=ck.cm||{};ck.cm[rid()]={u:ME.uid,t:Date.now(),x:"",st:o,...(rep?{re:rep.id}:{})};UI.chCmReply=null;UI.chCmOpen=k;closeModal();chPatch(k);chQuietSave();setTimeout(chLoadPhotos,0);if(o.p)stkPlay(o.p);
+ if(typeof teamNotify==="function"&&TEAM){const lb=`${TEAM.name} · ${c.name}`,go=`chal&i=${c.id}&k=${encodeURIComponent(k)}`;
+  if(rep&&rep.u!==ME.uid)teamNotify([rep.u],"chal",lb,`${myNick()} respondeu seu comentário com uma figurinha 🐷`,go);
+  if(u!==ME.uid&&!(rep&&rep.u===u))teamNotify([u],"chal",lb,`${myNick()} mandou uma figurinha no seu check-in 🐷`,go)}}
+function stkPicker(k){UI.stkK=k;const tab=UI.stkTab||"pig";const mine=stkMine();
+ const grid=tab==="pig"?`<div class="stkgrid">${STK.map(st=>`<button type="button" class="stk" data-act="stkPick" data-v="p:${st.id}" style="width:100%" aria-label="${esc(st.t)}"><span class="stk-pig">${stkPigSVG(st)}</span><b class="stk-t">${esc(st.t)}</b></button>`).join("")}</div><p class="tiny muted" style="margin:0">As figurinhas do porquinho têm som 🔊</p>`
+  :`<div class="stack-s" style="gap:8px"><div class="grid2"><button type="button" class="btn ghost sm" data-act="stkPaste">📋 Colar do celular</button><label class="btn ghost sm" style="cursor:pointer">🖼️ Da galeria<input type="file" accept="image/*" id="stkFile" hidden></label></div>
+   <p class="tiny muted" style="margin:0">No iPhone: abra uma foto, segure o dedo sobre a pessoa ou o objeto até ele se destacar, toque em <b>Copiar</b> e volte aqui em <b>Colar do celular</b>. Só quem é da equipe vê as figurinhas.</p>
+   ${mine.length?`<div class="stkgrid">${mine.map((o,i)=>`<span style="position:relative">${stkHTML(o).replace('data-act="stkTapC"','data-act="stkPick"').replace(/data-v="[^"]*"/,`data-v="m:${i}"`).replace("width:112px","width:100%")}<button type="button" class="stkdel" data-act="stkForget" data-v="${i}" aria-label="Tirar das minhas figurinhas">×</button></span>`).join("")}</div>`:`<div class="empty" style="padding:12px">Você ainda não tem figurinhas suas. Cole uma ou escolha da galeria.</div>`}</div>`;
+ openModal("Figurinhas",`<div class="stack" style="gap:12px"><div class="subtabs"><button class="${tab==="pig"?"on":""}" data-act="stkTabs" data-v="pig">🐷 Porquinho</button><button class="${tab==="mine"?"on":""}" data-act="stkTabs" data-v="mine">⭐ Minhas</button></div>${grid}</div>`);
+ setTimeout(()=>{chLoadPhotos();const f=document.getElementById("stkFile");if(f)f.addEventListener("change",()=>{const x=f.files&&f.files[0];if(x)stkNew(x)})},0)}
+async function stkNew(file,send=true){const k=UI.stkK;toast("Preparando a figurinha…",1500);try{const o=await stkMake(file);const mine=stkMine();mine.unshift(o);if(mine.length>40)mine.length=40;saveApp();if(send&&k)stkSend(k,o);else{UI.stkTab="mine";stkPicker(k)}}catch(e){console.warn(e);toast(navigator.onLine===false?"Sem internet agora. Tente de novo quando conectar.":"Não consegui usar essa imagem.")}}
+Object.assign(A,{
+ stkOpen:el=>stkPicker(el.dataset.k),
+ stkTabs:el=>{UI.stkTab=el.dataset.v;stkPicker(UI.stkK)},
+ stkPick:el=>{const v=el.dataset.v||"",k=UI.stkK;if(!k)return;if(v.startsWith("p:"))stkSend(k,{p:v.slice(2)});else if(v.startsWith("m:")){const o=stkMine()[+v.slice(2)];if(o)stkSend(k,o)}},
+ stkForget:el=>{const m=stkMine();m.splice(+el.dataset.v,1);saveApp();stkPicker(UI.stkK)},
+ stkPaste:async()=>{try{if(!navigator.clipboard||!navigator.clipboard.read)throw new Error("sem");const items=await navigator.clipboard.read();for(const it of items){const t=it.types.find(x=>x.startsWith("image/"));if(t){const b=await it.getType(t);await stkNew(new File([b],"fig.png",{type:t}));return}}toast("Não achei uma imagem copiada. Copie a figura e tente de novo.")}
+  catch(e){toast("Não deu para colar direto. Toque e segure na caixa de comentário e escolha Colar, ou use Da galeria.",5000)}},
+ stkTap:el=>{const st=STK_BY[el.dataset.v];if(!st)return;el.classList.remove("stk-pop");void el.offsetWidth;el.classList.add("stk-pop");stkPlay(st.id)},
+ stkTapC:el=>{const p=el.dataset.v;if(!p)return;const has=stkMine().some(o=>o.c===p);openModal("Figurinha",`<div class="stack" style="align-items:center;gap:14px">${stkHTML({c:p},true).replace('data-act="stkTapC"','')}${has?`<span class="small muted">Já está nas suas figurinhas ⭐</span>`:`<button class="btn block" data-act="stkSave" data-v="${esc(p)}">⭐ Salvar nas minhas figurinhas</button>`}</div>`);setTimeout(chLoadPhotos,0)},
+ stkSave:el=>{const m=stkMine();if(!m.some(o=>o.c===el.dataset.v)){m.unshift({c:el.dataset.v});saveApp()}closeModal();toast("Figurinha salva ⭐")}});
+/* colar uma imagem direto na caixa de comentário vira figurinha */
+document.addEventListener("paste",e=>{const t=e.target;if(!t||!t.dataset||!t.dataset.cmIn)return;const it=[...((e.clipboardData&&e.clipboardData.items)||[])].find(x=>x.kind==="file"&&x.type.startsWith("image/"));if(!it)return;e.preventDefault();const f=it.getAsFile();if(f){UI.stkK=t.dataset.cmIn;stkNew(f)}});
+/* nos comentários: mostra a figurinha e põe o botão 🐷 ao lado do microfone */
+{const _row=chCmRow;chCmRow=function(k,x,isReply){let h=_row.apply(this,arguments);if(x&&x.st)h=h.replace('<span style="white-space:pre-line;overflow-wrap:anywhere"></span>',`<div style="margin-top:4px">${stkHTML(x.st)}</div>`);return h}}
+{const _box=chCmBox;chCmBox=function(c,u,d){let h=_box.apply(this,arguments);const k=`${c.id}|${u}|${d}`;return h.replace('placeholder="Escreva uma resposta"','placeholder="Responda…"').replace('placeholder="Escreva um comentário"','placeholder="Comente…"').replace(`<input class="grow" data-cm-in="${k}"`,`<button type="button" class="btn ghost sm" data-act="stkOpen" data-k="${k}" aria-label="Figurinhas" title="Figurinhas" style="padding:6px 9px;font-size:18px">🐷</button><input class="grow" data-cm-in="${k}"`)}}
+(function(){const css=`.stk{border:0;background:none;padding:0;cursor:pointer;display:inline-flex;flex-direction:column;align-items:center;position:relative;max-width:100%}
+.stk-pig{width:100%;filter:drop-shadow(3px 0 0 #fff) drop-shadow(-3px 0 0 #fff) drop-shadow(0 3px 0 #fff) drop-shadow(0 -3px 0 #fff) drop-shadow(0 4px 6px rgba(0,0,0,.18))}
+.stk-pig svg{width:100%;height:auto;display:block}.stk-pig .pig-eyes,.stk-pig .pig-mouth,.stk-pig .pig-wdsad,.stk-pig .pig-wdhappy,.stk-pig .tear,.stk-pig .pig-heart,.stk-pig .pig-coin{display:none!important}
+.stk-t{margin-top:-14%;font-family:var(--f-display);font-weight:700;font-size:clamp(13px,1em,20px);line-height:1;color:#2B1E24;-webkit-text-stroke:5px #fff;paint-order:stroke fill;transform:rotate(-4deg);text-align:center;white-space:nowrap}
+.stk-c img{max-width:100%;max-height:150px;display:block;filter:drop-shadow(0 3px 6px rgba(0,0,0,.18))}
+.stk-pop{animation:stkPop .5s cubic-bezier(.3,1.6,.5,1)}@keyframes stkPop{0%{transform:scale(.6)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+.stk:active{transform:scale(.94)}
+.stkgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 8px}.stkgrid .stk-t{font-size:14px}
+.stkdel{position:absolute;top:-4px;right:-2px;width:24px;height:24px;border-radius:50%;border:0;background:var(--ink);color:var(--bg);font-weight:800;line-height:1;cursor:pointer}
+@media (prefers-reduced-motion:reduce){.stk-pop{animation:none}}`;const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)})();
 
 /* início */
 (function boot(){

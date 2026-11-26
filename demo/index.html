@@ -8105,7 +8105,7 @@ document.addEventListener("paste",e=>{const t=e.target;if(!t||!t.dataset||!t.dat
 @media (prefers-reduced-motion:reduce){.stk-pop{animation:none}}`;const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)})();
 
 /* versão do código (no app do iPhone/Android é a versão que veio dentro do app): fica no perfil para avisar quem precisa atualizar */
-const PRUMO_V="2.44";
+const PRUMO_V="2.45";
 setTimeout(function apv(){try{if(!S.profile||!S.profile.created||Store.demo){setTimeout(apv,15000);return}const k=isNativeApp()?"app":"web";if(S.profile.ver&&S.profile.ver[k]===PRUMO_V)return;S.profile.ver=Object.assign({},S.profile.ver,{[k]:PRUMO_V});saveApp()}catch(e){}},9000);
 /* ============================================================
    Tela do Plus com o progresso da pessoa + registro automático de erros
@@ -8116,7 +8116,7 @@ function plusMine(){try{let exp=0;try{for(const k of allMonths()){const d=monthD
  const it=[];if(exp)it.push(["📒",`<b>${exp}</b> lançamento${exp>1?"s":""} nas finanças`]);if(ex)it.push(["🏃",`<b>${ex}</b> treino${ex>1?"s":""} registrado${ex>1?"s":""}`]);
  if(stMin>=10)it.push(["📚",`<b>${stMin>=120?Math.round(stMin/60)+" h":stMin+" min"}</b> de estudo`]);if(meals)it.push(["🍎",`<b>${meals}</b> ${meals>1?"refeições anotadas":"refeição anotada"}`]);
  if(tk)it.push(["✅",`<b>${tk}</b> tarefa${tk>1?"s":""} concluída${tk>1?"s":""}`]);if(ev)it.push(["🗓️",`<b>${ev}</b> compromisso${ev>1?"s":""} na agenda`]);
- if(it.length<2&&days<3)return"";
+ if(it.length<2&&days<3)return `<div class="card flat stack-s" style="gap:8px"><b class="small">Você ainda está começando 🐷</b><span class="small">Comece pelo que é <b>grátis para sempre</b>: anotar gastos e rendas e montar o plano do mês. Em poucos dias você já vê para onde o dinheiro está indo. Quando quiser ir além, o Plus está aqui.</span><button class="btn line sm" data-act="plusStartFree" style="align-self:flex-start">Anotar meu primeiro gasto</button></div>`;
  return `<div class="card flat stack-s" style="gap:8px"><b class="small">${days>=2?`Em ${days} dias de Prumo, você já construiu:`:"O que você já construiu no Prumo:"}</b>
  <div class="stack-s" style="gap:5px">${it.slice(0,5).map(([i,t])=>`<div class="row small" style="gap:10px"><span style="width:22px;text-align:center">${i}</span><span>${t}</span></div>`).join("")}</div>
  <span class="tiny muted">Tudo isso continua guardado. Com o Plus, você segue exatamente de onde parou.</span></div>`}catch(e){return""}}
@@ -8135,6 +8135,7 @@ function admErrCard(){if(!ADME.list&&!ADME.loading){ADME.loading=1;sb.rpc("admin
  <span class="small muted">Registrados automaticamente, só a mensagem técnica, sem dados pessoais.</span>
  ${L.length?`<div class="list">${L.map(x=>`<div class="item" style="flex-direction:column;align-items:stretch;gap:2px"><b class="small" style="overflow-wrap:anywhere">${esc(x.msg)}</b><span class="tiny muted">${x.n}× · ${x.pessoas} pessoa${x.pessoas>1?"s":""} · ${esc(x.app||"")} ${esc(x.ver||"")} · ${esc(x.tab||"")} · último ${new Date(x.ultimo).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</span>${x.src?`<span class="tiny muted" style="overflow-wrap:anywhere;font-family:ui-monospace,monospace">${esc(x.src.slice(0,220))}</span>`:""}</div>`).join("")}</div>`:`<div class="empty" style="padding:10px">${ADME.list?"Nenhum erro registrado. 🎉":"Carregando…"}</div>`}</div>`}
 A.admErrReload=()=>{ADME.list=null;render()};
+A.plusStartFree=()=>{closeModal();if(typeof TEAM!=="undefined"&&TEAM&&typeof teamExit==="function")teamExit();UI.tab="fin";UI.fin="mes";window.scrollTo(0,0);render();setTimeout(()=>{try{expenseForm(null)}catch(e){}},50)};
 {const _ab=admBannerCard;admBannerCard=function(){return _ab.apply(this,arguments)+admErrCard()}}
 
 /* início */

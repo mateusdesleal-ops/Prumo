@@ -7360,9 +7360,9 @@ function wxDays(d){const wd=k=>["dom","seg","ter","qua","qui","sex","sáb"][new 
 function weatherCard(){if(Store.demo||S.profile.wxOff)return"";const c=S.profile.city;
  if(!c)return `<button class="card row" data-act="wxCity" style="gap:12px;text-align:left;width:100%;border:1px dashed var(--line)"><span style="font-size:28px">🌤️</span><div class="grow stack-s" style="gap:1px"><b>Previsão do tempo</b><span class="tiny muted">Escolha sua cidade para ver o tempo aqui no início.</span></div><span class="tiny muted">›</span></button>`;
  wxLoad();const d=WX.data;if(!d)return `<div class="card row" style="gap:12px"><span style="font-size:28px">🌤️</span><span class="small muted">Carregando a previsão de ${esc(c.name)}…</span></div>`;
- const t=d.daily[0]||{};const pet=!!S.profile.pet;const w=wxState();const sky=w&&w.k==='rain'?'linear-gradient(160deg,#5b6b84,#8ea3c0)':w&&w.k==='hot'?'linear-gradient(160deg,#FFB547,#FFD87A)':w&&w.k==='cold'?'linear-gradient(160deg,#8fb4dd,#cfe3f7)':'linear-gradient(160deg,#7cc4f2,#bfe6ff)';const tip=t.rain>=5?"☔ Leve o guarda-chuva hoje.":t.rain>=1?"🌂 Pode chover um pouco.":t.max>=32?"🥤 Dia quente: beba bastante água.":t.min<=12?"🧥 Vai esfriar, leve um casaco.":"";
+ const t=d.daily[0]||{};const pet=!!S.profile.pet;const w=wxState();const sky=w&&w.k==='rain'?'linear-gradient(160deg,#5b6b84,#8ea3c0)':w&&w.k==='hot'?'linear-gradient(160deg,#FFB547,#FFD87A)':w&&w.k==='cold'?'linear-gradient(160deg,#8fb4dd,#cfe3f7)':'linear-gradient(160deg,#7cc4f2,#bfe6ff)';const tip=t.rain>=5?"☔ Segundo a previsão, pode chover hoje. Talvez seja bom levar o guarda-chuva.":t.rain>=1?"🌂 Pode chover um pouco.":t.max>=32?"🥤 Dia quente: beba bastante água.":t.min<=12?"🧥 Vai esfriar, leve um casaco.":"";
  const wd=k=>["dom","seg","ter","qua","qui","sex","sáb"][new Date(k+"T12:00:00").getDay()];
- const rainTxt=d.rainNow?"Está chovendo agora.":d.rainAt?`Chuva prevista para as ${d.rainAt}.`:"";
+ const rainTxt=d.rainNow?"Está chovendo agora.":d.rainAt?`Segundo a previsão, pode chover por volta das ${d.rainAt}.`:"";
  if(!pet)return `<div class="card stack" style="gap:10px;padding:0;overflow:hidden"><div style="position:relative;background:${sky};color:#fff;padding:16px 16px 14px;overflow:hidden">${w&&w.k==="rain"?`<svg viewBox="0 0 320 120" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;opacity:.7"><g class="wx-rain">${Array.from({length:22},(_,k)=>`<line x1="${(k*29)%330}" y1="${(k*41)%120-20}" x2="${(k*29)%330-5}" y2="${(k*41)%120-6}" stroke="#e6f3ff" stroke-width="2" stroke-linecap="round" style="animation-delay:${(k%7)*.13}s"/>`).join("")}</g></svg>`:""}
   <div class="row" style="gap:12px;position:relative"><span style="font-size:52px;line-height:1">${w&&w.k==="rain"?"☔":WX_ICO(d.now.sym)}</span><div class="grow stack-s" style="gap:0"><div class="row" style="gap:8px;align-items:baseline"><b class="num" style="font-size:34px;color:#fff">${d.now.t}°</b><span class="small" style="opacity:.9">${WX_TXT(d.now.sym)}</span></div><span class="tiny" style="opacity:.9">${esc(c.name)}${c.sub?" · "+esc(c.sub):""} · máx ${t.max}° mín ${t.min}°</span></div><button class="iconbtn" data-act="wxCity" aria-label="Trocar cidade" style="width:34px;height:34px;background:rgba(255,255,255,.3);color:#fff">✎</button></div>
   ${rainTxt||tip?`<div style="position:relative;margin-top:10px;background:rgba(255,255,255,.22);border-radius:12px;padding:8px 12px" class="small">${rainTxt?rainTxt+" ":""}${tip}</div>`:""}</div>
@@ -7376,8 +7376,8 @@ function weatherCard(){if(Store.demo||S.profile.wxOff)return"";const c=S.profile
 function wxCityModal(){openModal("Previsão do tempo",`<div class="stack"><p class="small muted">Digite sua cidade. O Prumo não usa a sua localização, só a cidade que você escolher.</p>
  <div class="row" style="gap:8px"><input id="wx_q" class="grow" placeholder="Ex.: Maringá" value="" style="flex:1;min-width:0"><button class="btn" data-act="wxSearch">Buscar</button></div>
  <div class="stack-s" id="wx_res"></div>
- ${S.profile.city?`<label class="check"><input type="checkbox" id="wx_dl" ${S.profile.wxDaily===false?"":"checked"} onchange="S.profile.wxDaily=this.checked;saveApp()"><span><b>Previsão do dia às 6h30</b><br><span class="tiny muted">Todo dia de manhã: máxima, mínima e se vai chover.</span></span></label>`:""}
- ${S.profile.city?`<label class="check"><input type="checkbox" id="wx_al" ${S.profile.wxAlerts===false?"":"checked"} onchange="S.profile.wxAlerts=this.checked;saveApp()"><span><b>Avisar quando for chover</b><br><span class="tiny muted">Uma notificação quando a chuva estiver chegando na sua cidade (das 7h às 22h).</span></span></label>`:""}
+ ${S.profile.city?`<label class="check"><input type="checkbox" id="wx_dl" ${S.profile.wxDaily===false?"":"checked"} onchange="S.profile.wxDaily=this.checked;saveApp()"><span><b>Previsão do dia às 6h30</b><br><span class="tiny muted">Todo dia de manhã: máxima, mínima e se pode chover.</span></span></label>`:""}
+ ${S.profile.city?`<label class="check"><input type="checkbox" id="wx_al" ${S.profile.wxAlerts===false?"":"checked"} onchange="S.profile.wxAlerts=this.checked;saveApp()"><span><b>Avisar quando puder chover</b><br><span class="tiny muted">Uma notificação quando a chuva estiver chegando na sua cidade (das 7h às 22h).</span></span></label>`:""}
  ${S.profile.city?`<button class="btn ghost sm" data-act="wxOff" style="align-self:flex-start">Não mostrar a previsão no início</button>`:""}</div>`);setTimeout(()=>{const i=$("#wx_q");if(i){i.focus();i.addEventListener("keydown",e=>{if(e.key==="Enter")A.wxSearch()})}},100)}
 A.wxCity=()=>wxCityModal();
 A.wxSearch=async()=>{const q=v("wx_q").trim();const box=$("#wx_res");if(q.length<2||!box)return;box.innerHTML='<span class="small muted">Procurando…</span>';
@@ -7391,10 +7391,12 @@ A.wxOff=()=>{S.profile.wxOff=1;saveApp();closeModal();render();toast("Previsão 
 function wxState(){const d=WX.data;if(!d||!S.profile.city||S.profile.wxOff)return null;const t=d.daily[0]||{};const h=new Date().getHours();
  const noRain=Date.now()-(+S.profile.wxNoRain||0)<4*3600e3; // a pessoa disse que aí não está chovendo
  if(!noRain){if(d.rainNow)return{k:"rain",now:true};if(d.rainAt)return{k:"rain",at:d.rainAt};if(t.rain>=2&&h<20)return{k:"rain"}}if(t.max>=32)return{k:"hot"};if(t.min<=12)return{k:"cold"};return null}
-/* o porquinho não muda mais com o tempo: só um aviso simples se vai chover ou não */
+/* o porquinho não muda mais de desenho com o tempo; o aviso é só de chuva e sempre como possibilidade (previsão pode errar) */
 function wxPig(){return null}
-function wxPigLine(){const w=wxState();if(!w||w.k!=="rain")return"";return w.now?"☔ Está chovendo agora":w.at?`☔ Previsão de chuva às ${w.at}`:"☔ Previsão de chuva hoje"}
-function wxPigSub(){const w=wxState();const c=S.profile.city;if(!w||w.k!=="rain")return"";return `${esc(c.name)} · <button class="linkbtn" data-act="wxNoRain" style="background:none;border:0;padding:0;color:inherit;text-decoration:underline;font:inherit;cursor:pointer">Aqui não está chovendo</button>`}
+function wxPigLine(){const w=wxState();if(!w||w.k!=="rain")return"";const when=w.now?"pode chover agora":w.at?`pode chover por volta das ${w.at}`:"pode chover hoje";
+ if(S.profile.pet){const n=S.pet&&S.pet.name?esc(S.pet.name):"Seu porquinho";return `${n} avisa: segundo a previsão, ${when} ☔`}
+ return `☔ Segundo a previsão, ${when}`}
+function wxPigSub(){const w=wxState();const c=S.profile.city;if(!w||w.k!=="rain")return"";return `Talvez seja bom levar o guarda-chuva. ${esc(c.name)} · <button class="linkbtn" data-act="wxNoRain" style="background:none;border:0;padding:0;color:inherit;text-decoration:underline;font:inherit;cursor:pointer">Aqui não está chovendo</button>`}
 
 A.wxNoRain=()=>{S.profile.wxNoRain=Date.now();saveApp();render();toast("Obrigado! Tirei o aviso por algumas horas. A previsão às vezes erra. ☀️",3500)};
 
@@ -8106,7 +8108,7 @@ document.addEventListener("paste",e=>{const t=e.target;if(!t||!t.dataset||!t.dat
 @media (prefers-reduced-motion:reduce){.stk-pop{animation:none}}`;const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)})();
 
 /* versão do código (no app do iPhone/Android é a versão que veio dentro do app): fica no perfil para avisar quem precisa atualizar */
-const PRUMO_V="2.56";
+const PRUMO_V="2.57";
 setTimeout(function apv(){try{if(!S.profile||!S.profile.created||Store.demo){setTimeout(apv,15000);return}const k=isNativeApp()?"app":"web";if(S.profile.ver&&S.profile.ver[k]===PRUMO_V)return;S.profile.ver=Object.assign({},S.profile.ver,{[k]:PRUMO_V});saveApp()}catch(e){}},9000);
 /* ============================================================
    Tela do Plus com o progresso da pessoa + registro automático de erros

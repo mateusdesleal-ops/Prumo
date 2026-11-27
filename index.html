@@ -8107,7 +8107,7 @@ document.addEventListener("paste",e=>{const t=e.target;if(!t||!t.dataset||!t.dat
 @media (prefers-reduced-motion:reduce){.stk-pop{animation:none}}`;const s=document.createElement("style");s.textContent=css;document.head.appendChild(s)})();
 
 /* versão do código (no app do iPhone/Android é a versão que veio dentro do app): fica no perfil para avisar quem precisa atualizar */
-const PRUMO_V="2.57";
+const PRUMO_V="2.58";
 setTimeout(function apv(){try{if(!S.profile||!S.profile.created||Store.demo){setTimeout(apv,15000);return}const k=isNativeApp()?"app":"web";if(S.profile.ver&&S.profile.ver[k]===PRUMO_V)return;S.profile.ver=Object.assign({},S.profile.ver,{[k]:PRUMO_V});saveApp()}catch(e){}},9000);
 /* ============================================================
    Tela do Plus com o progresso da pessoa + registro automático de erros
@@ -8822,6 +8822,63 @@ async function cuYtMount(){const el=document.getElementById("cuPlayer");if(!el)r
  clearInterval(CU.yt.timer);CU.yt.timer=setInterval(()=>{try{if(CU.yt.player&&CU.yt.player.getPlayerState&&CU.yt.player.getPlayerState()===1)CU.yt.sec++}catch(e){}},1000)}
 {const _r=render;render=function(){const x=_r.apply(this,arguments);try{if(UI.tab==="study"&&UI.study==="cursos"&&CU.open&&CU.open.startsWith("yt:")){const el=document.getElementById("cuPlayer");if(el&&!el.dataset.m)setTimeout(cuYtMount,0)}else if(CU.yt.player||CU.yt.timer)cuYtStop()}catch(e){}return x}}
 addEventListener("pagehide",()=>{try{cuYtFlush()}catch(e){}});
+
+/* ---------- Check-up PRUMO ----------
+   5 perguntas (uma por área do método) logo depois do nome no cadastro. Mostra o "seu prumo" e sugere por onde começar.
+   Também pode ser refeito pelo cartão "Seu prumo" (O que é?) e pelo Perfil. Guardado em S.profile.checkup = {at, s:{P,R,U,M,O}, low}. */
+const CKQ=[
+ {k:"P",q:"Você tem tirado um tempo para pausas, oração ou reflexão?",o:["Quase nunca","Às vezes","Quase todo dia"]},
+ {k:"R",q:"Você sabe para onde vai o seu dinheiro no mês?",o:["Não faço ideia","Mais ou menos","Sei bem"]},
+ {k:"U",q:"Seus compromissos e tarefas estão sob controle?",o:["Vivo esquecendo coisas","Às vezes algo escapa","Está tudo em dia"]},
+ {k:"M",q:"Você tem lido ou aprendido algo novo?",o:["Faz tempo que não","De vez em quando","Toda semana"]},
+ {k:"O",q:"Como andam o corpo e a rotina: água, movimento, alimentação e remédios?",o:["Bem descuidados","Mais ou menos","Em dia"]}];
+const CK_SC=[20,55,90];
+const CK_TIP={
+ P:{t:"Comece com uma pausa por dia",d:"A aba Oração tem um checklist diário e orações da sua tradição. Se preferir, uma pausa de um minuto de silêncio ou gratidão já conta.",go:"prayer",b:"Ver a aba Oração"},
+ R:{t:"Comece enxergando o seu dinheiro",d:"Anote os gastos por uma semana e monte o plano do mês. O curso grátis “Organize seu dinheiro em 7 dias” te leva passo a passo.",go:"curso",b:"Começar o curso grátis"},
+ U:{t:"Comece tirando as coisas da cabeça",d:"Anote tarefas e compromissos na Agenda e deixe o Prumo te lembrar na hora certa. O modo foco ajuda a fazer uma coisa de cada vez.",go:"agenda",b:"Abrir a Agenda"},
+ M:{t:"Comece com 10 minutos por dia",d:"Registre leituras, ouça podcasts e audiolivros ou faça um curso curto nos Estudos. O tempo vai somando e você acompanha a evolução.",go:"study",b:"Abrir os Estudos"},
+ O:{t:"Comece pelo básico do corpo",d:"Marque os copos de água, cadastre seus remédios com lembrete e registre os exercícios na aba Saúde. Pequenos passos todo dia.",go:"ex",b:"Abrir a Saúde"}};
+const CK={i:0,a:{},modal:false};
+function ckResult(a){const arr=PRUMO.map(x=>({...x,s:a[x.k]!=null?CK_SC[a[x.k]]:55}));const low=arr.slice().sort((x,y)=>x.s-y.s)[0];return{arr,low,ok:low.s>=60}}
+function ckQuestionHTML(){const q=CKQ[CK.i];const area=PRUMO.find(x=>x.k===q.k);
+ return `<div class="stack" style="gap:14px"><div class="row" style="gap:6px;justify-content:center">${CKQ.map((_,i)=>`<i style="width:28px;height:5px;border-radius:3px;background:${i<=CK.i?"var(--pig)":"var(--line)"}"></i>`).join("")}</div>
+ <div class="stack-s" style="text-align:center;gap:6px"><span style="font-family:var(--f-display);font-size:44px;line-height:1;color:${area.c}">${area.k}</span><span class="tiny" style="font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${area.c}">${esc(area.n)}</span><h2 style="margin:6px 0 0;line-height:1.25">${esc(q.q)}</h2></div>
+ <div class="stack-s" style="gap:8px">${q.o.map((o,j)=>`<button class="btn line block" data-act="ckAns" data-v="${j}" style="justify-content:center;${CK.a[q.k]===j?"border-color:var(--pig);background:var(--pig-soft)":""}">${esc(o)}</button>`).join("")}</div>
+ <div class="row between">${CK.i>0?`<button class="btn ghost sm" data-act="ckPrev">‹ Voltar</button>`:`<span></span>`}${CK.modal?"":`<button class="btn ghost sm" data-act="ckSkip">Pular o check-up</button>`}</div></div>`}
+function ckResultHTML(){const r=ckResult(CK.a);const L=r.low;const tip=CK_TIP[L.k];const ok=r.ok;
+ return `<div class="stack" style="gap:14px"><div class="stack-s" style="text-align:center;gap:4px"><span class="tiny" style="font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--pig-deep)">Seu prumo hoje</span><h2 style="margin:0;line-height:1.25">${ok?"Você está bem equilibrado! 🎉":`Pendendo para o lado de ${esc(L.n)}`}</h2></div>
+ <div style="max-width:300px;margin:0 auto;width:100%">${prumoSVG(r)}</div>
+ <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">${r.arr.map(a=>`<div class="stack-s" style="align-items:center;gap:3px;border-radius:12px;padding:6px 2px;${!ok&&a.k===L.k?`background:color-mix(in srgb,${a.c} 14%,transparent)`:""}"><b style="font-family:var(--f-display);font-size:22px;color:${a.c}">${a.k}</b><span class="tiny muted" style="text-align:center;line-height:1.2">${esc(a.n)}</span><div style="width:70%;height:5px;border-radius:3px;background:var(--line);overflow:hidden"><i style="display:block;height:100%;width:${a.s}%;background:${a.c}"></i></div></div>`).join("")}</div>
+ <p class="small" style="margin:0;line-height:1.55;text-align:center">No Método PRUMO, as cinco áreas andam juntas: quando uma fica para trás, puxa as outras. ${ok?"Siga cuidando de todas, um pouquinho por dia.":`Cuidar de ${esc(L.k)} · ${esc(L.n)} vai deixar as outras mais leves.`}</p>
+ <div class="card stack-s" style="gap:6px;border:1.5px solid ${L.c};background:color-mix(in srgb,${L.c} 7%,var(--surface))"><b>🧭 ${esc(ok?"Para manter o equilíbrio":tip.t)}</b><span class="small" style="line-height:1.5">${esc(ok?"Escolha a área que você mais quer melhorar e comece por ela. Dá para refazer o check-up quando quiser.":tip.d)}</span></div>
+ ${CK.modal?`<div class="grid2"><button class="btn ghost" data-act="ckRedo">Refazer</button><button class="btn" data-act="ckGo">${esc(ok?"Fechar":tip.b)}</button></div>`:`<button class="btn block" data-act="ckDone">Continuar</button>`}</div>`}
+const ckHTML=()=>CK.i<CKQ.length?ckQuestionHTML():ckResultHTML();
+/* no cadastro: passo 0.25, entre o nome e os hábitos */
+{const _v=viewOnboarding;viewOnboarding=function(){if(UI.onb===0.25)return `<div class="onb">${ckHTML()}</div>`;return _v.apply(this,arguments)}}
+{const _n=A.onbNext;A.onbNext=function(){if(UI.onb===0){onbSave();if(!ONB.name){toast("Digite seu nome para continuar.");return}CK.i=0;CK.a=ONB.ck||{};CK.modal=false;UI.onb=0.25;try{trackOnce("checkup:viu")}catch(e){}render();window.scrollTo(0,0);return}return _n.apply(this,arguments)}}
+{const _b=A.onbBack;A.onbBack=function(){if(UI.onb===0.5){onbSave();CK.i=CKQ.length;CK.modal=false;UI.onb=0.25;render();return}if(UI.onb===0.25){UI.onb=0;render();return}return _b.apply(this,arguments)}}
+A.ckAns=el=>{const q=CKQ[CK.i];CK.a[q.k]=+el.dataset.v;CK.i++;if(CK.i>=CKQ.length){try{trackOnce("checkup:fim")}catch(e){}}if(CK.modal)ckModalRender();else render();window.scrollTo(0,0)};
+A.ckPrev=()=>{CK.i=Math.max(0,CK.i-1);CK.modal?ckModalRender():render()};
+A.ckSkip=()=>{try{trackOnce("checkup:pulou")}catch(e){}ONB.ck=null;UI.focusSel=(ONB.focus||[]).slice();UI.onb=0.5;render();window.scrollTo(0,0)};
+A.ckDone=()=>{ONB.ck=Object.assign({},CK.a);UI.focusSel=(ONB.focus||[]).slice();UI.onb=0.5;render();window.scrollTo(0,0)};
+function ckSave(a){const r=ckResult(a);S.profile.checkup={at:today(),s:Object.fromEntries(r.arr.map(x=>[x.k,x.s])),low:r.ok?null:r.low.k}}
+{const _f=A.onbFinish;A.onbFinish=function(){const ck=ONB.ck;const r=_f.apply(this,arguments);try{if(ck&&Object.keys(ck).length){ckSave(ck);commit()}}catch(e){}return r}}
+/* refazer depois (modal) */
+function ckModalRender(){openModal("Check-up PRUMO",ckHTML())}
+function ckOpen(){CK.i=0;CK.a={};CK.modal=true;try{trackOnce("checkup:refez")}catch(e){}ckModalRender()}
+A.ckOpen=()=>ckOpen();
+A.ckRedo=()=>ckOpen();
+A.ckGo=()=>{ckSave(CK.a);commit();const r=ckResult(CK.a);closeModal();if(!r.ok)ckGoArea(r.low.k)};
+function ckGoArea(k){const t=CK_TIP[k];if(!t)return;try{trackOnce("checkup:foi:"+k)}catch(e){}
+ if(t.go==="curso"){UI.tab="study";UI.study="cursos";if(typeof CU!=="undefined"){CU.tab="prumo";CU.open=null}}else UI.tab=t.go;window.scrollTo(0,0);render()}
+{const _pi=A.prumoInfo;A.prumoInfo=function(){const r=_pi.apply(this,arguments);try{const m=document.querySelector("#modal .sheet .stack, #modal .stack");const btn=document.querySelector('#modal [data-act="lesson"][data-v="pm0"]');if(btn&&!document.querySelector('#modal [data-act="ckOpen"]'))btn.insertAdjacentHTML("beforebegin",`<button class="btn block line" data-act="ckOpen" style="margin-top:12px">🧭 Fazer o meu check-up (1 minuto)</button>`)}catch(e){}return r}}
+/* Início: nos primeiros dias, lembra por onde começar */
+function ckHomeCard(){try{const c=S.profile.checkup;if(TEAM||!c||!c.low||S.profile.ckCardOff)return"";const age=Math.round((parseDate(today())-parseDate(c.at))/864e5);if(age>7)return"";const a=PRUMO.find(x=>x.k===c.low);const t=CK_TIP[c.low];if(!a||!t)return"";
+ return `<div class="card stack-s" style="gap:8px;border-left:5px solid ${a.c}"><div class="row" style="justify-content:space-between;gap:8px;align-items:flex-start"><div class="stack-s" style="gap:3px"><span class="tiny" style="font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${a.c}">Seu check-up · ${esc(a.n)}</span><b>${esc(t.t)}</b><span class="small" style="line-height:1.45">${esc(t.d)}</span></div><button class="iconbtn" data-act="ckCardOff" aria-label="Fechar" style="width:30px;height:30px;font-size:14px;flex:none">✕</button></div><button class="btn sm" data-act="ckGoHome" data-v="${a.k}" style="align-self:flex-start">${esc(t.b)}</button></div>`}catch(e){return""}}
+A.ckCardOff=()=>{S.profile.ckCardOff=1;commit()};
+A.ckGoHome=el=>ckGoArea(el.dataset.v);
+{const _vh=viewHome;viewHome=function(){const h=_vh.apply(this,arguments);const c=ckHomeCard();if(!c)return h;const r=h.replace(/(<div class="card stack" id="prumoCard")/,c+"$1");return r===h?h:r}}
 
 /* início */
 (function boot(){

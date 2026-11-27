@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Conferir certificado · Prumo</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&family=Figtree:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#FFF6F1;--card:#fff;--ink:#2B1E24;--muted:#7A6A72;--pig:#F28AA8;--deep:#B33A61}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Figtree,Arial,sans-serif;padding:40px 16px;text-align:center}
+.card{max-width:460px;margin:0 auto;background:var(--card);border-radius:20px;padding:30px 24px;box-shadow:0 10px 30px rgba(43,30,36,.08)}
+h1{font-family:Fredoka,Arial,sans-serif;font-weight:600;font-size:26px;margin:10px 0 8px}
+p{line-height:1.6;margin:0 0 12px}.muted{color:var(--muted);font-size:13px}
+form{display:flex;gap:8px;margin-top:14px}input{flex:1;font:inherit;padding:12px 14px;border:1.5px solid #E7D9DE;border-radius:12px;text-transform:uppercase}
+button{font:inherit;font-weight:700;background:#D9547F;color:#fff;border:0;border-radius:12px;padding:12px 16px}
+a{color:var(--deep);font-weight:700}
+</style>
+</head>
+<body>
+<div class="card" id="out"><div style="font-size:40px">🎓</div><h1>Conferir certificado</h1><p>Digite o código que aparece no certificado do Prumo.</p>
+<form id="f"><input id="c" placeholder="PR-XXXX-XXXX" maxlength="20" autocomplete="off"><button>Conferir</button></form></div>
+<p style="margin-top:22px"><a href="/">prumovidaemordem.com.br</a></p>
+<script src="/config.js"></script>
+<script>
+const esc=s=>String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const box=document.getElementById("out");
+async function check(code){code=String(code||"").toUpperCase().replace(/[^A-Z0-9-]/g,"").slice(0,20);if(!code)return;
+ box.innerHTML='<p class="muted">Conferindo…</p>';
+ try{const C=window.PRUMO_CONFIG||{};const r=await fetch(C.supabaseUrl+"/rest/v1/rpc/cert_check",{method:"POST",headers:{"Content-Type":"application/json",apikey:C.supabaseKey,Authorization:"Bearer "+C.supabaseKey},body:JSON.stringify({p_code:code})});
+  const d=await r.json();
+  if(!d||!d.name){box.innerHTML=`<div style="font-size:40px">🔎</div><h1>Certificado não encontrado</h1><p>Não achamos o código <b>${esc(code)}</b>. Confira se digitou igual ao certificado.</p><p><a href="/certificado/">Tentar outro código</a></p>`;return}
+  const dt=new Date(d.issued_at).toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric",timeZone:"America/Sao_Paulo"});
+  box.innerHTML=`<div style="font-size:44px">✅</div><h1>Certificado válido</h1><p><b>${esc(d.name)}</b> concluiu o curso <b>${esc(d.course)}</b>, com carga horária de ${d.hours} hora${d.hours>1?"s":""}, no Prumo em ${dt}.</p><p class="muted">Código ${esc(code)} · Curso livre, de formação complementar.</p>`;
+ }catch(e){box.innerHTML='<h1>Sem conexão</h1><p>Não deu para conferir agora. Tente de novo em instantes.</p>'}}
+document.getElementById("f").addEventListener("submit",e=>{e.preventDefault();check(document.getElementById("c").value)});
+const q=new URLSearchParams(location.search).get("c");if(q)check(q);
+</script>
+</body>
+</html>
